@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Steps, Form, Input, Button, DatePicker, Space, message, Row, Col } from 'antd';
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Steps, Form, Input, Button, DatePicker, Space, message, Row, Col,InputNumber  } from 'antd';
+import { MinusCircleOutlined, PlusOutlined, CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+
 import { auth, createUserWithEmailAndPassword, db, addDoc, collection } from '../../firebase-config';
 
 const { Step } = Steps;
@@ -9,8 +10,24 @@ const Signup: React.FC = () => {
     const [currentStep, setCurrentStep] = useState<number>(0);
     const [form] = Form.useForm();
 
-    const nextStep = () => setCurrentStep(currentStep + 1);
-    const prevStep = () => setCurrentStep(currentStep - 1);
+    const nextStep = async () => {
+        try {
+          // Determine fields to validate based on the current step
+          const fieldsToValidate = currentStep === 0 ? ['email', 'password', 'confirmationNumber'] :
+                                  currentStep === 1 ? ['title', 'firstName', 'lastName', 'dob', 'address'] :
+                                  currentStep === 2 ? ['companyName', 'companyAddress', 'properties'] : [];
+          
+          // Validate only the required fields for the current step
+          await form.validateFields(fieldsToValidate);
+          setCurrentStep(currentStep + 1); // Proceed to next step if validation is successful
+        } catch (error) {
+          // Handle validation failure (e.g., by showing a message)
+          console.error('Validation failed:', error);
+        }
+      };
+          const prevStep = () => setCurrentStep(currentStep - 1);
+    const [showCheckMark, setShowCheckMark] = useState(false); // New state
+    const [loading, setLoading] = useState<boolean>(false); // State to control loading indicator
 
     const handleFirebaseSignup = async (email: string, password: string) => {
         try {
@@ -21,32 +38,59 @@ const Signup: React.FC = () => {
         }
     };
 
-    const handleFormSubmit = async (values: any) => {
+    // Adjust the handleSubmit function to call handleFormSubmit
+
+    useEffect(() => {
+        // If on the last step, trigger loading and then show checkmark after a delay
+        if (currentStep === 3) {
+          setLoading(true);
+          const timer = setTimeout(() => {
+            setLoading(false);
+            message.success('Registration Complete!');
+          }, 10000); // Wait for 10 seconds
+    
+          // Cleanup function to clear the timeout if the component unmounts
+          return () => clearTimeout(timer);
+        }
+      }, [currentStep]);
+
+    const handleSubmit = async () => {
+        const { email, password, companyName, companyAddress, properties } = form.getFieldsValue();
+        
         try {
-            const { email, password, ...rest } = values;
             const user = await handleFirebaseSignup(email, password);
-            await addDoc(collection(db, "users"), {
-                uid: user.uid,
-                ...rest
+
+            const companyRef = await addDoc(collection(db, "companies"), {
+              uid: user.uid,
+              companyName,
+              companyAddress
             });
+
+            for (const property of properties) {
+                const propertyRef = await addDoc(collection(db, "properties"), {
+                  companyId: companyRef.id,
+                  propertyName: property.name,
+                  propertyAddress: property.address // Include property address
+                });
+
+                // Create a new document in the standalone "units" collection
+                await addDoc(collection(db, "units"), {
+                  propertyId: propertyRef.id, // Link unit to property
+                  numberOfUnits: property.units // Store number of units for the property
+                });
+            }
+
             message.success('Signup successful!');
         } catch (error) {
-            console.error(error);
-            message.error('Signup failed. Please try again.');
+            console.error('Signup failed:', error);
+            message.error('Signup failed.');
         }
     };
 
-    // Adjust the handleSubmit function to call handleFormSubmit
-    const handleSubmit = async () => {
-        try {
-            const values = await form.validateFields();
-            await handleFormSubmit(values);
-        } catch (errorInfo) {
-            console.log('Failed:', errorInfo);
-        }
-    };
 
     const renderStepContent = (step: number) => {
+
+        
         switch (step) {
             case 0:
                 return (
@@ -88,60 +132,83 @@ const Signup: React.FC = () => {
               </Form.Item>
                     </>
                 );
-            case 2:
-                return (
-                    <>
-                        <Form.Item name="companyName" label="Company Name" rules={[{ required: true, message: 'Please input your company name!' }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item name="companyAddress" label="Company Address" rules={[{ required: true, message: 'Please input your company address!' }]}>
-                <Input />
-              </Form.Item>
-              <Form.List name="properties">
-                {(fields, { add, remove }) => (
-                    <>
-                    {fields.map(({ key, name, fieldKey, ...restField }) => (
-                        <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                        <Form.Item
-                            {...restField}
-                            name={[name, 'name']}
-                            fieldKey={fieldKey} // Just use fieldKey directly here
-                            rules={[{ required: true, message: 'Missing property name' }]}
-                        >
-                            <Input placeholder="Property Name" />
-                        </Form.Item>
-                        <MinusCircleOutlined onClick={() => remove(name)} />
-                        </Space>
-                    ))}
-                    <Form.Item>
-                        <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                        Add Property
-                        </Button>
-                    </Form.Item>
-                    </>
-                )}
-                </Form.List>
+                case 2:
+                    return (
+                        <>
+                            <Form.Item name="companyName" label="Company Name" rules={[{ required: true, message: 'Please input your company name!' }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.Item name="companyAddress" label="Company Address" rules={[{ required: true, message: 'Please input your company address!' }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.List name="properties">
+                                        {(fields, { add, remove }) => (
+                                            <>
+                                                {fields.map(({ key, name, fieldKey, ...restField }) => (
+                                                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                                                        <Form.Item
+                                                            {...restField}
+                                                            name={[name, 'name']}
+                                                            fieldKey={fieldKey} // Directly use fieldKey here without wrapping in an array
+                                                            rules={[{ required: true, message: 'Missing property name' }]}
+                                                        >
+                                                            <Input placeholder="Property Name" />
+                                                        </Form.Item>
+                                                        <Form.Item
+                                                            {...restField}
+                                                            name={[name, 'address']}
+                                                            fieldKey={fieldKey} // And here
+                                                            rules={[{ required: true, message: 'Missing property address' }]}
+                                                        >
+                                                            <Input placeholder="Property Address" />
+                                                        </Form.Item>
+                                                        <Form.Item
+                                                            {...restField}
+                                                            name={[name, 'units']}
+                                                            fieldKey={fieldKey} // And here
+                                                            rules={[{ required: true, message: 'Missing number of units' }]}
+                                                        >
+                                                            <InputNumber min={1} placeholder="Number of Units" />
+                                                        </Form.Item>
+                                                        <MinusCircleOutlined onClick={() => remove(name)} />
+                                                    </Space>
+                                                ))}
 
-                    </>
-                );
-            case 3:
-                return (
-                    <>
-                        {/* Form fields for step 3 */}
-                    </>
-                );
-            default:
-                return null;
+                                                <Form.Item>
+                                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                                        Add Property
+                                                    </Button>
+                                                </Form.Item>
+                                            </>
+                                        )}
+                                    </Form.List>
+
+                        </>
+                    );
+                // Case 3 adjustments for unit input
+                case 3:
+        if (loading) {
+          return <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <LoadingOutlined style={{ fontSize: '24px' }} />
+            <p>Processing...</p>
+          </div>;
+        } else {
+          return <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <CheckCircleOutlined style={{ color: 'green', fontSize: '24px' }} />
+            <p>Registration Complete!</p>
+          </div>;
         }
-    };
-
+      default:
+        return null;
+    }
+  };
     return (
         <div>
             <Steps current={currentStep}>
                 <Step title="Email and Passowrd" />
                 <Step title="Personal Information" />
                 <Step title="Company Information" />
-                <Step title="Property Setup" />
+                <Step title="Complete" />
             </Steps>
             <Form
                 form={form}
