@@ -25,7 +25,7 @@ const dropdownMenu = (
         <Link to="/settings">Settings</Link>
       </Menu.Item>
       <Menu.Item icon={<BlockOutlined />}>
-        <Link to="/home">Overview</Link>
+        <Link to="">Overview</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}>
         <Link to="/logout">Logout</Link>

@@ -1,238 +1,433 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, Button, DatePicker, Space, message, Row, Col,InputNumber  } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
-
-import { auth, createUserWithEmailAndPassword, db, addDoc, collection } from '../../firebase-config';
+import { Steps, Form, Input, Button, DatePicker, Select, message, Space, Row, Col, InputNumber } from 'antd';
+import { MinusCircleOutlined, PlusOutlined, LoadingOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { auth, createUserWithEmailAndPassword, db } from '../../firebase-config';
+import { sendEmailVerification } from "firebase/auth";
+import moment from 'moment';
+import { Timestamp } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
 const { Step } = Steps;
 
-const Signup: React.FC = () => {
-    const [currentStep, setCurrentStep] = useState<number>(0);
-    const [form] = Form.useForm();
+interface AccountFormValues {
+  email: string;
+  password: string;
+}
 
-    const nextStep = async () => {
-        try {
-          // Determine fields to validate based on the current step
-          const fieldsToValidate = currentStep === 0 ? ['email', 'password', 'confirmationNumber'] :
-                                  currentStep === 1 ? ['title', 'firstName', 'lastName', 'dob', 'address'] :
-                                  currentStep === 2 ? ['companyName', 'companyAddress', 'properties'] : [];
-          
-          // Validate only the required fields for the current step
-          await form.validateFields(fieldsToValidate);
-          setCurrentStep(currentStep + 1); // Proceed to next step if validation is successful
-        } catch (error) {
-          // Handle validation failure (e.g., by showing a message)
-          console.error('Validation failed:', error);
+interface PersonalInfoFormValues {
+  title: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  suffix: string;
+  dob: moment.Moment; // Ensure you have moment.js installed or use a Date type
+  address: {
+    addressline: string;
+    secondAddressLine: string;
+    city: string;
+    postal: string;
+    province: string;
+    country: string;
+  };
+}
+
+
+
+interface CompanyInfoFormValues {
+  companyName: string;
+  companyPhoneNumber: string;
+  companyEmail: string;
+  companyAddress: {
+    addressline: string;
+    secondAddressLine?: string; // Make optional if not required
+    city: string;
+    postal: string;
+    province: string;
+    country: string;
+  };
+}
+
+
+
+
+const Signup = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
+  const navigate = useNavigate();
+
+
+  const handleAccountCreation = async ({ email, password }: AccountFormValues) => {
+    setLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(userCredential.user);
+      message.info('A verification email has been sent. Please verify your email.');
+      // Move to loading / email verification check page
+      setCurrentStep(currentStep + 1); // Assuming this is your loading/verification page
+    } catch (error: any) { // Adjust error handling as needed
+      if (error instanceof Error) {
+        console.error('Account creation failed:', error);
+        message.error(`Account creation failed. ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
+
+
+  const handlePersonalInfoSubmit = async (values: PersonalInfoFormValues) => {
+    if (!auth.currentUser) {
+    message.error("You must be logged in to perform this action.");
+    return;
+  }
+
+  // Preprocess form values for Firestore compatibility
+  const processedValues = {
+    ...values,
+    middleName: values.middleName || "", // Convert undefined to empty string
+    suffix: values.suffix || "", // Ensure undefined suffix is handled
+    dob: values.dob ? Timestamp.fromDate(values.dob.toDate()) : null, // Handling Date conversion
+    address: {
+      ...values.address,
+      secondAddressLine: values.address.secondAddressLine || "", // Handling optional fields
+    },
+    uid: auth.currentUser.uid, // Including user's UID for association and rule compliance
+  };
+
+  try {
+    const docRef = await addDoc(collection(db, "personal_info"), processedValues);
+    console.log("Document written with ID: ", docRef.id);
+    message.success("Personal information saved successfully!");
+    setCurrentStep(currentStep + 1); // Proceed to the next step
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    message.error("Failed to save personal information.");
+  }
+};
+
+  
+  
+  
+
+  useEffect(() => {
+    // This function checks the user's email verification status
+    const checkEmailVerified = async () => {
+      // Ensure currentUser is not null before attempting to reload or access properties
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
+          setCurrentStep(currentStep + 1); // Move to the next step
+          clearInterval(intervalId); // Clear the interval once verified
         }
+      }
+    };
+  
+    const intervalId = setInterval(() => {
+      // Only proceed with the check if currentUser exists and email is not verified
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        checkEmailVerified();
+      }
+    }, 10000); // Check every 15 seconds
+  
+    // Cleanup on component unmount
+    return () => clearInterval(intervalId);
+  }, [currentStep]);
+  
+  
+
+
+  const handleCompanyInfoSubmit = async (values: CompanyInfoFormValues) => {
+    if (!auth.currentUser) {
+      console.error('No user logged in');
+      message.error('You must be logged in to perform this action.');
+      return;
+    }
+    const companyId = uuidv4(); // Generate a unique ID for the company
+
+    // Destructure company address for detailed fields
+    const { companyName, companyPhoneNumber, companyEmail, companyAddress } = values;
+  
+    try {
+      // Prepare company address data for Firestore, converting it to a suitable format if necessary
+      const companyAddressData = {
+        ...companyAddress,
+        // Make sure to handle undefined optional fields appropriately
+        secondAddressLine: companyAddress.secondAddressLine || "",
       };
-          const prevStep = () => setCurrentStep(currentStep - 1);
-    const [showCheckMark, setShowCheckMark] = useState(false); // New state
-    const [loading, setLoading] = useState<boolean>(false); // State to control loading indicator
-
-    const handleFirebaseSignup = async (email: string, password: string) => {
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            return userCredential.user;
-        } catch (error) {
-            throw error;
-        }
-    };
-
-    // Adjust the handleSubmit function to call handleFormSubmit
-
-    useEffect(() => {
-        // If on the last step, trigger loading and then show checkmark after a delay
-        if (currentStep === 3) {
-          setLoading(true);
-          const timer = setTimeout(() => {
-            setLoading(false);
-            message.success('Registration Complete!');
-          }, 10000); // Wait for 10 seconds
-    
-          // Cleanup function to clear the timeout if the component unmounts
-          return () => clearTimeout(timer);
-        }
-      }, [currentStep]);
-
-    const handleSubmit = async () => {
-        const { email, password, companyName, companyAddress, properties } = form.getFieldsValue();
-        
-        try {
-            const user = await handleFirebaseSignup(email, password);
-
-            const companyRef = await addDoc(collection(db, "companies"), {
-              uid: user.uid,
-              companyName,
-              companyAddress
-            });
-
-            for (const property of properties) {
-                const propertyRef = await addDoc(collection(db, "properties"), {
-                  companyId: companyRef.id,
-                  propertyName: property.name,
-                  propertyAddress: property.address // Include property address
-                });
-
-                // Create a new document in the standalone "units" collection
-                await addDoc(collection(db, "units"), {
-                  propertyId: propertyRef.id, // Link unit to property
-                  numberOfUnits: property.units // Store number of units for the property
-                });
-            }
-
-            message.success('Signup successful!');
-        } catch (error) {
-            console.error('Signup failed:', error);
-            message.error('Signup failed.');
-        }
-    };
-
-
-    const renderStepContent = (step: number) => {
-
-        
-        switch (step) {
-            case 0:
-                return (
-                    <>
-                        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Please input your email!' }]}>
+  
+      // Prepare the document to be saved
+      const companyData = {
+        id: companyId,
+        uid: auth.currentUser.uid,
+        companyName,
+        companyPhoneNumber,
+        companyEmail,
+        companyAddress: companyAddressData,
+      };
+  
+      // Save company data to Firestore
+      const companyRef = await addDoc(collection(db, "companies"), companyData);
+  
+      message.success('Company information saved successfully!');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error saving company information:', error);
+      message.error('Error saving company information.');
+    }
+  };
+  
+  
+  const renderStepContent = (step: number) => {
+    switch (step) {
+      case 0:
+        return (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleAccountCreation} 
+            >
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[{ required: true, message: 'Please input your email!' }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={[{ required: true, message: 'Please input your password!' }]}
+            >
+              <Input.Password />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              Create Account
+            </Button>
+          </Form>
+        );
+        case 1: // Assuming this is the loading/verification page
+        return (
+          <div>
+            <p>Verifying your email... Please check your inbox and verify your email to continue.</p>
+            <LoadingOutlined style={{ fontSize: 24 }} spin />
+          </div>
+        );
+      
+        case 2:
+          return (
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handlePersonalInfoSubmit}
+            >
+              <Form.Item
+                name="title"
+                label="Title"
+                rules={[{ required: true, message: 'Please select your title!' }]}
+              >
+                <Select>
+                  <Select.Option value="Mr">Mr</Select.Option>
+                  <Select.Option value="Ms">Ms</Select.Option>
+                  <Select.Option value="Mrs">Mrs</Select.Option>
+                  {/* Add more options as needed */}
+                </Select>
+              </Form.Item>
+              <Form.Item
+                name="firstName"
+                label="First Name"
+                rules={[{ required: true, message: 'Please input your first name!' }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Please input your password!' }]}>
-                <Input.Password />
-              </Form.Item>
-              <Form.Item name="confirmationNumber" label="Confirmation Number" rules={[{ required: true, message: 'Please input your confirmation number!' }]}>
+              <Form.Item
+                name="middleName"
+                label="Middle Name"
+              >
                 <Input />
               </Form.Item>
-                    </>
-                );
-            case 1:
-                return (
-                    <>
-                       <Form.Item name="title" label="Title">
+              <Form.Item
+                name="lastName"
+                label="Last Name"
+                rules={[{ required: true, message: 'Please input your last name!' }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: 'Please input your first name!' }]}>
-                <Input />
+              <Form.Item
+                name="suffix"
+                label="Suffix"
+              >
+                <Select>
+                  <Select.Option value="Jr">Jr</Select.Option>
+                  <Select.Option value="Sr">Sr</Select.Option>
+                  {/* Add more options as needed */}
+                </Select>
               </Form.Item>
-              <Form.Item name="middleName" label="Middle Name">
-                <Input />
-              </Form.Item>
-              <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: 'Please input your last name!' }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item name="suffix" label="Suffix">
-                <Input />
-              </Form.Item>
-              <Form.Item name="dob" label="Date of Birth" rules={[{ required: true, message: 'Please select your date of birth!' }]}>
+              <Form.Item
+                name="dob"
+                label="Date of Birth"
+                rules={[{ required: true, message: 'Please select your date of birth!' }]}
+              >
                 <DatePicker />
               </Form.Item>
-              <Form.Item name="address" label="Address" rules={[{ required: true, message: 'Please input your address!' }]}>
-                <Input />
-              </Form.Item>
-                    </>
-                );
-                case 2:
-                    return (
-                        <>
-                            <Form.Item name="companyName" label="Company Name" rules={[{ required: true, message: 'Please input your company name!' }]}>
-                                <Input />
-                            </Form.Item>
-                            <Form.Item name="companyAddress" label="Company Address" rules={[{ required: true, message: 'Please input your company address!' }]}>
-                                <Input />
-                            </Form.Item>
-                            <Form.List name="properties">
-                                        {(fields, { add, remove }) => (
-                                            <>
-                                                {fields.map(({ key, name, fieldKey, ...restField }) => (
-                                                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                                                        <Form.Item
-                                                            {...restField}
-                                                            name={[name, 'name']}
-                                                            fieldKey={fieldKey} // Directly use fieldKey here without wrapping in an array
-                                                            rules={[{ required: true, message: 'Missing property name' }]}
-                                                        >
-                                                            <Input placeholder="Property Name" />
-                                                        </Form.Item>
-                                                        <Form.Item
-                                                            {...restField}
-                                                            name={[name, 'address']}
-                                                            fieldKey={fieldKey} // And here
-                                                            rules={[{ required: true, message: 'Missing property address' }]}
-                                                        >
-                                                            <Input placeholder="Property Address" />
-                                                        </Form.Item>
-                                                        <Form.Item
-                                                            {...restField}
-                                                            name={[name, 'units']}
-                                                            fieldKey={fieldKey} // And here
-                                                            rules={[{ required: true, message: 'Missing number of units' }]}
-                                                        >
-                                                            <InputNumber min={1} placeholder="Number of Units" />
-                                                        </Form.Item>
-                                                        <MinusCircleOutlined onClick={() => remove(name)} />
-                                                    </Space>
-                                                ))}
+              {/* Address Fields */}
+      <Form.Item
+        name={['address', 'addressline']}
+        label="Address"
+        rules={[{ required: true, message: 'Please input your street!' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name={['address', 'secondAddressLine']}
+        label="Address Line 2 (Optional)"
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name={['address', 'city']}
+        label="City"
+        rules={[{ required: true, message: 'Please input your city!' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name={['address', 'postal']}
+        label="Postal / Zip Code"
+        rules={[{ required: true, message: 'Please input your postal or zip code!' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name={['address', 'province']}
+        label="Province / State"
+        rules={[{ required: true, message: 'Please input your province or state!' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name={['address', 'country']}
+        label="Country"
+        rules={[{ required: true, message: 'Please select your country!' }]}
+      >
+        <Select showSearch>
+          {/* Populate with your list of countries */}
+          <Select.Option value="USA">USA</Select.Option>
+          <Select.Option value="Canada">Canada</Select.Option>
+          {/* Add more options as needed */}
+        </Select>
+      </Form.Item>
 
-                                                <Form.Item>
-                                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                                                        Add Property
-                                                    </Button>
-                                                </Form.Item>
-                                            </>
-                                        )}
-                                    </Form.List>
-
-                        </>
-                    );
-                // Case 3 adjustments for unit input
-                case 3:
-        if (loading) {
-          return <div style={{ textAlign: 'center', marginTop: 48 }}>
-            <LoadingOutlined style={{ fontSize: '24px' }} />
-            <p>Processing...</p>
-          </div>;
-        } else {
-          return <div style={{ textAlign: 'center', marginTop: 48 }}>
-            <CheckCircleOutlined style={{ color: 'green', fontSize: '24px' }} />
-            <p>Registration Complete!</p>
-          </div>;
-        }
+      <Button type="primary" htmlType="submit">
+        Save Personal Information
+      </Button>
+    </Form>
+  );
+        
+  case 3:
+    return (
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleCompanyInfoSubmit}
+      >
+        <Form.Item
+          name="companyName"
+          label="Company Name"
+          rules={[{ required: true, message: 'Please input your company name!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="companyPhoneNumber"
+          label="Company Phone Number"
+          rules={[{ required: true, message: 'Please input your company phone number!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="companyEmail"
+          label="Company Email"
+          rules={[{ required: true, message: 'Please input your company email!' }]}
+        >
+          <Input type="email" />
+        </Form.Item>
+        {/* Company Address Fields */}
+        <Form.Item
+          name={['companyAddress', 'addressline']}
+          label="Address"
+          rules={[{ required: true, message: 'Please input your company street address!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['companyAddress', 'secondAddressLine']}
+          label="Address Line 2 (Optional)"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['companyAddress', 'city']}
+          label="City"
+          rules={[{ required: true, message: 'Please input your company city!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['companyAddress', 'postal']}
+          label="Postal / Zip Code"
+          rules={[{ required: true, message: 'Please input your company postal or zip code!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['companyAddress', 'province']}
+          label="Province / State"
+          rules={[{ required: true, message: 'Please input your company province or state!' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['companyAddress', 'country']}
+          label="Country"
+          rules={[{ required: true, message: 'Please select your company country!' }]}
+        >
+          <Select showSearch>
+            {/* Populate with your list of countries */}
+            <Select.Option value="USA">USA</Select.Option>
+            <Select.Option value="Canada">Canada</Select.Option>
+            {/* Add more options as needed */}
+          </Select>
+        </Form.Item>
+  
+        <Button type="primary" htmlType="submit">
+          Save Company Information
+        </Button>
+      </Form>
+    );
+  
       default:
         return null;
     }
   };
-    return (
-        <div>
-            <Steps current={currentStep}>
-                <Step title="Email and Passowrd" />
-                <Step title="Personal Information" />
-                <Step title="Company Information" />
-                <Step title="Complete" />
-            </Steps>
-            <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSubmit}
-                autoComplete="off"
-                style={{ marginTop: 32 }}
-            >
-                {renderStepContent(currentStep)}
-                <Row justify="space-between" style={{ marginTop: 24 }}>
-                    <Col>
-                        <Button disabled={currentStep === 0} onClick={prevStep}>
-                            Previous
-                        </Button>
-                    </Col>
-                    <Col>
-                        <Button type="primary" onClick={currentStep < 3 ? nextStep : handleSubmit}>
-                            {currentStep < 3 ? 'Next' : 'Submit'}
-                        </Button>
-                    </Col>
-                </Row>
-            </Form>
-        </div>
-    );
+
+  return (
+    <div>
+      <Steps current={currentStep}>
+        <Step title="Create Account" />
+        <Step title="Verify Email" />
+        <Step title="Personal Info" />
+        <Step title="Company Info" />
+      </Steps>
+      <div style={{ marginTop: "24px" }}>
+        {renderStepContent(currentStep)}
+      </div>
+    </div>
+  );
 };
 
 export default Signup;
