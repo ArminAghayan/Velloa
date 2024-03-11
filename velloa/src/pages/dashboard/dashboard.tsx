@@ -161,7 +161,7 @@ const DashboardPage = () => {
   const dropdownMenu = (
     <Menu>
       <Menu.Item icon={<SettingOutlined />}><Link to="/settings">Settings</Link></Menu.Item>
-      <Menu.Item icon={<BlockOutlined />}><Link to="/dashboard">Overview</Link></Menu.Item>
+      <Menu.Item icon={<BlockOutlined />}><Link to="/dashboard">Dashboard</Link></Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}><Link to="/logout">Logout</Link></Menu.Item>
     </Menu>
   );

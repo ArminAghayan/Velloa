@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {Link, Outlet  } from 'react-router-dom';
 import { Layout, Menu, Button, Dropdown, Avatar, Typography, theme } from 'antd';
 import {
@@ -26,7 +26,7 @@ const dropdownMenu = (
         <Link to="/settings">Settings</Link>
       </Menu.Item>
       <Menu.Item icon={<BlockOutlined />}>
-        <Link to="/dashboard">Overview</Link>
+        <Link to="/dashboard">Dashboard</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}>
         <Link to="/logout">Logout</Link>
@@ -41,7 +41,16 @@ const Sidebar = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
   const location = useLocation();
-  const propertyName = location.state?.property.propertyName;
+  const propertyName = location.state?.property?.propertyName || localStorage.getItem('propertyName');
+
+
+
+  useEffect(() => {
+    if (location.state?.property?.propertyName) {
+      localStorage.setItem('propertyName', location.state.property.propertyName);
+    }
+  }, [location.state?.property?.propertyName]);
+
 
   return (
       <Layout style={{ minHeight: '100vh' }}>
