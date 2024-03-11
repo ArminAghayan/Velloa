@@ -17,6 +17,7 @@ import {
   
 
 } from '@ant-design/icons';
+import { useLocation } from 'react-router-dom';
 
 
 const dropdownMenu = (
@@ -25,7 +26,7 @@ const dropdownMenu = (
         <Link to="/settings">Settings</Link>
       </Menu.Item>
       <Menu.Item icon={<BlockOutlined />}>
-        <Link to="">Overview</Link>
+        <Link to="/dashboard">Overview</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}>
         <Link to="/logout">Logout</Link>
@@ -34,22 +35,23 @@ const dropdownMenu = (
   );
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
-
 const Sidebar = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  const location = useLocation();
+  const propertyName = location.state?.property.propertyName;
 
   return (
       <Layout style={{ minHeight: '100vh' }}>
         <Sider trigger={null} collapsible collapsed={collapsed}>
         <div className="logo" style={{ padding: '16px', textAlign: 'center' }}>
-        <img src="/assests/Logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
+        <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
         </div>  
         <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
             <Menu.Item key="1" icon={<HomeOutlined />}>
-              <Link to="/dashboard">Home</Link>
+              <Link to="/home">Home</Link>
             </Menu.Item>
             <Menu.Item key="2" icon={<ToolOutlined />}>
               <Link to="/tools">Tools</Link>
@@ -83,9 +85,13 @@ const Sidebar = () => {
                 padding: 0,
               }}
             />
-            <Title level={4} style={{ margin: 0, flex: 1 }}>
-              Velloa Group
-            </Title>
+
+            
+             <Title level={4} style={{ margin: 0, flex: 1 }}>
+               {propertyName}
+              </Title>
+
+
             <div style={{ marginLeft: 'auto', padding: '0 20px' }}> {/* Apply padding to this wrapper div */}
                 <Dropdown overlay={dropdownMenu} trigger={['click']}>
                   <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />

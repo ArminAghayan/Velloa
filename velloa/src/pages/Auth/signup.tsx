@@ -7,7 +7,6 @@ import { sendEmailVerification } from "firebase/auth";
 import moment from 'moment';
 import { Timestamp } from 'firebase/firestore';
 import { addDoc, collection } from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
 
 const { Step } = Steps;
 
@@ -147,7 +146,6 @@ const Signup = () => {
       message.error('You must be logged in to perform this action.');
       return;
     }
-    const companyId = uuidv4(); // Generate a unique ID for the company
 
     // Destructure company address for detailed fields
     const { companyName, companyPhoneNumber, companyEmail, companyAddress } = values;
@@ -162,8 +160,7 @@ const Signup = () => {
   
       // Prepare the document to be saved
       const companyData = {
-        id: companyId,
-        uid: auth.currentUser.uid,
+        uid: auth.currentUser.uid, // Associate with the user
         companyName,
         companyPhoneNumber,
         companyEmail,
@@ -171,10 +168,11 @@ const Signup = () => {
       };
   
       // Save company data to Firestore
-      const companyRef = await addDoc(collection(db, "companies"), companyData);
-  
+      const companyRef = await addDoc(collection(db, "companies"), companyData); 
+      const companyId = companyRef.id;  // Store the company ID
+
       message.success('Company information saved successfully!');
-      navigate('/dashboard');
+      navigate('/dashboard', { state: { companyId: companyId } });
     } catch (error) {
       console.error('Error saving company information:', error);
       message.error('Error saving company information.');
