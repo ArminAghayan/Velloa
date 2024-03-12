@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography,theme,Card, Col, Row,Upload } from 'antd';
+import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography,theme,Card, Col, Row,Upload,Checkbox, TimePicker, Switch} from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,UploadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
@@ -35,6 +35,32 @@ interface Property {
   // Add other property fields if necessary
 }
 
+interface Amenities {
+  pool: AmenitiesDetail;
+  gym: AmenitiesDetail;
+  // ... other amenities
+}
+
+interface AmenitiesDetail {
+  available: boolean;
+  booking: boolean;
+  availabilityTime: string;
+  rules: string;
+  info: string;
+}
+
+// Extend your form data state to include the amenities
+interface FormData {
+  propertyDetails: PropertyDetails;
+  unitInfo: UnitInfo;
+  amenities: Amenities;
+}
+
+
+
+
+
+
 const { Header } = Layout;
 const { Title } = Typography;
 const { Step } = Steps;
@@ -48,16 +74,16 @@ const DashboardPage = () => {
   const [companyName, setCompanyName] = useState("Loading company...");
   const [properties, setProperties] = useState<Property[]>([]);
   const navigate = useNavigate();
-
+  const [formData, setFormData] = useState<FormData>({
+    propertyDetails: {},
+    unitInfo: {},
+    amenities: initialAmenities,
+  });
+  
 
   const handleCardClick = (property: Property) => {
     navigate('/home', { state: { property } });
   };
-
-
-
-
-
 
 
   useEffect(() => {
@@ -116,26 +142,28 @@ const DashboardPage = () => {
   
   
 
-
-
-  // Finish handlers for each step
-  const onFinishPropertyDetails = (values: PropertyDetails) => {
-    setFormData({ ...formData, propertyDetails: values });
-    next();
-  };
+  
 
   const onFinishUnitInfo = async (values: UnitInfo) => {
     if (!auth.currentUser || !companyDocId) {
       message.error("You must be logged in and have a company selected to perform this action.");
       return;
     }
-
+  
     try {
+      // Construct the property document reference
       const propertyRef = collection(db, `companies/${companyDocId}/properties`);
-      await addDoc(propertyRef, {
+      
+      // Add the new property with amenities
+      const docRef = await addDoc(propertyRef, {
         ...formData.propertyDetails,
         ...values,
+        // No need to spread amenities if it's already included in formData
       });
+  
+      // Save the amenities under the new property document
+      await addDoc(collection(db, `companies/${companyDocId}/properties/${docRef.id}/amenities`), formData.amenities);
+  
       message.success("Property added successfully!");
       resetFormAndHideModal();
       
@@ -144,6 +172,7 @@ const DashboardPage = () => {
       message.error("An error occurred while adding the property.");
     }
   };
+  
 
   // Helper functions
   const showModal = () => setIsModalVisible(true);
@@ -224,6 +253,61 @@ const DashboardPage = () => {
       ),
     },
     {
+      title: 'Property Amenities',
+      content: (
+        <Form layout="vertical" onFinish={onFinishAmenities} initialValues={amenities}>
+  {/* Pool */}
+            <Form.Item label="Pool">
+              <Input.Group compact>
+                <Form.Item name={['pool', 'available']} valuePropName="checked" noStyle>
+                  <Checkbox>Available</Checkbox>
+                </Form.Item>
+                <Form.Item name={['pool', 'booking']} valuePropName="checked" noStyle>
+                  <Checkbox>Booking Required</Checkbox>
+                </Form.Item>
+                <Form.Item name={['pool', 'availabilityTime']} noStyle>
+                  <Input style={{ width: '50%' }} placeholder="Availability Time" />
+                </Form.Item>
+              </Input.Group>
+              <Form.Item name={['pool', 'rules']} noStyle>
+                <Input.TextArea rows={2} placeholder="Rules" />
+              </Form.Item>
+              <Form.Item name={['pool', 'info']} noStyle>
+                <Input.TextArea rows={2} placeholder="Additional Info" />
+              </Form.Item>
+            </Form.Item>
+
+            {/* Gym */}
+            <Form.Item label="Gym">
+              <Input.Group compact>
+                <Form.Item name={['gym', 'available']} valuePropName="checked" noStyle>
+                  <Checkbox>Available</Checkbox>
+                </Form.Item>
+                <Form.Item name={['gym', 'booking']} valuePropName="checked" noStyle>
+                  <Checkbox>Booking Required</Checkbox>
+                </Form.Item>
+                <Form.Item name={['gym', 'availabilityTime']} noStyle>
+                  <Input style={{ width: '50%' }} placeholder="Availability Time" />
+                </Form.Item>
+              </Input.Group>
+              <Form.Item name={['gym', 'rules']} noStyle>
+                <Input.TextArea rows={2} placeholder="Rules" />
+              </Form.Item>
+              <Form.Item name={['gym', 'info']} noStyle>
+                <Input.TextArea rows={2} placeholder="Additional Info" />
+              </Form.Item>
+            </Form.Item>
+            
+            {/* Repeat this pattern for sauna, patio, entertainment room, and lounge */}
+
+            <Form.Item>
+              <Button type="primary" onClick={next}>Next</Button>
+            </Form.Item>
+          </Form>
+
+      ),
+    },
+    {
       title: 'Units Info',
       content: (
         <Form layout="vertical" onFinish={onFinishUnitInfo}>
@@ -245,6 +329,7 @@ const DashboardPage = () => {
         </Form>
       ),
     }
+    
     
   ];
 
