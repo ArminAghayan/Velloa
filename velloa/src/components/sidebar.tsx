@@ -29,7 +29,7 @@ const dropdownMenu = (
         <Link to="/dashboard">Dashboard</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}>
-        <Link to="/logout">Logout</Link>
+        <Link to="/login">Logout</Link>
       </Menu.Item>
     </Menu>
   );
@@ -101,7 +101,7 @@ const Sidebar = () => {
               </Title>
 
 
-            <div style={{ marginLeft: 'auto', padding: '0 20px' }}> {/* Apply padding to this wrapper div */}
+              <div style={{ marginLeft: 'auto', padding: '0 40px' }}> {/* Apply padding to this wrapper div */}
                 <Dropdown overlay={dropdownMenu} trigger={['click']}>
                   <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
                 </Dropdown>
