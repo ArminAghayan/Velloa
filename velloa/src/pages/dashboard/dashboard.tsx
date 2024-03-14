@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography,theme,Card, Col, Row,Upload,Checkbox, TimePicker, Switch} from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,UploadOutlined } from '@ant-design/icons';
+import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Upload, Switch, TimePicker } from 'antd';
+import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined, UploadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
+import moment from 'moment';
 import './dashboard.css';
-// Define the property details and unit info interfaces
+
 interface PropertyDetails {
   propertyName: string;
   address: {
@@ -15,8 +16,9 @@ interface PropertyDetails {
     province: string;
     country: string;
   };
-  imageUrl?: string; // Assuming you'll manage the upload and set this
+  imageUrl?: string;
   numUnits: number;
+  id?: string;
 }
 
 interface UnitInfo {
@@ -25,107 +27,92 @@ interface UnitInfo {
   unitsPerFloor: number;
 }
 
-
+interface AmenityData {
+  name: string;
+  availabilityTime: [moment.Moment, moment.Moment] | null;
+  bookingEnabled: boolean;
+  rules: string;
+  info: string;
+}
 
 interface Property {
   id: string;
   propertyName: string;
   imageUrl?: string;
   numUnits: number;
-  // Add other property fields if necessary
 }
-
-interface Amenities {
-  pool: AmenitiesDetail;
-  gym: AmenitiesDetail;
-  // ... other amenities
-}
-
-interface AmenitiesDetail {
-  available: boolean;
-  booking: boolean;
-  availabilityTime: string;
-  rules: string;
-  info: string;
-}
-
-// Extend your form data state to include the amenities
-interface FormData {
-  propertyDetails: PropertyDetails;
-  unitInfo: UnitInfo;
-  amenities: Amenities;
-}
-
-
-
-
-
 
 const { Header } = Layout;
 const { Title } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
+const AmenitiesForm = ({ onFinish }: { onFinish: (values: AmenityData[]) => void }) => {
+  const [amenities, setAmenities] = useState<AmenityData[]>([
+    { name: 'Pool', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
+    { name: 'Gym', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
+    { name: 'Sauna', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
+    { name: 'Patio', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
+    { name: '', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
+  ]);
+
+  const handleFinish = (values: AmenityData[]) => {
+    onFinish(values);
+  };
+}
+
 const DashboardPage = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({ propertyDetails: {}, unitInfo: {} });
+  const [formData, setFormData] = useState({ propertyDetails: {}, unitInfo: {}, amenities: [] });
   const [companyDocId, setCompanyDocId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("Loading company...");
   const [properties, setProperties] = useState<Property[]>([]);
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<FormData>({
-    propertyDetails: {},
-    unitInfo: {},
-    amenities: initialAmenities,
-  });
-  
+  const [PropertyDetailsid, setPropertyDetailsid] = useState<string | null>(null);
 
   const handleCardClick = (property: Property) => {
     navigate('/home', { state: { property } });
   };
 
-
   useEffect(() => {
     const fetchUserCompany = async () => {
       if (auth.currentUser) {
         const userUid = auth.currentUser.uid;
-        console.log("Fetching company for user ID:", userUid); // Debug log
+        console.log("Fetching company for user ID:", userUid);
         const companiesRef = collection(db, "companies");
-        const q = query(companiesRef, where("uid", "==", userUid)); // Make sure 'uid' matches your Firestore structure
+        const q = query(companiesRef, where("uid", "==", userUid));
         const querySnapshot = await getDocs(q);
-  
+
         if (!querySnapshot.empty) {
           const companyData = querySnapshot.docs[0].data();
-          console.log("Company data found:", companyData); // Confirm this logs expected data
+          console.log("Company data found:", companyData);
           setCompanyDocId(querySnapshot.docs[0].id);
-          setCompanyName(companyData.companyName); // Assuming 'name' is the correct field
+          setCompanyName(companyData.companyName);
         } else {
-          console.log("No company found for the user."); // Helpful for debugging
-          setCompanyName("No company found."); // Update UI accordingly
+          console.log("No company found for the user.");
+          setCompanyName("No company found.");
         }
-        
       }
     };
-  
+
     fetchUserCompany();
   }, []);
-  useEffect(() => {
 
-    
+  useEffect(() => {
     const fetchProperties = async () => {
       if (auth.currentUser && companyDocId) {
         const propertiesRef = collection(db, `companies/${companyDocId}/properties`);
         const snapshot = await getDocs(propertiesRef);
-  
+
         if (!snapshot.empty) {
           const propertiesList: Property[] = snapshot.docs.map((doc) => ({
             id: doc.id,
-            propertyName: doc.data().propertyName, // Replace with your actual field name
-            imageUrl: doc.data().imageUrl, // Replace with your actual field name
-            numUnits: doc.data().numUnits, // Replace with your actual field name
+            propertyName: doc.data().propertyName,
+            imageUrl: doc.data().imageUrl,
+            numUnits: doc.data().numUnits,
           }));
-  
+
           console.log("Properties found:", propertiesList);
           setProperties(propertiesList);
         } else {
@@ -133,16 +120,14 @@ const DashboardPage = () => {
         }
       }
     };
-  
+
     fetchProperties();
   }, [companyDocId]);
-  
-  
-  
-  
-  
 
-  
+  const onFinishPropertyDetails = (values: PropertyDetails) => {
+    setFormData({ ...formData, propertyDetails: values });
+    next();
+  };
 
   const onFinishUnitInfo = async (values: UnitInfo) => {
     if (!auth.currentUser || !companyDocId) {
@@ -151,30 +136,28 @@ const DashboardPage = () => {
     }
   
     try {
-      // Construct the property document reference
       const propertyRef = collection(db, `companies/${companyDocId}/properties`);
-      
-      // Add the new property with amenities
       const docRef = await addDoc(propertyRef, {
         ...formData.propertyDetails,
         ...values,
-        // No need to spread amenities if it's already included in formData
       });
   
-      // Save the amenities under the new property document
-      await addDoc(collection(db, `companies/${companyDocId}/properties/${docRef.id}/amenities`), formData.amenities);
-  
+      setFormData({
+        ...formData,
+        propertyDetails: { ...formData.propertyDetails, id: docRef.id },
+        unitInfo: values,
+      });
       message.success("Property added successfully!");
-      resetFormAndHideModal();
-      
+      next();
     } catch (error) {
       console.error("Error adding document: ", error);
       message.error("An error occurred while adding the property.");
     }
   };
+
+  
   
 
-  // Helper functions
   const showModal = () => setIsModalVisible(true);
   const handleCancel = () => resetFormAndHideModal();
   const next = () => setCurrentStep(currentStep + 1);
@@ -182,21 +165,24 @@ const DashboardPage = () => {
   const resetFormAndHideModal = () => {
     setIsModalVisible(false);
     setCurrentStep(0);
-    setFormData({ propertyDetails: {}, unitInfo: {} });
+    setFormData({ propertyDetails: {}, unitInfo: {}, amenities: [] });
   };
 
-
-  // Dropdown menu for user options
   const dropdownMenu = (
     <Menu>
-      <Menu.Item icon={<SettingOutlined />}><Link to="/settings">Settings</Link></Menu.Item>
-      <Menu.Item icon={<BlockOutlined />}><Link to="/dashboard">Dashboard</Link></Menu.Item>
-      <Menu.Item icon={<LogoutOutlined />}><Link to="/login">Logout</Link></Menu.Item>
+      <Menu.Item icon={<SettingOutlined />}>
+        <Link to="/settings">Settings</Link>
+      </Menu.Item>
+      <Menu.Item icon={<BlockOutlined />}>
+        <Link to="/dashboard">Overview</Link>
+      </Menu.Item>
+      <Menu.Item icon={<LogoutOutlined />}>
+        <Link to="/logout">Logout</Link>
+      </Menu.Item>
     </Menu>
   );
-  const {
-    token: { colorBgContainer },
-  } = theme.useToken();
+
+  const { token: { colorBgContainer } } = theme.useToken();
 
   const steps = [
     {
@@ -207,13 +193,12 @@ const DashboardPage = () => {
             <Input />
           </Form.Item>
           <Form.Item
-        name={['address', 'addressline']}
-        label="Address"
-        rules={[{ required: true, message: 'Please input your street!' }]}
-      >
-        <Input />
+            name={['address', 'addressline']}
+            label="Address"
+            rules={[{ required: true, message: 'Please input your street!' }]}
+          >
+            <Input />
           </Form.Item>
-         
           <Form.Item
             name={['address', 'city']}
             label="City"
@@ -241,70 +226,42 @@ const DashboardPage = () => {
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
             <Select showSearch>
-              {/* Populate with your list of countries */}
               <Select.Option value="USA">USA</Select.Option>
               <Select.Option value="Canada">Canada</Select.Option>
-              {/* Add more options as needed */}
             </Select>
           </Form.Item>
-              
           <Button type="primary" htmlType="submit">Next</Button>
         </Form>
       ),
     },
     {
       title: 'Property Amenities',
-      content: (
-        <Form layout="vertical" onFinish={onFinishAmenities} initialValues={amenities}>
-  {/* Pool */}
-            <Form.Item label="Pool">
-              <Input.Group compact>
-                <Form.Item name={['pool', 'available']} valuePropName="checked" noStyle>
-                  <Checkbox>Available</Checkbox>
-                </Form.Item>
-                <Form.Item name={['pool', 'booking']} valuePropName="checked" noStyle>
-                  <Checkbox>Booking Required</Checkbox>
-                </Form.Item>
-                <Form.Item name={['pool', 'availabilityTime']} noStyle>
-                  <Input style={{ width: '50%' }} placeholder="Availability Time" />
-                </Form.Item>
-              </Input.Group>
-              <Form.Item name={['pool', 'rules']} noStyle>
-                <Input.TextArea rows={2} placeholder="Rules" />
-              </Form.Item>
-              <Form.Item name={['pool', 'info']} noStyle>
-                <Input.TextArea rows={2} placeholder="Additional Info" />
-              </Form.Item>
-            </Form.Item>
-
-            {/* Gym */}
-            <Form.Item label="Gym">
-              <Input.Group compact>
-                <Form.Item name={['gym', 'available']} valuePropName="checked" noStyle>
-                  <Checkbox>Available</Checkbox>
-                </Form.Item>
-                <Form.Item name={['gym', 'booking']} valuePropName="checked" noStyle>
-                  <Checkbox>Booking Required</Checkbox>
-                </Form.Item>
-                <Form.Item name={['gym', 'availabilityTime']} noStyle>
-                  <Input style={{ width: '50%' }} placeholder="Availability Time" />
-                </Form.Item>
-              </Input.Group>
-              <Form.Item name={['gym', 'rules']} noStyle>
-                <Input.TextArea rows={2} placeholder="Rules" />
-              </Form.Item>
-              <Form.Item name={['gym', 'info']} noStyle>
-                <Input.TextArea rows={2} placeholder="Additional Info" />
-              </Form.Item>
-            </Form.Item>
-            
-            {/* Repeat this pattern for sauna, patio, entertainment room, and lounge */}
-
-            <Form.Item>
-              <Button type="primary" onClick={next}>Next</Button>
-            </Form.Item>
-          </Form>
-
+      content: "" (
+      <Form onFinish={""}>
+      {amenities.map((amenity, index) => (
+        <div key={index}>
+          <h3>{amenity.name || 'Custom Amenity'}</h3>
+          <Form.Item name={['amenities', index, 'name']} label="Name" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name={['amenities', index, 'availabilityTime']} label="Availability Time">
+            <TimePicker.RangePicker />
+          </Form.Item>
+          <Form.Item name={['amenities', index, 'bookingEnabled']} label="Booking Enabled" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name={['amenities', index, 'rules']} label="Rules">
+            <Input.TextArea />
+          </Form.Item>
+          <Form.Item name={['amenities', index, 'info']} label="Info">
+            <Input.TextArea />
+          </Form.Item>
+        </div>
+      ))}
+      <Form.Item>
+      </Form.Item>
+          <Button type="primary" htmlType="submit">Next</Button>
+        </Form>
       ),
     },
     {
@@ -316,8 +273,9 @@ const DashboardPage = () => {
           </Form.Item>
           <Form.Item name="unitType" label="Unit Type" rules={[{ required: true }]}>
             <Select>
-            <Select.Option value="100s">100s</Select.Option>
-              <Select.Option value="ab">A,B</Select.Option>            </Select>
+              <Select.Option value="100s">100s</Select.Option>
+              <Select.Option value="ab">A,B</Select.Option>
+            </Select>
           </Form.Item>
           <Form.Item name="numberOfFloors" label="Number of Floors" rules={[{ required: true }]}>
             <InputNumber />
@@ -325,51 +283,45 @@ const DashboardPage = () => {
           <Form.Item name="unitsPerFloor" label="Units Per Floor" rules={[{ required: true }]}>
             <InputNumber />
           </Form.Item>
-          <Button type="primary" htmlType="submit">Submit</Button>
+          <Button type="primary" htmlType="submit">Next</Button>
         </Form>
       ),
-    }
-    
+    },
     
   ];
 
   return (
     <>
       <Header style={{ display: 'flex', alignItems: 'center', padding: '0 20px', background: '#f0f2f5', borderBottom: '1px solid #e8e8e8' }}>
-      <img src="/assests/light_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
-      <Title level={4} style={{ margin: 0, flex: 1 }}>Velloa</Title>
+        <img src="/assests/light_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
+        <Title level={4} style={{ margin: 0, flex: 1 }}>Velloa</Title>
         <Button type="primary" onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
-        <div style={{ marginLeft: 'auto', padding: '0 20px' }}> {/* Apply padding to this wrapper div */}
-                <Dropdown overlay={dropdownMenu} trigger={['click']}>
-                  <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
-                </Dropdown>
-            </div>
+        <div style={{ marginLeft: 'auto', padding: '0 20px' }}>
+          <Dropdown overlay={dropdownMenu} trigger={['click']}>
+            <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
+          </Dropdown>
+        </div>
       </Header>
       <div className="site-card-wrapper">
-            <Row gutter={20}>
-              {properties.map((property) => (
-                <Col key={property.id} span={6}> {/* Reduced span from 8 to 6 for smaller width */}
-                  <Card
-                    hoverable
-                    onClick={() => handleCardClick(property)}
-                    cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} />}
-                  >
-                    <Card.Meta
-                    
-                    title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
-                    description={`${property.numUnits} units`}
-                    />
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
+        <Row gutter={20}>
+          {properties.map((property) => (
+            <Col key={property.id} span={6}>
+              <Card
+                hoverable
+                onClick={() => handleCardClick(property)}
+                cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} />}
+              >
+                <Card.Meta
+                  title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
+                  description={`${property.numUnits} units`}
+                />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
 
-
-
-
-
-      <Modal title="Add Property" visible={isModalVisible} onCancel={handleCancel} footer={null}>
+      <Modal title="Add Property" visible={isModalVisible} onCancel={handleCancel} footer={null} width="1200px">
         <Steps current={currentStep}>
           {steps.map((item) => (
             <Step key={item.title} title={item.title} />
