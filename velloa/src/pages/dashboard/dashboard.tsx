@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Upload, Switch, TimePicker } from 'antd';
+import React, { useState, useEffect, createContext, ReactElement } from 'react';
+import { Button, Modal, Steps, Form, Input, Select, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Table, Popconfirm } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined, UploadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
-import moment from 'moment';
+import { collection, addDoc, query, where, getDocs,writeBatch, doc } from 'firebase/firestore';
 import './dashboard.css';
 
+// Define the property details and unit info interfaces
 interface PropertyDetails {
   propertyName: string;
   address: {
@@ -16,23 +16,8 @@ interface PropertyDetails {
     province: string;
     country: string;
   };
-  imageUrl?: string;
+  imageUrl?: string; // Assuming you'll manage the upload and set this
   numUnits: number;
-  id?: string;
-}
-
-interface UnitInfo {
-  unitType: string;
-  numberOfFloors: number;
-  unitsPerFloor: number;
-}
-
-interface AmenityData {
-  name: string;
-  availabilityTime: [moment.Moment, moment.Moment] | null;
-  bookingEnabled: boolean;
-  rules: string;
-  info: string;
 }
 
 interface Property {
@@ -40,58 +25,132 @@ interface Property {
   propertyName: string;
   imageUrl?: string;
   numUnits: number;
+  // Add other property fields if necessary
+}
+
+interface UnitInfo {
+  numberOfFloors: number;
+  unitsPerFloor: number;
+  unitNumberOffset?: number; // Optional offset for unit numbering
+}
+
+// We'll need a new interface for unit numbers to facilitate editing in the table
+interface UnitNumber {
+  key: string;
+  floor: number;
+  unit: number;
+  customUnitNumber?: number; // Allows for custom unit number edits
+}
+
+interface EditableTableProps {
+  unitNumbers: UnitNumber[];
+  setUnitNumbers: React.Dispatch<React.SetStateAction<UnitNumber[]>>;
 }
 
 const { Header } = Layout;
 const { Title } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
+const EditableContext = createContext<any | null>(null);
 
-const AmenitiesForm = ({ onFinish }: { onFinish: (values: AmenityData[]) => void }) => {
-  const [amenities, setAmenities] = useState<AmenityData[]>([
-    { name: 'Pool', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
-    { name: 'Gym', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
-    { name: 'Sauna', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
-    { name: 'Patio', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
-    { name: '', availabilityTime: null, bookingEnabled: false, rules: '', info: '' },
-  ]);
+const EditableRow: React.FC<any> = ({ index, ...props }) => {
+  const [form] = Form.useForm();
+  return (
+    <Form form={form} component={false}>
+      <EditableContext.Provider value={form}>
+        <tr {...props} />
+      </EditableContext.Provider>
+    </Form>
+  );
+};
 
-  const handleFinish = (values: AmenityData[]) => {
-    onFinish(values);
-  };
-}
+const EditableCell: React.FC<any> = ({
+  title,
+  editable,
+  children,
+  dataIndex,
+  record,
+  ...restProps
+}) => {
+  const form = React.useContext(EditableContext);
+  return (
+    <td {...restProps}>
+      {editable ? (
+        <Form.Item
+          name={dataIndex}
+          style={{ margin: 0 }}
+          rules={[{ required: true, message: `${title} is required.` }]}
+        >
+          <Input />
+        </Form.Item>
+      ) : (
+        children
+      )}
+    </td>
+  );
+};
 
-const DashboardPage = () => {
+const DashboardPage: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({ propertyDetails: {}, unitInfo: {}, amenities: [] });
+  const [formData, setFormData] = useState<any>({ propertyDetails: {}, unitInfo: {} });
   const [companyDocId, setCompanyDocId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("Loading company...");
   const [properties, setProperties] = useState<Property[]>([]);
   const navigate = useNavigate();
-  const [PropertyDetailsid, setPropertyDetailsid] = useState<string | null>(null);
+  const [unitNumbers, setUnitNumbers] = useState<UnitNumber[]>([]);
+
+  const handleGenerateUnitsClick = () => {
+    const floors = formData.unitInfo.numberOfFloors;
+    const unitsPerFloor = formData.unitInfo.unitsPerFloor;
+    const offset = formData.unitInfo.unitNumberOffset || 100;
+    const generatedUnits = generateUnitNumbers(floors, unitsPerFloor, offset);
+    
+    console.log(generatedUnits); // Debug: Check generated units
+    setUnitNumbers(generatedUnits); // Update state with generated units
+    next(); // Proceed to the next step
+  };
+  
+  
 
   const handleCardClick = (property: Property) => {
     navigate('/home', { state: { property } });
   };
 
+  const generateUnitNumbers = (floors: number, unitsPerFloor: number, offset: number = 100) => {
+    let generatedUnits: UnitNumber[] = [];
+    let unitNumber = offset;
+  
+    for (let floor = 1; floor <= floors; floor++) {
+      for (let unit = 1; unit <= unitsPerFloor; unit++, unitNumber++) {
+        generatedUnits.push({
+          key: `${floor}-${unit}`,
+          floor: floor,
+          unit: unitNumber,
+        });
+      }
+    }
+    return generatedUnits;
+  };
+  
+
   useEffect(() => {
     const fetchUserCompany = async () => {
       if (auth.currentUser) {
         const userUid = auth.currentUser.uid;
-        console.log("Fetching company for user ID:", userUid);
+        console.log("Fetching company for user ID:", userUid); // Debug log
         const companiesRef = collection(db, "companies");
-        const q = query(companiesRef, where("uid", "==", userUid));
+        const q = query(companiesRef, where("uid", "==", userUid)); // Make sure 'uid' matches your Firestore structure
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
           const companyData = querySnapshot.docs[0].data();
-          console.log("Company data found:", companyData);
+          console.log("Company data found:", companyData); // Confirm this logs expected data
           setCompanyDocId(querySnapshot.docs[0].id);
-          setCompanyName(companyData.companyName);
+          setCompanyName(companyData.companyName); // Assuming 'name' is the correct field
         } else {
-          console.log("No company found for the user.");
-          setCompanyName("No company found.");
+          console.log("No company found for the user."); // Helpful for debugging
+          setCompanyName("No company found."); // Update UI accordingly
         }
       }
     };
@@ -108,9 +167,9 @@ const DashboardPage = () => {
         if (!snapshot.empty) {
           const propertiesList: Property[] = snapshot.docs.map((doc) => ({
             id: doc.id,
-            propertyName: doc.data().propertyName,
-            imageUrl: doc.data().imageUrl,
-            numUnits: doc.data().numUnits,
+            propertyName: doc.data().propertyName, // Replace with your actual field name
+            imageUrl: doc.data().imageUrl, // Replace with your actual field name
+            numUnits: doc.data().numUnits, // Replace with your actual field name
           }));
 
           console.log("Properties found:", propertiesList);
@@ -124,6 +183,134 @@ const DashboardPage = () => {
     fetchProperties();
   }, [companyDocId]);
 
+  const EditableCell = ({
+    editing,
+    dataIndex,
+    title,
+    inputType, // "number" or "text"
+    record,
+    index,
+    children,
+    ...restProps
+  }: any) => {
+    const inputNode = inputType === 'number' ? <InputNumber /> : <Input />;
+    return (
+      <td {...restProps}>
+        {editing ? (
+          <Form.Item
+            name={dataIndex}
+            style={{ margin: 0 }}
+            rules={[
+              {
+                required: true,
+                message: `Please Input ${title}!`,
+              },
+            ]}
+          >
+            {inputNode}
+          </Form.Item>
+        ) : (
+          children
+        )}
+      </td>
+    );
+  };
+
+  const EditableTable: React.FC<{ unitNumbers: UnitNumber[] }> = ({ unitNumbers }) => {
+    const [form] = Form.useForm();
+    const [editingKey, setEditingKey] = useState<string | number>('');
+  
+    const isEditing = (record: UnitNumber): boolean => record.key === editingKey;
+  
+    const edit = (record: UnitNumber): void => {
+      form.setFieldsValue({ ...record });
+      setEditingKey(record.key);
+    };
+  
+    const cancel = (): void => {
+      setEditingKey('');
+    };
+  
+    const save = async (key: React.Key): Promise<void> => {
+      try {
+        const row = (await form.validateFields()) as UnitNumber;
+  
+        const newData = [...unitNumbers];
+        const index = newData.findIndex((item) => key === item.key);
+  
+        if (index > -1) {
+          const item = newData[index];
+          newData.splice(index, 1, { ...item, ...row });
+          setUnitNumbers(newData);
+          setEditingKey('');
+        } else {
+          newData.push(row);
+          setUnitNumbers(newData);
+          setEditingKey('');
+        }
+      } catch (errInfo) {
+        console.log('Validate Failed:', errInfo);
+      }
+    };
+
+    const columns = [
+      {
+        title: 'Floor',
+        dataIndex: 'floor',
+        width: '25%',
+        editable: true,
+      },
+      {
+        title: 'Unit',
+        dataIndex: 'unit',
+        width: '25%',
+        editable: true,
+      },
+      {
+        title: 'Custom Unit Number',
+        dataIndex: 'customUnitNumber',
+        width: '25%',
+        editable: true,
+      },
+    ];
+
+    const mergedColumns = columns.map((col) => {
+      if (!col.editable) {
+        return col;
+      }
+      return {
+        ...col,
+        onCell: (record: UnitNumber) => ({
+          record,
+          inputType: col.dataIndex === 'floor' || col.dataIndex === 'unit' ? 'number' : 'text',
+          dataIndex: col.dataIndex,
+          title: col.title,
+          editing: isEditing(record),
+        }),
+      };
+    });
+
+    return (
+      <Form form={form} component={false}>
+        <Table
+          components={{
+            body: {
+              cell: EditableCell,
+            },
+          }}
+          bordered
+          dataSource={unitNumbers}
+          columns={mergedColumns}
+          rowClassName="editable-row"
+          pagination={{
+            onChange: cancel,
+          }}
+        />
+      </Form>
+    );
+  };
+
+  // Finish handlers for each step
   const onFinishPropertyDetails = (values: PropertyDetails) => {
     setFormData({ ...formData, propertyDetails: values });
     next();
@@ -136,28 +323,38 @@ const DashboardPage = () => {
     }
   
     try {
+      // Reference to the properties collection
       const propertyRef = collection(db, `companies/${companyDocId}/properties`);
-      const docRef = await addDoc(propertyRef, {
+      // Add the property
+      const propertyDocRef = await addDoc(propertyRef, {
         ...formData.propertyDetails,
         ...values,
       });
   
-      setFormData({
-        ...formData,
-        propertyDetails: { ...formData.propertyDetails, id: docRef.id },
-        unitInfo: values,
+      // Prepare to add unit numbers to Firestore under the specific property
+      const batch = writeBatch(db); // Using a batch to perform all additions in a single operation
+  
+      // Iterate over each unit number to add
+      unitNumbers.forEach((unit) => {
+        // Generate the reference for a new document within the units collection for the property
+        const unitRef = doc(collection(db, `companies/${companyDocId}/properties/${propertyDocRef.id}/propertyunits/units`));
+        batch.set(unitRef, unit); // Prepare to set the unit data
       });
-      message.success("Property added successfully!");
-      next();
+  
+      await batch.commit(); // Commit the batch operation
+  
+      message.success("Property and units added successfully!");
+      resetFormAndHideModal();
     } catch (error) {
       console.error("Error adding document: ", error);
-      message.error("An error occurred while adding the property.");
+      message.error("An error occurred while adding the property and units.");
     }
   };
-
   
   
+  
 
+  // Helper functions
   const showModal = () => setIsModalVisible(true);
   const handleCancel = () => resetFormAndHideModal();
   const next = () => setCurrentStep(currentStep + 1);
@@ -165,24 +362,21 @@ const DashboardPage = () => {
   const resetFormAndHideModal = () => {
     setIsModalVisible(false);
     setCurrentStep(0);
-    setFormData({ propertyDetails: {}, unitInfo: {}, amenities: [] });
+    setFormData({ propertyDetails: {}, unitInfo: {} });
   };
 
+  // Dropdown menu for user options
   const dropdownMenu = (
     <Menu>
-      <Menu.Item icon={<SettingOutlined />}>
-        <Link to="/settings">Settings</Link>
-      </Menu.Item>
-      <Menu.Item icon={<BlockOutlined />}>
-        <Link to="/dashboard">Overview</Link>
-      </Menu.Item>
-      <Menu.Item icon={<LogoutOutlined />}>
-        <Link to="/logout">Logout</Link>
-      </Menu.Item>
+      <Menu.Item icon={<SettingOutlined />}><Link to="/settings">Settings</Link></Menu.Item>
+      <Menu.Item icon={<BlockOutlined />}><Link to="/dashboard">Overview</Link></Menu.Item>
+      <Menu.Item icon={<LogoutOutlined />}><Link to="/logout">Logout</Link></Menu.Item>
     </Menu>
   );
 
-  const { token: { colorBgContainer } } = theme.useToken();
+  const {
+    token: { colorBgContainer },
+  } = theme.useToken();
 
   const steps = [
     {
@@ -226,40 +420,12 @@ const DashboardPage = () => {
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
             <Select showSearch>
+              {/* Populate with your list of countries */}
               <Select.Option value="USA">USA</Select.Option>
               <Select.Option value="Canada">Canada</Select.Option>
+              {/* Add more options as needed */}
             </Select>
           </Form.Item>
-          <Button type="primary" htmlType="submit">Next</Button>
-        </Form>
-      ),
-    },
-    {
-      title: 'Property Amenities',
-      content: "" (
-      <Form onFinish={""}>
-      {amenities.map((amenity, index) => (
-        <div key={index}>
-          <h3>{amenity.name || 'Custom Amenity'}</h3>
-          <Form.Item name={['amenities', index, 'name']} label="Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name={['amenities', index, 'availabilityTime']} label="Availability Time">
-            <TimePicker.RangePicker />
-          </Form.Item>
-          <Form.Item name={['amenities', index, 'bookingEnabled']} label="Booking Enabled" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name={['amenities', index, 'rules']} label="Rules">
-            <Input.TextArea />
-          </Form.Item>
-          <Form.Item name={['amenities', index, 'info']} label="Info">
-            <Input.TextArea />
-          </Form.Item>
-        </div>
-      ))}
-      <Form.Item>
-      </Form.Item>
           <Button type="primary" htmlType="submit">Next</Button>
         </Form>
       ),
@@ -268,26 +434,41 @@ const DashboardPage = () => {
       title: 'Units Info',
       content: (
         <Form layout="vertical" onFinish={onFinishUnitInfo}>
-          <Form.Item name="numUnits" label="Number of Units" rules={[{ required: true }]}>
-            <InputNumber />
-          </Form.Item>
-          <Form.Item name="unitType" label="Unit Type" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="100s">100s</Select.Option>
-              <Select.Option value="ab">A,B</Select.Option>
-            </Select>
-          </Form.Item>
+          {/* Existing inputs for floors and units per floor */}
           <Form.Item name="numberOfFloors" label="Number of Floors" rules={[{ required: true }]}>
+            <InputNumber min={1} />
+          </Form.Item>
+          <Form.Item name="unitsPerFloor" label="Units per Floor" rules={[{ required: true }]}>
+            <InputNumber min={1} />
+          </Form.Item>
+          {/* Add input for optional unit number offset */}
+          <Form.Item name="unitNumberOffset" label="Unit Number Offset (Optional)">
             <InputNumber />
           </Form.Item>
-          <Form.Item name="unitsPerFloor" label="Units Per Floor" rules={[{ required: true }]}>
-            <InputNumber />
-          </Form.Item>
-          <Button type="primary" htmlType="submit">Next</Button>
+          {/* Button to generate units */}
+          <Button type="primary" onClick={handleGenerateUnitsClick}>Next</Button>
         </Form>
       ),
     },
-    
+    {
+      title: 'Review Units',
+      content: (
+        <div>
+             <EditableTable unitNumbers={unitNumbers} />
+
+      <Button type="primary" onClick={() => next()}>Next</Button>
+    </div>
+      ),
+    },
+    {
+      title: 'Finish',
+      content: (
+        <div>
+          <p>All steps completed - you&apos;re finished</p>
+          <Button type="primary" onClick={() => onFinishUnitInfo(formData.unitInfo)}>Done</Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -296,7 +477,7 @@ const DashboardPage = () => {
         <img src="/assests/light_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
         <Title level={4} style={{ margin: 0, flex: 1 }}>Velloa</Title>
         <Button type="primary" onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
-        <div style={{ marginLeft: 'auto', padding: '0 20px' }}>
+        <div style={{ marginLeft: 'auto', padding: '0 20px' }}> {/* Apply padding to this wrapper div */}
           <Dropdown overlay={dropdownMenu} trigger={['click']}>
             <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
           </Dropdown>
@@ -305,7 +486,7 @@ const DashboardPage = () => {
       <div className="site-card-wrapper">
         <Row gutter={20}>
           {properties.map((property) => (
-            <Col key={property.id} span={6}>
+            <Col key={property.id} span={6}> {/* Reduced span from 8 to 6 for smaller width */}
               <Card
                 hoverable
                 onClick={() => handleCardClick(property)}
@@ -328,6 +509,13 @@ const DashboardPage = () => {
           ))}
         </Steps>
         <div className="steps-content">{steps[currentStep].content}</div>
+        <div className="steps-action">
+          {currentStep > 0 && (
+            <Button style={{ margin: '0 8px' }} onClick={() => prev()}>
+              Previous
+            </Button>
+          )}
+        </div>
       </Modal>
     </>
   );
