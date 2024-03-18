@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Col, Row,Typography  } from 'antd';
+import { Card, Col, Row, Typography } from 'antd';
 import {
   MessageOutlined,
   ToolOutlined,
@@ -11,30 +11,31 @@ import {
   CalendarOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';
-import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-// Your icon imports here...
 const { Title } = Typography;
 
 interface ToolButtonProps {
   icon: React.ReactNode;
   text: string;
+  onClick: () => void;
 }
 
-const ToolButton: React.FC<ToolButtonProps> = ({ icon, text }) => (
-  <Card 
-    hoverable 
-    style={{ 
-      width: '100%', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      height: '150px', // Set a fixed height or manage via responsive design
-      backgroundColor: '#F2F2F2', // Set the background color
+const ToolButton: React.FC<ToolButtonProps> = ({ icon, text, onClick }) => (
+  <Card
+    onClick={onClick}
+    hoverable
+    style={{
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '150px',
+      backgroundColor: '#F2F2F2',
     }}
     bodyStyle={{
-      padding: '24px', // Add padding if needed
+      padding: '24px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -47,41 +48,46 @@ const ToolButton: React.FC<ToolButtonProps> = ({ icon, text }) => (
 );
 
 const ToolsPage = () => {
-  return (
-    
-    <div style={{padding: '20px' }}> {/* Set the background of the entire page here */}
-          <Title level={1} style={{ textAlign: 'left',marginTop: '0px', marginBottom: '20px' }}>Tools</Title>
+  const navigate = useNavigate();
 
-      <Row gutter={[16, 16]} justify="start"> {/* Use 'start' to align columns to the start of the row */}
+  const handleClick = (path: string) => {
+    navigate(path);
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
+        Tools
+      </Title>
+
+      <Row gutter={[16, 16]} justify="start">
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<MessageOutlined />} text="Messages" />
+          <ToolButton icon={<MessageOutlined />} text="Messages" onClick={() => handleClick('/messages')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<ToolOutlined />} text="Maintenance" />
+          <ToolButton icon={<ToolOutlined />} text="Maintenance" onClick={() => handleClick('/maintenance')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<GiftOutlined />} text="Packages" />
+          <ToolButton icon={<GiftOutlined />} text="Packages" onClick={() => handleClick('/packages')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<TeamOutlined />} text="Visitors" />
+          <ToolButton icon={<TeamOutlined />} text="Visitors" onClick={() => handleClick('/visitors')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<BookOutlined />} text="Logbook" />
+          <ToolButton icon={<BookOutlined />} text="Logbook" onClick={() => handleClick('/logbook')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<BulbOutlined />} text="Amenities" />
+          <ToolButton icon={<BulbOutlined />} text="Amenities" onClick={() => handleClick('/amenities')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<FileAddOutlined />} text="New Applications" />
+          <ToolButton icon={<FileAddOutlined />} text="New Applications" onClick={() => handleClick('/applications')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<CalendarOutlined />} text="Events" />
+          <ToolButton icon={<CalendarOutlined />} text="Events" onClick={() => handleClick('/events')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<UserAddOutlined />} text="New Tenant" />
+          <ToolButton icon={<UserAddOutlined />} text="New Tenant" onClick={() => handleClick('/new-tenant')} />
         </Col>
-        
-        {/* Repeat for other tools as needed */}
       </Row>
     </div>
   );

@@ -11,7 +11,15 @@ import LoginPage from './pages/Auth/loginpage'; // Ensure this import path is co
 import SignupPage from './pages/Auth/signup'; // Ensure this import path is correct
 import SideBarPage from './components/sidebar';
 import Dashboardpage from './pages/dashboard/dashboard';
-
+import VisitorsPage from './pages/Tools/toolapplication/vistors/vistorspage';
+import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
+import MaintenancePage from './pages/Tools/toolapplication/maintenance/maintenancepage';
+import Logbook from './pages/Tools/toolapplication/logbook/logbook';
+import PackagesPage from './pages/Tools/toolapplication/packages/packagespage';
+import Amenities from './pages/Tools/toolapplication/amenities/amenitites';
+import NewApplications from './pages/Tools/toolapplication/newapplications/newapplications';
+import Events from './pages/Tools/toolapplication/events/events';
+import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
 
 
 const App = () => {
@@ -34,6 +42,15 @@ const App = () => {
             <Route path="resources" element={<Resourcespage/>} />
             <Route path="accounting" element={<Accountingpage/>} />
             <Route path="analytics" element={<Analyticsspage/>} />
+            <Route path="visitors" element={<VisitorsPage />} />
+            <Route path="messages" element={<MessagesPage />} />
+            <Route path="maintenance" element={<MaintenancePage />} />
+            <Route path="logbook" element={<Logbook />} />
+            <Route path="packages" element={<PackagesPage />} />
+            <Route path="amenities" element={<Amenities />} />
+            <Route path="applications" element={<NewApplications />} />
+            <Route path="events" element={<Events />} />
+            <Route path="new-tenant" element={<NewTenant />} />
 
           </Route>
         </Route>
