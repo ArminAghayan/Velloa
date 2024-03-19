@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select,Skeleton  } from 'antd';
-import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined } from '@ant-design/icons';
+import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select, Skeleton, Table } from 'antd';
+import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,DotChartOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, where, getDocs, doc,setDoc,getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import './dashboard.css';
 
 interface PropertyDetails {
@@ -39,7 +39,7 @@ const { Option } = Select;
 const DashboardPage = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<{ propertyDetails: PropertyDetails; unitInfo: UnitInfo }>({
+  const [formData, setFormData] = useState<{ propertyDetails: PropertyDetails; unitInfo: UnitInfo; unitData?: { key: number; unitNumber: number; floor: number; unitPrice: number; }[] }>({
     propertyDetails: {
       propertyName: '',
       address: {
@@ -61,9 +61,28 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const handleCardClick = (property: Property) => {
-    navigate('/home', { state: { property } });
+const handleCardClick = (property: Property) => {
+  navigate('/home', { state: { property, unitData: formData.unitData } });
+};
+
+
+  const generateUnitData = (numFloors: number, unitsPerFloor: number, offset: number = 0) => {
+    const unitData = [];
+    for (let floor = 1; floor <= numFloors; floor++) {
+      for (let unit = 1; unit <= unitsPerFloor; unit++) {
+        const unitNumber = ((floor + offset) * 100) + unit;
+        unitData.push({
+          key: unitNumber,
+          unitNumber,
+          floor: floor + offset,
+          unitPrice: 0,
+        });
+      }
+    }
+    return unitData;
   };
+
+
 
   useEffect(() => {
     const fetchUserCompany = async () => {
@@ -89,48 +108,47 @@ const DashboardPage = () => {
     fetchUserCompany();
   }, []);
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      if (auth.currentUser && companyDocId) {
-        const propertiesRef = collection(db, `companies/${companyDocId}/properties`);
-        const snapshot = await getDocs(propertiesRef);
-
-        if (!snapshot.empty) {
-          const propertiesList: Property[] = [];
-
-          for (const docSnapshot of snapshot.docs) {
-            const propertyId = docSnapshot.id;
-
-            const propertyInfoRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyinfo", "details");
-            const propertyInfoSnapshot = await getDoc(propertyInfoRef);
-
-            const propertyUnitsRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyunits", "details");
-            const propertyUnitsSnapshot = await getDoc(propertyUnitsRef);
-
-            if (propertyInfoSnapshot.exists() && propertyUnitsSnapshot.exists()) {
-              const propertyData = propertyInfoSnapshot.data() as PropertyDetails;
-              const unitsData = propertyUnitsSnapshot.data() as UnitInfo;
-              const totalUnits = unitsData.numFloors * unitsData.unitsPerFloor;
-
-              propertiesList.push({
-                id: propertyId,
-                propertyName: propertyData.propertyName,
-                imageUrl: propertyData.imageUrl,
-                numUnits: totalUnits,
-              });
-            }
+  const fetchProperties = async () => {
+    setLoading(true);
+    if (auth.currentUser && companyDocId) {
+      const propertiesRef = collection(db, `companies/${companyDocId}/properties`);
+      const snapshot = await getDocs(propertiesRef);
+  
+      if (!snapshot.empty) {
+        const propertiesList: Property[] = [];
+  
+        for (const docSnapshot of snapshot.docs) {
+          const propertyId = docSnapshot.id;
+  
+          const propertyInfoRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyinfo", "details");
+          const propertyInfoSnapshot = await getDoc(propertyInfoRef);
+  
+          const propertyUnitsRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyunits", "details");
+          const propertyUnitsSnapshot = await getDoc(propertyUnitsRef);
+  
+          if (propertyInfoSnapshot.exists() && propertyUnitsSnapshot.exists()) {
+            const propertyData = propertyInfoSnapshot.data() as PropertyDetails;
+            const unitsData = propertyUnitsSnapshot.data() as UnitInfo;
+            const totalUnits = unitsData.numFloors * unitsData.unitsPerFloor;
+  
+            propertiesList.push({
+              id: propertyId,
+              propertyName: propertyData.propertyName,
+              imageUrl: propertyData.imageUrl,
+              numUnits: totalUnits,
+            });
           }
-
-          console.log("Properties found:", propertiesList);
-          setProperties(propertiesList);
-        } else {
-          console.log("No properties found for this company.");
         }
+  
+        console.log("Properties found:", propertiesList);
+        setProperties(propertiesList);
+      } else {
+        console.log("No properties found for this company.");
       }
-      setLoading(false);
-    };
-
+    }
+    setLoading(false);
+  };
+  useEffect(() => {
     fetchProperties();
   }, [companyDocId]);
 
@@ -141,58 +159,75 @@ const DashboardPage = () => {
       return;
     }
   
-    try {
-      const propertyRef = collection(db, `companies/${companyDocId}/properties`);
-      const docRef = await addDoc(propertyRef, {
-      });
+    setFormData({
+      ...formData,
+      propertyDetails: values,
+    });
   
-      const propertyInfoRef = doc(docRef, 'propertyinfo', 'details');
-      await setDoc(propertyInfoRef, {
-        ...values,
-        propertyName: values.propertyName,
-
-        propertyId: docRef.id,
-      });
-  
-      setFormData({
-        ...formData,
-        propertyDetails: {
-          ...values,
-          id: docRef.id,
-        },
-      });
-      next();
-    } catch (error) {
-      console.error("Error adding property details: ", error);
-      message.error("An error occurred while adding the property details.");
-    }
+    next();
   };
 
+  const onFinishUnitInfo = async (values: UnitInfo & { offset: number }) => {
+    if (!auth.currentUser || !companyDocId) {
+      message.error("You must be logged in and have a company selected to perform this action.");
+      return;
+    }
+  
+    const unitData = generateUnitData(values.numFloors, values.unitsPerFloor, values.offset);
+    setFormData({
+      ...formData,
+      unitInfo: {
+        numFloors: values.numFloors,
+        unitsPerFloor: values.unitsPerFloor,
+      },
+      unitData,
+    });
+  
+    next();
+  };
 
-  const onFinishUnitInfo = async (values: UnitInfo) => {
+  const handleUnitReview = async () => {
     if (!auth.currentUser || !companyDocId) {
       message.error("You must be logged in and have a company selected to perform this action.");
       return;
     }
   
     try {
-      const totalUnits = values.numFloors * values.unitsPerFloor;
-      const propertyRef = doc(db, `companies/${companyDocId}/properties/${formData.propertyDetails.id}`);
-      const propertyUnitsRef = doc(propertyRef, 'propertyunits', 'details');
+      const propertyRef = collection(db, `companies/${companyDocId}/properties`);
+      const docRef = await addDoc(propertyRef, {});
   
-      await setDoc(propertyUnitsRef, {
-        numFloors: values.numFloors,
-        unitsPerFloor: values.unitsPerFloor,
-        totalUnits,
+      const propertyInfoRef = doc(docRef, 'propertyinfo', 'details');
+      await setDoc(propertyInfoRef, {
+        ...formData.propertyDetails,
+        propertyId: docRef.id,
       });
   
-      message.success("Property units added successfully!");
-      next();
+      const propertyUnitsRef = doc(docRef, 'propertyunits', 'details');
+      await setDoc(propertyUnitsRef, {
+        numFloors: formData.unitInfo.numFloors,
+        unitsPerFloor: formData.unitInfo.unitsPerFloor,
+        totalUnits: formData.unitInfo.numFloors * formData.unitInfo.unitsPerFloor,
+      });
+  
+      const propertyUnitDataRef = doc(docRef, 'propertyunits', 'units');
+      await setDoc(propertyUnitDataRef, {
+        units: formData.unitData,
+      });
+  
+      message.success("Property data saved successfully!");
+      resetFormAndHideModal();
+      fetchProperties(); // Refresh the property list
     } catch (error) {
-      console.error("Error adding document: ", error);
-      message.error("An error occurred while adding the property units.");
+      console.error("Error saving property data: ", error);
+      message.error("An error occurred while saving the property data.");
     }
   };
+
+
+
+
+
+
 
   const showModal = () => setIsModalVisible(true);
   const handleCancel = () => resetFormAndHideModal();
@@ -228,12 +263,34 @@ const DashboardPage = () => {
         <Link to="/dashboard">Overview</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />}>
-        <Link to="/logout">Logout</Link>
+        <Link to="/login">Logout</Link>
       </Menu.Item>
     </Menu>
   );
 
   const { token: { colorBgContainer } } = theme.useToken();
+  const columns = [
+    {
+      title: 'Unit Number',
+      dataIndex: 'unitNumber',
+      key: 'unitNumber',
+    },
+    {
+      title: 'Floor',
+      dataIndex: 'floor',
+      key: 'floor',
+    },
+    {
+      title: 'Unit Price',
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+    },
+  ];
+
+
+
+
+
 
   const steps = [
     {
@@ -276,27 +333,48 @@ const DashboardPage = () => {
             label="Country"
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
-            <Select showSearch>
+           <Select showSearch={false}>
               <Select.Option value="USA">USA</Select.Option>
               <Select.Option value="Canada">Canada</Select.Option>
-            </Select>
+          </Select> 
           </Form.Item>
-          <Button type="primary" htmlType="submit">Next</Button>
+
+
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button type="primary" htmlType="submit">Next</Button>
+          </div>
         </Form>
       ),
     },
     {
       title: 'Units Info',
       content: (
-        <Form layout="vertical" onFinish={onFinishUnitInfo}>
+        <Form layout="vertical" onFinish={onFinishUnitInfo} initialValues={formData.unitInfo}>
           <Form.Item name="numFloors" label="Number of Floors" rules={[{ required: true }]}>
             <InputNumber />
           </Form.Item>
           <Form.Item name="unitsPerFloor" label="Units Per Floor" rules={[{ required: true }]}>
             <InputNumber />
           </Form.Item>
-          <Button type="primary" htmlType="submit">Next</Button>
+          <Form.Item name="offset" label="Offset Floor (e.g. If your floor start at 400 use an offset of 3)" initialValue={0}>
+            <InputNumber min={0} />
+          </Form.Item>          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button onClick={prev}>Previous</Button>
+            <Button type="primary" htmlType="submit">Next</Button>
+          </div>
         </Form>
+      ),
+    },
+    {
+      title: 'Unit Review',
+      content: (
+        <div>
+          <Table columns={columns} dataSource={formData.unitData} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+            <Button onClick={prev}>Previous</Button>
+            <Button type="primary" onClick={handleUnitReview}>Submit</Button>
+          </div>
+        </div>
       ),
     },
   ];
@@ -329,6 +407,17 @@ const DashboardPage = () => {
             </Card>
           </Col>
         ))
+    ) : properties.length === 0 ? (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', width: '100%', margin: '30px' }}>
+        <Card style={{ width: '300px', textAlign: 'center' }}>
+          <Skeleton loading={true} active={false}>
+            <Skeleton.Image style={{ height: 200, width: '100%' }} />
+            <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
+            <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
+          </Skeleton>
+          <Title level={4} style={{ marginTop: '16px', color:"#D8D8D8" }}>Add a new property</Title>
+        </Card>
+      </div>
     ) : (
       properties.map((property) => (
         <Col key={property.id} span={6}>
