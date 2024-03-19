@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select, Skeleton, Table } from 'antd';
-import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,DotChartOutlined } from '@ant-design/icons';
+import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, getDocs, doc, writeBatch, where } from 'firebase/firestore';
 import './dashboard.css';
 
 interface PropertyDetails {
@@ -55,16 +55,13 @@ const DashboardPage = () => {
       unitsPerFloor: 0,
     },
   });
-  const [companyDocId, setCompanyDocId] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState("Loading company...");
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-const handleCardClick = (property: Property) => {
-  navigate('/home', { state: { property, unitData: formData.unitData } });
-};
-
+  const handleCardClick = (property: Property) => {
+    navigate('/home', { state: { property, unitData: formData.unitData } });
+  };
 
   const generateUnitData = (numFloors: number, unitsPerFloor: number, offset: number = 0) => {
     const unitData = [];
@@ -82,97 +79,80 @@ const handleCardClick = (property: Property) => {
     return unitData;
   };
 
-
-
-  useEffect(() => {
-    const fetchUserCompany = async () => {
-      if (auth.currentUser) {
-        const userUid = auth.currentUser.uid;
-        console.log("Fetching company for user ID:", userUid);
-        const companiesRef = collection(db, "companies");
-        const q = query(companiesRef, where("uid", "==", userUid));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          const companyData = querySnapshot.docs[0].data();
-          console.log("Company data found:", companyData);
-          setCompanyDocId(querySnapshot.docs[0].id);
-          setCompanyName(companyData.companyName);
-        } else {
-          console.log("No company found for the user.");
-          setCompanyName("No company found.");
-        }
+  const fetchUserCompany = async (uid: string) => {
+    try {
+      const companySnapshot = await getDocs(
+        query(collection(db, 'companies'), where('uid', '==', uid))
+      );
+      if (!companySnapshot.empty) {
+        return companySnapshot.docs[0].data();
       }
-    };
-
-    fetchUserCompany();
-  }, []);
+      return null;
+    } catch (error) {
+      console.error('Error fetching user company:', error);
+      return null;
+    }
+  };
 
   const fetchProperties = async () => {
     setLoading(true);
-    if (auth.currentUser && companyDocId) {
-      const propertiesRef = collection(db, `companies/${companyDocId}/properties`);
-      const snapshot = await getDocs(propertiesRef);
-  
-      if (!snapshot.empty) {
-        const propertiesList: Property[] = [];
-  
-        for (const docSnapshot of snapshot.docs) {
-          const propertyId = docSnapshot.id;
-  
-          const propertyInfoRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyinfo", "details");
-          const propertyInfoSnapshot = await getDoc(propertyInfoRef);
-  
-          const propertyUnitsRef = doc(db, "companies", companyDocId, "properties", propertyId, "propertyunits", "details");
-          const propertyUnitsSnapshot = await getDoc(propertyUnitsRef);
-  
-          if (propertyInfoSnapshot.exists() && propertyUnitsSnapshot.exists()) {
-            const propertyData = propertyInfoSnapshot.data() as PropertyDetails;
-            const unitsData = propertyUnitsSnapshot.data() as UnitInfo;
-            const totalUnits = unitsData.numFloors * unitsData.unitsPerFloor;
-  
-            propertiesList.push({
-              id: propertyId,
-              propertyName: propertyData.propertyName,
-              imageUrl: propertyData.imageUrl,
-              numUnits: totalUnits,
-            });
+    try {
+      if (auth.currentUser) {
+        const userCompany = await fetchUserCompany(auth.currentUser.uid);
+        if (userCompany) {
+          const propertiesRef = collection(db, "properties");
+          const propertiesQuery = query(propertiesRef, where('companyuid', '==', userCompany.companyuid));
+          const snapshot = await getDocs(propertiesQuery);
+
+          if (!snapshot.empty) {
+            const propertiesList: Property[] = [];
+
+            for (const docSnapshot of snapshot.docs) {
+              const propertyData = docSnapshot.data();
+              const propertyId = docSnapshot.id;
+
+              // Get the total number of units for this property
+              const unitsRef = collection(db, "units");
+              const unitsQuery = query(unitsRef, where("propertyId", "==", propertyId));
+              const unitsSnapshot = await getDocs(unitsQuery);
+              const totalUnits = unitsSnapshot.size;
+
+              propertiesList.push({
+                id: propertyId,
+                propertyName: propertyData.propertyName,
+                imageUrl: propertyData.imageUrl,
+                numUnits: totalUnits,
+              });
+            }
+
+            console.log("Properties found:", propertiesList);
+            setProperties(propertiesList);
+          } else {
+            console.log("No properties found for the user's company.");
+            setProperties([]);
           }
         }
-  
-        console.log("Properties found:", propertiesList);
-        setProperties(propertiesList);
-      } else {
-        console.log("No properties found for this company.");
       }
+    } catch (error) {
+      console.error("Error fetching properties:", error);
     }
     setLoading(false);
   };
+
   useEffect(() => {
     fetchProperties();
-  }, [companyDocId]);
-
+  }, []);
 
   const onFinishPropertyDetails = async (values: PropertyDetails) => {
-    if (!auth.currentUser || !companyDocId) {
-      message.error("You must be logged in and have a company selected to perform this action.");
-      return;
-    }
-  
     setFormData({
       ...formData,
       propertyDetails: values,
     });
-  
+
     next();
   };
 
   const onFinishUnitInfo = async (values: UnitInfo & { offset: number }) => {
-    if (!auth.currentUser || !companyDocId) {
-      message.error("You must be logged in and have a company selected to perform this action.");
-      return;
-    }
-  
     const unitData = generateUnitData(values.numFloors, values.unitsPerFloor, values.offset);
     setFormData({
       ...formData,
@@ -182,52 +162,43 @@ const handleCardClick = (property: Property) => {
       },
       unitData,
     });
-  
+
     next();
   };
 
   const handleUnitReview = async () => {
-    if (!auth.currentUser || !companyDocId) {
-      message.error("You must be logged in and have a company selected to perform this action.");
-      return;
-    }
-  
     try {
-      const propertyRef = collection(db, `companies/${companyDocId}/properties`);
-      const docRef = await addDoc(propertyRef, {});
-  
-      const propertyInfoRef = doc(docRef, 'propertyinfo', 'details');
-      await setDoc(propertyInfoRef, {
-        ...formData.propertyDetails,
-        propertyId: docRef.id,
-      });
-  
-      const propertyUnitsRef = doc(docRef, 'propertyunits', 'details');
-      await setDoc(propertyUnitsRef, {
-        numFloors: formData.unitInfo.numFloors,
-        unitsPerFloor: formData.unitInfo.unitsPerFloor,
-        totalUnits: formData.unitInfo.numFloors * formData.unitInfo.unitsPerFloor,
-      });
-  
-      const propertyUnitDataRef = doc(docRef, 'propertyunits', 'units');
-      await setDoc(propertyUnitDataRef, {
-        units: formData.unitData,
-      });
-  
-      message.success("Property data saved successfully!");
-      resetFormAndHideModal();
-      fetchProperties(); // Refresh the property list
+      if (auth.currentUser) {
+        const userCompany = await fetchUserCompany(auth.currentUser.uid);
+        if (userCompany) {
+          const propertiesRef = collection(db, "properties");
+          const propertyDocRef = await addDoc(propertiesRef, {
+            propertyName: formData.propertyDetails.propertyName,
+            address: formData.propertyDetails.address,
+            numFloors: formData.unitInfo.numFloors,
+            unitsPerFloor: formData.unitInfo.unitsPerFloor,
+            companyuid: userCompany.companyuid, // Add the companyuid to the property document
+          });
+
+          // Save units as a separate collection
+          const unitsRef = collection(db, "units");
+          const batch = writeBatch(db);
+          formData.unitData?.forEach((unit) => {
+            const unitRef = doc(unitsRef);
+            batch.set(unitRef, { ...unit, propertyId: propertyDocRef.id });
+          });
+          await batch.commit();
+
+          message.success("Property data saved successfully!");
+          resetFormAndHideModal();
+          fetchProperties(); // Refresh the property list
+        }
+      }
     } catch (error) {
       console.error("Error saving property data: ", error);
       message.error("An error occurred while saving the property data.");
     }
   };
-
-
-
-
-
-
 
   const showModal = () => setIsModalVisible(true);
   const handleCancel = () => resetFormAndHideModal();
@@ -288,10 +259,6 @@ const handleCardClick = (property: Property) => {
   ];
 
 
-
-
-
-
   const steps = [
     {
       title: 'Property Details',
@@ -333,12 +300,11 @@ const handleCardClick = (property: Property) => {
             label="Country"
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
-           <Select showSearch={false}>
+            <Select showSearch={false}>
               <Select.Option value="USA">USA</Select.Option>
               <Select.Option value="Canada">Canada</Select.Option>
-          </Select> 
+            </Select>
           </Form.Item>
-
 
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button type="primary" htmlType="submit">Next</Button>
@@ -358,7 +324,8 @@ const handleCardClick = (property: Property) => {
           </Form.Item>
           <Form.Item name="offset" label="Offset Floor (e.g. If your floor start at 400 use an offset of 3)" initialValue={0}>
             <InputNumber min={0} />
-          </Form.Item>          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          </Form.Item>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button onClick={prev}>Previous</Button>
             <Button type="primary" htmlType="submit">Next</Button>
           </div>
@@ -392,50 +359,50 @@ const handleCardClick = (property: Property) => {
         </div>
       </Header>
       <div className="site-card-wrapper">
-  <Row gutter={20}>
-    {loading ? (
-      Array(4)
-        .fill(null)
-        .map((_, index) => (
-          <Col key={index} span={6}>
-            <Card style={{ height: 300 }}>
-              <Skeleton active>
-                <Skeleton.Image style={{ height: 200, width: '100%' }} />
-                <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
-                <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
-              </Skeleton>
-            </Card>
-          </Col>
-        ))
-    ) : properties.length === 0 ? (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', width: '100%', margin: '30px' }}>
-        <Card style={{ width: '300px', textAlign: 'center' }}>
-          <Skeleton loading={true} active={false}>
-            <Skeleton.Image style={{ height: 200, width: '100%' }} />
-            <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
-            <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
-          </Skeleton>
-          <Title level={4} style={{ marginTop: '16px', color:"#D8D8D8" }}>Add a new property</Title>
-        </Card>
+        <Row gutter={20}>
+          {loading ? (
+            Array(4)
+              .fill(null)
+              .map((_, index) => (
+                <Col key={index} span={6}>
+                  <Card style={{ height: 300 }}>
+                    <Skeleton active>
+                      <Skeleton.Image style={{ height: 200, width: '100%' }} />
+                      <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
+                      <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
+                    </Skeleton>
+                  </Card>
+                </Col>
+              ))
+          ) : properties.length === 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', width: '100%', margin: '30px' }}>
+              <Card style={{ width: '300px', textAlign: 'center' }}>
+                <Skeleton loading={true} active={false}>
+                  <Skeleton.Image style={{ height: 200, width: '100%' }} />
+                  <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
+                  <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
+                </Skeleton>
+                <Title level={4} style={{ marginTop: '16px', color: "#D8D8D8" }}>Add a new property</Title>
+              </Card>
+            </div>
+          ) : (
+            properties.map((property) => (
+              <Col key={property.id} span={6}>
+                <Card
+                  hoverable
+                  onClick={() => handleCardClick(property)}
+                  cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} style={{ height: 200 }} />}
+                >
+                  <Card.Meta
+                    title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
+                    description={`${property.numUnits} units`}
+                  />
+                </Card>
+              </Col>
+            ))
+          )}
+        </Row>
       </div>
-    ) : (
-      properties.map((property) => (
-        <Col key={property.id} span={6}>
-          <Card
-            hoverable
-            onClick={() => handleCardClick(property)}
-            cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} style={{ height: 200 }} />}
-          >
-            <Card.Meta
-              title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
-              description={`${property.numUnits} units`}
-            />
-          </Card>
-        </Col>
-      ))
-    )}
-  </Row>
-</div>
 
       <Modal title="Add Property" visible={isModalVisible} onCancel={handleCancel} footer={null} width="1200px">
         <Steps current={currentStep}>
