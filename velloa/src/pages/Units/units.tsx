@@ -1,14 +1,17 @@
 import React from 'react';
-import { Typography, Table, Button, Space,Input  } from 'antd';
-import {RightOutlined   } from '@ant-design/icons';
+import { Typography, Table, Button, Space, Input } from 'antd';
+import { RightOutlined } from '@ant-design/icons';
+import { useLocation } from 'react-router-dom';
 
 const { Title } = Typography;
 
 interface Unit {
-  key: string;
-  unitNumber: string;
-  fullName: string;
-  startDate: string;
+  key: number;
+  unitNumber?: number;
+  floor: number;
+  unitPrice: number;
+  fullName?: string;
+  startDate?: string;
 }
 
 interface ActionRenderArgs {
@@ -17,31 +20,24 @@ interface ActionRenderArgs {
   column: string;
 }
 
-const data: Unit[] = [
-  {
-    key: '1',
-    unitNumber: '101',
-    fullName: 'John Doe',
-    startDate: '2022-01-01',
-  },
-  // ... more data
-];
-
 const columns = [
   {
     title: 'Unit #',
     dataIndex: 'unitNumber',
     key: 'unitNumber',
+    render: (unitNumber: number) => unitNumber || 'N/A',
   },
   {
     title: 'Full Name',
     dataIndex: 'fullName',
     key: 'fullName',
+    render: (fullName: string) => fullName || 'N/A',
   },
   {
     title: 'Start of Residence',
     dataIndex: 'startDate',
     key: 'startDate',
+    render: (startDate: string) => startDate || 'N/A',
   },
   {
     title: 'Action',
@@ -52,11 +48,6 @@ const columns = [
         <a onClick={() => onRequestClick(record)}>Request</a>
       </Space>
     ),
-  },
-  {
-    title: '',
-    key: 'arrow',
-    render: () => <RightOutlined />, // Just the arrow icon, not a button
   },
 ];
 
@@ -71,18 +62,20 @@ const onRequestClick = (record: Unit) => {
   console.log('Request', record);
 };
 
-
 const UnitsPage: React.FC = () => {
+  const location = useLocation();
+  const unitData = location.state?.unitData || [];
+
   return (
     <div style={{ margin: '20px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '10px' }}>
-    <Title level={1} style={{ textAlign: 'left',marginTop: '0px', marginBottom: '20px' }}>Units</Title>
-      <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
-        <Input.Search placeholder="Search units/names" onSearch={(value: string) => console.log(value)} style={{ width: 200 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '10px' }}>
+        <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>Units</Title>
+        <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <Input.Search placeholder="Search units/names" onSearch={(value: string) => console.log(value)} style={{ width: 200 }} />
+        </div>
       </div>
+      <Table columns={columns} dataSource={unitData} />
     </div>
-    <Table columns={columns} dataSource={data} />
-  </div>
   );
 };
 
