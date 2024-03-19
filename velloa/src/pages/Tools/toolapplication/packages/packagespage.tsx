@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Input, Button, Modal, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { db, auth } from '../../../../firebase-config';
-import { collection, addDoc, getDocs, doc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, query, where,updateDoc } from 'firebase/firestore';
 
 interface Package {
   id: string;
@@ -96,14 +96,40 @@ const PackagesPage: React.FC = () => {
   ];
 
   const handleAddPackage = async (values: any) => {
-    const newPackage: Omit<Package, 'id'> = {
-      unitNumber: values.unitNumber,
-      numberOfPackages: values.numberOfPackages,
-      pickedUp: false,
-    };
-
-    const docRef = await addDoc(collection(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`), newPackage);
-    setPackages([...packages, { id: docRef.id, ...newPackage }]);
+    const { unitNumber, numberOfPackages } = values;
+  
+    // Parse numberOfPackages as an integer
+    const parsedNumberOfPackages = parseInt(numberOfPackages, 10);
+  
+    // Check if a package with the same unit number already exists
+    const existingPackage = packages.find((item) => item.unitNumber === unitNumber);
+  
+    if (existingPackage) {
+      // If a package with the same unit number exists, add the entered number of packages to the existing value
+      const updatedPackage: Package = {
+        ...existingPackage,
+        numberOfPackages: existingPackage.numberOfPackages + parsedNumberOfPackages,
+      };
+  
+      await updateDoc(doc(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`, existingPackage.id), {
+        numberOfPackages: updatedPackage.numberOfPackages,
+      });
+  
+      setPackages(
+        packages.map((item) => (item.id === existingPackage.id ? updatedPackage : item))
+      );
+    } else {
+      // If a package with the same unit number doesn't exist, add a new package
+      const newPackage: Omit<Package, 'id'> = {
+        unitNumber,
+        numberOfPackages: parsedNumberOfPackages,
+        pickedUp: false,
+      };
+  
+      const docRef = await addDoc(collection(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`), newPackage);
+      setPackages([...packages, { id: docRef.id, ...newPackage }]);
+    }
+  
     setModalVisible(false);
   };
 

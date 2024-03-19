@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Steps, Form, Input, InputNumber, Space, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select,Skeleton  } from 'antd';
+import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, where, getDocs, doc, writeBatch,setDoc,getDoc } from 'firebase/firestore';
-import moment from 'moment';
+import { collection, addDoc, query, where, getDocs, doc,setDoc,getDoc } from 'firebase/firestore';
 import './dashboard.css';
 
 interface PropertyDetails {
@@ -59,6 +58,7 @@ const DashboardPage = () => {
   const [companyDocId, setCompanyDocId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("Loading company...");
   const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const handleCardClick = (property: Property) => {
@@ -91,6 +91,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchProperties = async () => {
+      setLoading(true);
       if (auth.currentUser && companyDocId) {
         const propertiesRef = collection(db, `companies/${companyDocId}/properties`);
         const snapshot = await getDocs(propertiesRef);
@@ -127,10 +128,11 @@ const DashboardPage = () => {
           console.log("No properties found for this company.");
         }
       }
+      setLoading(false);
     };
 
     fetchProperties();
-  }, [companyDocId]); // Ensure that companyDocId is properly defined in your state.
+  }, [companyDocId]);
 
 
   const onFinishPropertyDetails = async (values: PropertyDetails) => {
@@ -312,23 +314,39 @@ const DashboardPage = () => {
         </div>
       </Header>
       <div className="site-card-wrapper">
-        <Row gutter={20}>
-          {properties.map((property) => (
-            <Col key={property.id} span={6}>
-              <Card
-                hoverable
-                onClick={() => handleCardClick(property)}
-                cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} />}
-              >
-                <Card.Meta
-                  title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
-                  description={`${property.numUnits} units`}
-                />
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
+  <Row gutter={20}>
+    {loading ? (
+      Array(4)
+        .fill(null)
+        .map((_, index) => (
+          <Col key={index} span={6}>
+            <Card style={{ height: 300 }}>
+              <Skeleton active>
+                <Skeleton.Image style={{ height: 200, width: '100%' }} />
+                <Skeleton.Button style={{ width: '100%', marginTop: 16 }} />
+                <Skeleton.Input style={{ width: '100%', marginTop: 8 }} />
+              </Skeleton>
+            </Card>
+          </Col>
+        ))
+    ) : (
+      properties.map((property) => (
+        <Col key={property.id} span={6}>
+          <Card
+            hoverable
+            onClick={() => handleCardClick(property)}
+            cover={<img alt={property.propertyName} src={property.imageUrl || '/assests/defualtpropimage.jpg'} style={{ height: 200 }} />}
+          >
+            <Card.Meta
+              title={<Title level={4} style={{ margin: 0 }}>{property.propertyName}</Title>}
+              description={`${property.numUnits} units`}
+            />
+          </Card>
+        </Col>
+      ))
+    )}
+  </Row>
+</div>
 
       <Modal title="Add Property" visible={isModalVisible} onCancel={handleCancel} footer={null} width="1200px">
         <Steps current={currentStep}>
