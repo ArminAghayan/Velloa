@@ -5,6 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, addDoc, query, getDocs, doc, writeBatch, where } from 'firebase/firestore';
 import './dashboard.css';
+import { useDispatch } from 'react-redux';
+import { setPropertyId } from '../../components/propertySlice';
 
 interface PropertyDetails {
   propertyName: string;
@@ -37,6 +39,7 @@ const { Step } = Steps;
 const { Option } = Select;
 
 const DashboardPage = () => {
+  const dispatch = useDispatch();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<{ propertyDetails: PropertyDetails; unitInfo: UnitInfo; unitData?: { key: number; unitNumber: number; floor: number; unitPrice: number; }[] }>({
@@ -60,6 +63,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
 
   const handleCardClick = (property: Property) => {
+    dispatch(setPropertyId(property.id)); // Dispatch the setPropertyId action
     navigate('/home', { state: { property, unitData: formData.unitData } });
   };
 

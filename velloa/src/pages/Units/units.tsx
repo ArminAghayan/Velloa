@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Table, Button, Space, Input } from 'antd';
+import { Typography, Table, Space, Input } from 'antd';
 import { RightOutlined, SearchOutlined, CloseCircleFilled } from '@ant-design/icons';
-import { db } from '../../firebase-config';
-import { collection, getDocs } from 'firebase/firestore';
 import { SortOrder } from 'antd/lib/table/interface';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../components/store';
+import { fetchUnits } from '../../components/propertySlice';
+import { AppDispatch } from '../../components/store';
+
 
 const { Title } = Typography;
 
@@ -12,26 +15,26 @@ interface UnitData {
   unitNumber: number;
   floor: number;
   unitPrice: number;
+  propertyId: string;
 }
 
+const fetchUnitsAndDispatch = (propertyId: string) => {
+  return async (dispatch: AppDispatch) => {
+    await dispatch(fetchUnits(propertyId));
+  };
+};
+
 const UnitsPage: React.FC = () => {
-  const [unitData, setUnitData] = useState<UnitData[]>([]);
+  const dispatch = useDispatch();
+  const { propertyId, units } = useSelector((state: RootState) => state.property);
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    const fetchUnitData = async () => {
-      const unitsRef = collection(db, 'units');
-      const snapshot = await getDocs(unitsRef);
-      const unitDataList: UnitData[] = snapshot.docs.map((doc) => ({
-        key: doc.id,
-        unitNumber: doc.data().unitNumber ?? 0,
-        floor: doc.data().floor ?? 0,
-        unitPrice: doc.data().unitPrice ?? 0,
-      }));
-      setUnitData(unitDataList);
+    const fetchData = async () => {
+      dispatch(fetchUnitsAndDispatch(propertyId) as any); // Dispatch the function as an action
     };
-    fetchUnitData();
-  }, []);
+    fetchData();
+  }, [dispatch, propertyId]);
 
   const columns = [
     {
@@ -81,13 +84,16 @@ const UnitsPage: React.FC = () => {
     console.log('Request', record);
   };
 
-  // Filter unit data based on search text
-  const filteredUnitData = unitData.filter(
+  // Filter unit data based on search text and current property ID
+  const filteredUnitData = units.filter(
     (unit) =>
       unit.unitNumber.toString().toLowerCase().includes(searchText.toLowerCase()) ||
       unit.floor.toString().toLowerCase().includes(searchText.toLowerCase()) ||
       unit.unitPrice.toString().toLowerCase().includes(searchText.toLowerCase())
   );
+
+
+  console.log('Filtered unit data:', filteredUnitData);
 
   return (
     <div style={{ margin: '20px' }}>
@@ -123,4 +129,8 @@ const UnitsPage: React.FC = () => {
   );
 };
 
-export default UnitsPage;
+export default UnitsPage; 
+
+function dispatch(arg0: any) {
+  throw new Error('Function not implemented.');
+}
