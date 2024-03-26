@@ -6,6 +6,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../components/store';
 import { fetchUnits } from '../../components/propertySlice';
 import { AppDispatch } from '../../components/store';
+import { setSelectedUnit } from '../../components/unitActions';
+import { useNavigate } from 'react-router-dom';
 
 
 const { Title } = Typography;
@@ -28,6 +30,7 @@ const UnitsPage: React.FC = () => {
   const dispatch = useDispatch();
   const { propertyId, units } = useSelector((state: RootState) => state.property);
   const [searchText, setSearchText] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,7 +64,7 @@ const UnitsPage: React.FC = () => {
       key: 'action',
       render: (text: any, record: UnitData) => (
         <Space size="middle">
-          <a onClick={() => onMessageClick(record)}>Message</a>
+      <RightOutlined onClick={() => onUnitClick(record)} />
           <a onClick={() => onRequestClick(record)}>Request</a>
         </Space>
       ),
@@ -74,9 +77,10 @@ const UnitsPage: React.FC = () => {
   ];
 
   // Event handlers for action buttons
-  const onMessageClick = (record: UnitData) => {
-    // Logic to handle message action
-    console.log('Message', record);
+  const onUnitClick = (record: UnitData) => {
+    console.log('Unit clicked:', record);
+    dispatch(setSelectedUnit(record));
+    navigate('/unit-info');
   };
 
   const onRequestClick = (record: UnitData) => {

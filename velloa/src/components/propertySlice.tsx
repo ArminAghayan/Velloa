@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase-config';
-import { AppDispatch } from './store'; // Import the AppDispatch type
+import { AppDispatch } from './store';
 
 interface UnitData {
   key: string;
@@ -14,11 +14,13 @@ interface UnitData {
 interface PropertyState {
   propertyId: string;
   units: UnitData[];
+  selectedUnit: UnitData | null;
 }
 
 const initialState: PropertyState = {
   propertyId: '',
   units: [],
+  selectedUnit: null,
 };
 
 const propertySlice = createSlice({
@@ -31,10 +33,14 @@ const propertySlice = createSlice({
     setUnits: (state, action: PayloadAction<UnitData[]>) => {
       state.units = action.payload;
     },
+    setSelectedUnit: (state, action: PayloadAction<UnitData | null>) => {
+      console.log('setSelectedUnit action received:', action.payload);
+      state.selectedUnit = action.payload;
+    },
   },
 });
 
-export const { setPropertyId, setUnits } = propertySlice.actions;
+export const { setPropertyId, setUnits, setSelectedUnit } = propertySlice.actions;
 
 export const fetchUnits = (propertyId: string) => async (dispatch: AppDispatch) => {
   if (propertyId) {

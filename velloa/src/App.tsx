@@ -20,6 +20,7 @@ import Amenities from './pages/Tools/toolapplication/amenities/amenitites';
 import NewApplications from './pages/Tools/toolapplication/newapplications/newapplications';
 import Events from './pages/Tools/toolapplication/events/events';
 import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
+import UnitInfoPage from './pages/Units/unitinfo/unitinfo';
 import { Provider } from 'react-redux';
 import store from '../src/components/store';
 
@@ -53,6 +54,7 @@ const App = () => {
               <Route path="applications" element={<NewApplications />} />
               <Route path="events" element={<Events />} />
               <Route path="new-tenant" element={<NewTenant />} />
+              <Route path="/unit-info" element={<UnitInfoPage />} />
             </Route>
           </Route>
         </Routes>

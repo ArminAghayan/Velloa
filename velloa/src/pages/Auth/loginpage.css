@@ -1,82 +1,128 @@
-/* Assuming a separate styles.css file linked to your index.html */
 
-/* General resets for body */
 body, html {
     height: 100%;
     margin: 0;
     font-family: 'Arial', sans-serif; /* or any other font you're using */
     
   }
-  
-  .login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh; /* Use 100% of the viewport height */
-    box-sizing: border-box; /* Include padding in the width and height calculations */
-    background: #fa8c16
-}
 
 
 .login-card {
-  background: #ffffff;
-  border-radius: 8px; /* Adjusted for a more pronounced rounded corner */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 40px; /* Increased padding for a larger card */
-  width: 100%;
-  max-width: 400px; /* Increased max-width for a larger card */
-  margin: 24px auto; /* Added margin for spacing around the card */
+  width: 400px;
+  padding: 40px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin: 20px;
+
 }
 
-
-
-
+.login-container {
+  display: flex;
+  justify-content: right;
+  align-items: right;
+  min-height: 100vh;
+  background-color: #5475ab;
+}
 
 .login-header {
-  font-size: 24px; /* Large font size for the header */
-  color: #000; /* Black color for the header text */
-  margin-bottom: 16px; /* Space below the header */
-  text-align: center; /* Center the header text */
-
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
 }
+
+.logo-container {
+  display: flex;
+  align-items: center;
+}
+
+.login-icon {
+  width: 40px;
+  height: 40px;
+  margin-right: 10px;
+}
+
+.login-title {
+  margin: 0;
+  margin-top: 15px;
+  justify-content: center;
+  align-items: center;
+}
+
 
 .welcome-message {
-  font-size: 14px; /* Adjust font size as needed for the welcome message */
-  color: #666; /* Gray color for the welcome message text */
-  margin-bottom: 24px; /* Space below the welcome message */
-  text-align: center; /* Center the header text */
-
-}
-.remember-me-checkbox {
-  text-align: left; /* Aligns the checkbox text to the left */
-}
-.remember-me-checkbox {
-  text-align: left; /* Aligns the checkbox text to the left */
-  
-
+  font-size: 16px;
+  color: #9f9f9f;
+  margin-bottom: 30px;
 }
 
+.ant-form-item {
+  margin-bottom: 20px;
+}
 
-.login-button{
-  padding: 20px 20px;
-  background-color: #fa8c16 !important;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  outline: none;
-  font-weight: bold;
-  color: #fff;
-  font-size: 1em;
-  transition: background-color 0.3s ease;
-  display: flex;
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
-  text-align: center; /* Center text alignment */
+.ant-input,
+.ant-input-password {
+  height: 40px;
+  border-radius: 6px;
+  align-items: center;
+
+}
+
+.ant-checkbox-wrapper {
+  color: #000000;
+}
+
+.forgot-password-link {
+  color: #1777FF;
+  text-decoration: none;
+}
+
+.login-button {
+  height: 40px;
   width: 100%;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #5475ab;
+  border-color: #5475ab;
+  border-radius: 6px;
 }
 
 .login-button:hover {
-  background-color: #60a6a1 !important; /* Slightly darker background on hover */
+  background-color: #577db9;
+  border-color: #577db9;
 }
 
 
+
+.create-account-text {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #000000;
+}
+
+.create-account-text a {
+  color: #1777FF;
+  text-decoration: none;
+}
+
+
+.login-button.shake {
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-20px); }
+  50% { transform: translateX(20px); }
+  75% { transform: translateX(-20px); }
+  100% { transform: translateX(0); }
+}
+
+.carousel-container {
+  width: 100%; /* Use 100% width for full responsiveness or a fixed width as per your design */
+  max-width: 800px; /* This will be the maximum width of the carousel */
+  margin: auto; /* This centers the carousel within its container */
+}

@@ -7,7 +7,7 @@ import { sendEmailVerification } from "firebase/auth";
 import moment from 'moment';
 import { Timestamp } from 'firebase/firestore';
 import { addDoc, collection,updateDoc } from 'firebase/firestore';
-
+import './signup.css';
 const { Step } = Steps;
 
 interface AccountFormValues {
@@ -99,7 +99,7 @@ const Signup = () => {
   };
 
   try {
-    const docRef = await addDoc(collection(db, "personal_info"), processedValues);
+    const docRef = await addDoc(collection(db, "users"), processedValues);
     console.log("Document written with ID: ", docRef.id);
     message.success("Personal information saved successfully!");
     setCurrentStep(currentStep + 1); // Proceed to the next step
@@ -160,11 +160,15 @@ const Signup = () => {
   
       // Prepare the document to be saved
       const companyData = {
-        uid: auth.currentUser.uid, // Associate with the user
+        uid: auth.currentUser.uid, 
         companyName,
         companyPhoneNumber,
         companyEmail,
         companyAddress: companyAddressData,
+        owner_id: auth.currentUser.uid, // Include owner_id
+        members: {
+          [auth.currentUser.uid]: { role: "Owner" } // Initial member with Owner role
+        }
       };
   
       // Save company data to Firestore
@@ -175,7 +179,7 @@ const Signup = () => {
       await updateDoc(companyRef, { companyuid });
   
       message.success('Company information saved successfully!');
-      navigate('/dashboard', { state: { companyId: companyuid } });
+      navigate('/dashboard', { state: { companyId: companyRef.id } }); // Use companyRef.id 
     } catch (error) {
       console.error('Error saving company information:', error);
       message.error('Error saving company information.');
@@ -417,15 +421,17 @@ const Signup = () => {
   };
 
   return (
-    <div>
-      <Steps current={currentStep}>
-        <Step title="Create Account" />
-        <Step title="Verify Email" />
-        <Step title="Personal Info" />
-        <Step title="Company Info" />
-      </Steps>
-      <div style={{ marginTop: "24px" }}>
-        {renderStepContent(currentStep)}
+    <div className="signup-container">
+      <div className="singup-card">
+        <Steps current={currentStep}>
+          <Step title="Create Account" />
+          <Step title="Verify Email" />
+          <Step title="Personal Info" />
+          <Step title="Company Info" />
+        </Steps>
+        <div style={{ marginTop: "24px" }}>
+          {renderStepContent(currentStep)}
+        </div>
       </div>
     </div>
   );

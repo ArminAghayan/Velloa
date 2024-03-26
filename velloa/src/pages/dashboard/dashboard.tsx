@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select, Skeleton, Table } from 'antd';
-import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined } from '@ant-design/icons';
+import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,PlusOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, addDoc, query, getDocs, doc, writeBatch, where } from 'firebase/firestore';
@@ -89,7 +89,11 @@ const DashboardPage = () => {
         query(collection(db, 'companies'), where('uid', '==', uid))
       );
       if (!companySnapshot.empty) {
-        return companySnapshot.docs[0].data();
+        const companyData = companySnapshot.docs[0].data();
+        return {
+          companyuid: companySnapshot.docs[0].id,
+          ...companyData,
+        };
       }
       return null;
     } catch (error) {
@@ -107,20 +111,19 @@ const DashboardPage = () => {
           const propertiesRef = collection(db, "properties");
           const propertiesQuery = query(propertiesRef, where('companyuid', '==', userCompany.companyuid));
           const snapshot = await getDocs(propertiesQuery);
-
+  
           if (!snapshot.empty) {
             const propertiesList: Property[] = [];
-
+  
             for (const docSnapshot of snapshot.docs) {
               const propertyData = docSnapshot.data();
               const propertyId = docSnapshot.id;
-
-              // Get the total number of units for this property
-              const unitsRef = collection(db, "units");
-              const unitsQuery = query(unitsRef, where("propertyId", "==", propertyId));
-              const unitsSnapshot = await getDocs(unitsQuery);
+  
+              // Get the total number of units for this property from the subcollection
+              const unitsRef = collection(docSnapshot.ref, "units");
+              const unitsSnapshot = await getDocs(unitsRef);
               const totalUnits = unitsSnapshot.size;
-
+  
               propertiesList.push({
                 id: propertyId,
                 propertyName: propertyData.propertyName,
@@ -128,7 +131,7 @@ const DashboardPage = () => {
                 numUnits: totalUnits,
               });
             }
-
+  
             console.log("Properties found:", propertiesList);
             setProperties(propertiesList);
           } else {
@@ -181,21 +184,21 @@ const DashboardPage = () => {
             address: formData.propertyDetails.address,
             numFloors: formData.unitInfo.numFloors,
             unitsPerFloor: formData.unitInfo.unitsPerFloor,
-            companyuid: userCompany.companyuid, // Add the companyuid to the property document
+            companyuid: userCompany.companyuid,
           });
-
-          // Save units as a separate collection
-          const unitsRef = collection(db, "units");
+  
+          // Save units as a subcollection under the property document
+          const unitsRef = collection(propertyDocRef, "units");
           const batch = writeBatch(db);
           formData.unitData?.forEach((unit) => {
             const unitRef = doc(unitsRef);
-            batch.set(unitRef, { ...unit, propertyId: propertyDocRef.id });
+            batch.set(unitRef, unit);
           });
           await batch.commit();
-
+  
           message.success("Property data saved successfully!");
           resetFormAndHideModal();
-          fetchProperties(); // Refresh the property list
+          fetchProperties();
         }
       }
     } catch (error) {
@@ -355,7 +358,7 @@ const DashboardPage = () => {
       <Header style={{ display: 'flex', alignItems: 'center', padding: '0 20px', background: '#f0f2f5', borderBottom: '1px solid #e8e8e8' }}>
         <img src="/assests/light_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
         <Title level={4} style={{ margin: 0, flex: 1 }}>Velloa</Title>
-        <Button type="primary" onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
         <div style={{ marginLeft: 'auto', padding: '0 20px' }}>
           <Dropdown overlay={dropdownMenu} trigger={['click']}>
             <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
@@ -408,7 +411,7 @@ const DashboardPage = () => {
         </Row>
       </div>
 
-      <Modal title="Add Property" visible={isModalVisible} onCancel={handleCancel} footer={null} width="1200px">
+      <Modal title="Add Property"  visible={isModalVisible} onCancel={handleCancel} footer={null} width="1200px">
         <Steps current={currentStep}>
           {steps.map((item) => (
             <Step key={item.title} title={item.title} />
