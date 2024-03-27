@@ -63,7 +63,8 @@ const LoginPage: React.FC = () => {
         alt="Slide 2"
         style={{ width: '100%', height: '500px', objectFit: 'cover' }}
       />
-      <h3>Have all your tenent infomation in one place
+      <h3>
+        Manging your property made simple
       </h3>
     </div>
     <div>
@@ -72,7 +73,9 @@ const LoginPage: React.FC = () => {
         alt="Slide 3"
         style={{ width: '100%', height: '500px', objectFit: 'cover' }}
       />
-      <h3>Manging your property made simple</h3>
+      <h3>
+      Have all your tenent infomation in one place
+      </h3>
     </div>
   </Carousel>
 </div>
@@ -89,8 +92,6 @@ const LoginPage: React.FC = () => {
             </Form.Item>
             <Form.Item name="remember" valuePropName="checked">
               <Checkbox>Remember Me</Checkbox>
-            </Form.Item>
-            <Form.Item>
               <a href="#" className="forgot-password-link">
                 Forgot Password?
               </a>

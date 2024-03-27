@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, Button, DatePicker, Select, message, Space, Row, Col, InputNumber } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Steps, Form, Input, Button, DatePicker, Select, message } from 'antd';
+import { LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { auth, createUserWithEmailAndPassword, db } from '../../firebase-config';
 import { sendEmailVerification } from "firebase/auth";

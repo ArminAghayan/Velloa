@@ -19,8 +19,8 @@ body, html {
   align-items: center;
   padding: 20px;
   background-color: #5475ab;
-  border-top-right-radius: 16px;
-  border-bottom-right-radius: 16px;
+  border-top-right-radius: 28px;
+  border-bottom-right-radius: 28px;
 
 
 }
@@ -28,12 +28,9 @@ body, html {
 .countertop {
   width: 100%;
   height: 80px;
-  background-color: #fff;
   display: flex;
   align-items: center;
   padding: 0 20px;
-  background-color: #5475ab;
-
 }
 
 .logo {
@@ -99,6 +96,10 @@ body, html {
 .ant-input-password {
   height: 40px;
   border-radius: 6px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box; /* Include padding and border in the element's total width */
+
 }
 
 .forgot-password-link {
@@ -145,4 +146,14 @@ body, html {
   50% { transform: translateX(20px); }
   75% { transform: translateX(-20px); }
   100% { transform: translateX(0); }
+}
+
+.ant-form-item-control-input-content {
+  display: flex;
+  align-items: center;
+}
+
+.forgot-password-link {
+  margin-left: auto; /* This will push the link to the right */
+  color: #5475ab;
 }
