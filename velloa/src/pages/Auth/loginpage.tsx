@@ -11,6 +11,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [shakeButton, setShakeButton] = useState(false);
   const [form] = Form.useForm();
 
   type LoginValues = {
@@ -21,14 +22,20 @@ const LoginPage: React.FC = () => {
 
   const onFinish = async (values: LoginValues) => {
     setLoading(true);
+    setShakeButton(false);
 
     try {
+      // Simulate a minimum 5-second delay
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Perform login logic
       await login(values.email, values.password);
       console.log('User logged in successfully');
       navigate('/dashboard');
     } catch (error) {
       console.error('Login failed:', error);
-      form.resetFields();
+      setShakeButton(true);
+      form.resetFields(); // Reset form fields
       message.error('Incorrect login information. Please try again.');
     } finally {
       setLoading(false);
@@ -71,7 +78,7 @@ const LoginPage: React.FC = () => {
 </div>
       <div className="login-section">
         <div className="login-card">
-          <Title>Velloa</Title>
+          <Title>Welcome</Title>
           <Paragraph className='heading'>Please sign-in to your account to manage your property!</Paragraph>
           <Form form={form} name="basic" initialValues={{ remember: true }} onFinish={onFinish} autoComplete="off">
             <Form.Item name="email" rules={[{ required: true, message: 'Please input your email!' }]}>
@@ -89,9 +96,9 @@ const LoginPage: React.FC = () => {
               </a>
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading} className="login-button">
-                Login
-              </Button>
+            <Button type="primary"  htmlType="submit"  className={`login-button ${shakeButton ? 'shake' : ''}`}   loading={loading} >
+              Login
+            </Button>
             </Form.Item>
           </Form>
           <Paragraph className="create-account-text">

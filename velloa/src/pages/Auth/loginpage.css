@@ -3,13 +3,7 @@ body, html {
   margin: 0;
 }
 
-@keyframes shake {
-  0% { transform: translateX(0); }
-  25% { transform: translateX(-10px); }
-  50% { transform: translateX(10px); }
-  75% { transform: translateX(-10px); }
-  100% { transform: translateX(0); }
-}
+
 
 .login-container {
   display: flex;
@@ -125,6 +119,7 @@ body, html {
 .login-button:hover {
   background-color: #5475ab;
   border-color: #5475ab;
+  
 }
 
 .create-account-text {
@@ -140,3 +135,14 @@ body, html {
   color: #a4a6ab;
 }
 
+.login-button.shake {
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-20px); }
+  50% { transform: translateX(20px); }
+  75% { transform: translateX(-20px); }
+  100% { transform: translateX(0); }
+}
