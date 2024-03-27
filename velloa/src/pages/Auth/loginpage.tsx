@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
             </Form.Item>
             <Form.Item name="remember" valuePropName="checked">
               <Checkbox>Remember Me</Checkbox>
-              <a href="#" className="forgot-password-link">
+              <a href="/forgot-password" className="forgot-password-link">
                 Forgot Password?
               </a>
             </Form.Item>
