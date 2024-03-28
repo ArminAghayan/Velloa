@@ -1,20 +1,84 @@
-.signup-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #5475ab;
-  }
-  
-  .singup-card {
-    width: 80%;
-    height: 600px;
-    padding: 40px;
-    background-color: #ffffff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    border-radius: 12px;
-    overflow-y: auto; /* Add this line to enable vertical scrolling */
-    margin: 20px;
+body, html {
+  height: 100%;
+  margin: 0;
+}
 
-  }
+.signup-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.signup-carousel-section {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px;
+  background-color: #5475ab;
+  border-top-right-radius: 28px;
+  border-bottom-right-radius: 28px;
+}
+
+.signup-countertop {
+  width: 100%;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.signup-logo {
+  height: 60px;
+}
+
+.carousel-wrapper {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 20px;
+}
+
+.signup-carousel-section .ant-carousel {
+  width: 100%;
+  max-width: 600px;
+}
+
+.signup-carousel-section .ant-carousel .slick-slide {
+  text-align: center;
+}
+
+.carousel-wrapper .ant-carousel .slick-slide img {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+}
+
+.signup-carousel-section h3 {
+  color: #fff;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.signup-steps-section {
+  flex: 2;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background-color: #ffffff;
+  margin-top: 40px;
+
+}
+
+
+
+.ant-form-item {
+  margin-bottom: 20px;
+}
+
+
+
+
+.ant-form-item-control-input-content {
+  display: flex;
+  align-items: center;
+}

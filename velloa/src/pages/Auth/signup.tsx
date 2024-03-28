@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, Button, DatePicker, Select, message } from 'antd';
+import { Steps, Form, Input, Button, DatePicker, Select, message,Carousel } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { auth, createUserWithEmailAndPassword, db } from '../../firebase-config';
@@ -418,12 +418,31 @@ const Signup = () => {
       default:
         return null;
     }
-  };
+  };    
 
   return (
     <div className="signup-container">
-      <div className="singup-card">
-        <Steps current={currentStep}>
+      <div className="signup-carousel-section">
+        <div className="signup-countertop">
+          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" className="signup-logo" />
+        </div>
+        <Carousel autoplay dots={false} autoplaySpeed={8000}>
+          <div>
+            <img src="/assests/Account-rafiki.png" alt="Slide 1" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3>Manage and collect rent with E-transfers</h3>
+          </div>
+          <div>
+            <img src="/assests/Accept tasks-pana.png" alt="Slide 2" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3>Managing your property made simple</h3>
+          </div>
+          <div>
+            <img src="/assests/Fill out-pana.png" alt="Slide 3" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3>Have all your tenant information in one place</h3>
+          </div>
+        </Carousel>
+      </div>
+      <div className="signup-steps-section">
+        <Steps current={currentStep} progressDot={true}>
           <Step title="Create Account" />
           <Step title="Verify Email" />
           <Step title="Personal Info" />
@@ -435,6 +454,6 @@ const Signup = () => {
       </div>
     </div>
   );
-};
-
-export default Signup;
+  };
+  
+  export default Signup;

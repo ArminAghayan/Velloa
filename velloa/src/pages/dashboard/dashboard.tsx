@@ -36,7 +36,6 @@ interface Property {
 const { Header } = Layout;
 const { Title } = Typography;
 const { Step } = Steps;
-const { Option } = Select;
 
 const DashboardPage = () => {
   const dispatch = useDispatch();
@@ -148,7 +147,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  },);
 
   const onFinishPropertyDetails = async (values: PropertyDetails) => {
     setFormData({

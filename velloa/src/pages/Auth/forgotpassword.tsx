@@ -1,105 +1,63 @@
-// LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import { Form, Input, Button, Checkbox, Typography, message,Carousel } from 'antd';
-import './loginpage.css';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { Form, Input, Button, Typography, message, Carousel } from 'antd';
+import './forgotpassword.css';
 
 const { Title, Paragraph } = Typography;
 
-const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+const ForgotPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [shakeButton, setShakeButton] = useState(false);
   const [form] = Form.useForm();
 
-  type LoginValues = {
-    email: string;
-    password: string;
-    remember: boolean;
-  };
 
-  const onFinish = async (values: LoginValues) => {
+  const onFinish = async (values: { email: string }) => {
     setLoading(true);
-    setShakeButton(false);
-
     try {
-      // Simulate a minimum 5-second delay
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Perform login logic
-      await login(values.email, values.password);
-      console.log('User logged in successfully');
-      navigate('/dashboard');
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, values.email);
+      message.success('Password reset email sent. Please check your inbox.');
+      form.resetFields();
     } catch (error) {
-      console.error('Login failed:', error);
-      setShakeButton(true);
-      form.resetFields(); // Reset form fields
-      message.error('Incorrect login information. Please try again.');
+      console.error('Error sending password reset email:', error);
+      message.error('Failed to send password reset email. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-<div className="carousel-section">
-<div className="countertop">
-          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" className="logo" />
+    <div className="forgotpassword-container">
+      <div className="forgotpassword-carousel-section">
+        <div className="forgotpassword-countertop">
+          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" className="forgotpassword-logo" />
         </div>
-  <Carousel autoplay dots={false} autoplaySpeed={8000}>
-    <div>
-      <img
-        src="/assests/Account-rafiki.png"
-        alt="Slide 1"
-        style={{ width: '100%', height: '500px', objectFit: 'cover' }}
-      />
-      <h3>Manage and collect rent with E-transfers</h3>
-    </div>
-    <div>
-      <img
-        src="/assests/Accept tasks-pana.png"
-        alt="Slide 2"
-        style={{ width: '100%', height: '500px', objectFit: 'cover' }}
-      />
-      <h3>
-        Manging your property made simple
-      </h3>
-    </div>
-    <div>
-      <img
-        src="/assests/Fill out-pana.png"
-        alt="Slide 3"
-        style={{ width: '100%', height: '500px', objectFit: 'cover' }}
-      />
-      <h3>
-      Have all your tenent infomation in one place
-      </h3>
-    </div>
-  </Carousel>
-</div>
-      <div className="login-section">
-        <div className="login-card">
-          <Title>Welcome</Title>
-          <Paragraph className='heading'>Please sign-in to your account to manage your property!</Paragraph>
+        <Carousel autoplay dots={false} autoplaySpeed={8000}>
+          <div>
+            <img src="/assests/Account-rafiki.png" alt="Slide 1" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3>Manage and collect rent with E-transfers</h3>
+          </div>
+          <div>
+            <img src="/assests/Accept tasks-pana.png" alt="Slide 2" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3> Manging your property made simple </h3>
+          </div>
+          <div>
+            <img src="/assests/Fill out-pana.png" alt="Slide 3" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <h3> Have all your tenent infomation in one place </h3>
+          </div>
+        </Carousel>
+      </div>
+      <div className="forgotpassword-section">
+        <div className="forgotpassword-card">
+          <Title>Forgot Password</Title>
+          <Paragraph className='forgotpassword-heading'>Enter your email address to reset your password.</Paragraph>
           <Form form={form} name="basic" initialValues={{ remember: true }} onFinish={onFinish} autoComplete="off">
             <Form.Item name="email" rules={[{ required: true, message: 'Please input your email!' }]}>
               <Input placeholder="Email" />
             </Form.Item>
-            <Form.Item name="password" rules={[{ required: true, message: 'Please input your password!' }]}>
-              <Input.Password placeholder="Password" />
-            </Form.Item>
-            <Form.Item name="remember" valuePropName="checked">
-              <Checkbox>Remember Me</Checkbox>
-              <a href="/forgot-password" className="forgot-password-link">
-                Forgot Password?
-              </a>
-            </Form.Item>
             <Form.Item>
-            <Button type="primary"  htmlType="submit"  className={`login-button ${shakeButton ? 'shake' : ''}`}   loading={loading} >
-              Login
-            </Button>
+              <Button type="primary" htmlType="submit" className={'forgotpassword-button'} loading={loading} >
+                Reset Password
+              </Button>
             </Form.Item>
           </Form>
           <Paragraph className="create-account-text">
@@ -111,4 +69,4 @@ const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage;
+export default ForgotPassword;

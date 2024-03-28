@@ -22,6 +22,7 @@ import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
 import UnitInfoPage from './pages/Units/unitinfo/unitinfo';
 import { Provider } from 'react-redux';
 import store from '../src/components/store';
+import ForgotPassword from './pages/Auth/forgotpassword';
 
 const App = () => {
   return (
@@ -30,6 +31,7 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/dashboard" element={<ProtectedRoute />}>
             <Route index element={<Dashboardpage />} />
           </Route>
