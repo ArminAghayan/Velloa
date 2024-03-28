@@ -147,7 +147,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchProperties();
-  },);
+  }, []);
 
   const onFinishPropertyDetails = async (values: PropertyDetails) => {
     setFormData({
