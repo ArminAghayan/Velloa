@@ -20,8 +20,6 @@ import NewApplications from './pages/Tools/toolapplication/newapplications/newap
 import Events from './pages/Tools/toolapplication/events/events';
 import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
 import UnitInfoPage from './pages/Units/unitinfo/unitinfo';
-import { Provider } from 'react-redux';
-import store from '../src/components/store';
 import ForgotPassword from './pages/Auth/forgotpassword';
 import { ConfigProvider } from 'antd';
 
@@ -63,7 +61,6 @@ const theme = {
 const App = () => {
   return (
   <ConfigProvider theme={theme}>
-    <Provider store={store}>
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -97,7 +94,6 @@ const App = () => {
           </Route>
         </Routes>
       </Router>
-    </Provider>
     </ConfigProvider>
 
   );

@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Table, Space, Input } from 'antd';
+import { Typography, Table, Space, Input, message } from 'antd';
 import { RightOutlined, SearchOutlined, CloseCircleFilled } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../components/store';
-import { fetchUnits } from '../../components/propertySlice';
-import { AppDispatch } from '../../components/store';
-import { setSelectedUnit } from '../../components/unitActions';
-import { useNavigate } from 'react-router-dom';
-
+import { useLocation, useNavigate } from 'react-router-dom';
+import { db } from '../../firebase-config';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const { Title } = Typography;
+
+interface Property {
+  id: string;
+  propertyName: string;
+  // Add other properties as needed
+}
 
 interface UnitData {
   key: string;
@@ -20,24 +22,39 @@ interface UnitData {
   propertyId: string;
 }
 
-const fetchUnitsAndDispatch = (propertyId: string) => {
-  return async (dispatch: AppDispatch) => {
-    await dispatch(fetchUnits(propertyId));
-  };
-};
-
 const UnitsPage: React.FC = () => {
-  const dispatch = useDispatch();
-  const { propertyId, units } = useSelector((state: RootState) => state.property);
   const [searchText, setSearchText] = useState('');
-  const navigate = useNavigate();
+  const [units, setUnits] = useState<UnitData[]>([]);
+  const location = useLocation();
+  const propertyId = location.state?.propertyId;
+
 
   useEffect(() => {
-    const fetchData = async () => {
-      dispatch(fetchUnitsAndDispatch(propertyId) as any); // Dispatch the function as an action
+    const fetchUnits = async () => {
+      if (propertyId) {
+        try {
+          const unitsRef = collection(db, 'properties', propertyId, 'units');
+          const unitsQuery = query(unitsRef);
+          const snapshot = await getDocs(unitsQuery);
+
+          const unitsData: UnitData[] = snapshot.docs.map((doc) => ({
+            key: doc.id,
+            unitNumber: doc.data().unitNumber,
+            floor: doc.data().floor,
+            unitPrice: doc.data().unitPrice,
+            propertyId: propertyId,
+          }));
+
+          setUnits(unitsData);
+        } catch (error) {
+          console.error('Error fetching units:', error);
+          message.error('Failed to fetch units. Please try again.');        }
+      }
     };
-    fetchData();
-  }, [dispatch, propertyId]);
+
+    fetchUnits();
+  }, [propertyId]);
+
 
   const columns = [
     {
@@ -64,7 +81,7 @@ const UnitsPage: React.FC = () => {
       key: 'action',
       render: (text: any, record: UnitData) => (
         <Space size="middle">
-      <RightOutlined onClick={() => onUnitClick(record)} />
+          <RightOutlined onClick={() => onUnitClick(record)} />
           <a onClick={() => onRequestClick(record)}>Request</a>
         </Space>
       ),
@@ -76,28 +93,14 @@ const UnitsPage: React.FC = () => {
     },
   ];
 
-  // Event handlers for action buttons
   const onUnitClick = (record: UnitData) => {
     console.log('Unit clicked:', record);
-    dispatch(setSelectedUnit(record));
-    navigate('/unit-info');
-  };
+ };
 
   const onRequestClick = (record: UnitData) => {
     // Logic to handle request action
     console.log('Request', record);
   };
-
-  // Filter unit data based on search text and current property ID
-  const filteredUnitData = units.filter(
-    (unit) =>
-      unit.unitNumber.toString().toLowerCase().includes(searchText.toLowerCase()) ||
-      unit.floor.toString().toLowerCase().includes(searchText.toLowerCase()) ||
-      unit.unitPrice.toString().toLowerCase().includes(searchText.toLowerCase())
-  );
-
-
-  console.log('Filtered unit data:', filteredUnitData);
 
   return (
     <div style={{ margin: '20px' }}>
@@ -128,13 +131,9 @@ const UnitsPage: React.FC = () => {
           />
         </div>
       </div>
-      <Table columns={columns} dataSource={filteredUnitData} />
+      <Table columns={columns} dataSource={units} />
     </div>
   );
 };
 
-export default UnitsPage; 
-
-function dispatch(arg0: any) {
-  throw new Error('Function not implemented.');
-}
+export default UnitsPage;

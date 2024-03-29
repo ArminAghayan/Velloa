@@ -5,8 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, addDoc, query, getDocs, doc, writeBatch, where } from 'firebase/firestore';
 import './dashboard.css';
-import { useDispatch } from 'react-redux';
-import { setPropertyId } from '../../components/propertySlice';
+
 
 interface PropertyDetails {
   propertyName: string;
@@ -38,7 +37,6 @@ const { Title } = Typography;
 const { Step } = Steps;
 
 const DashboardPage = () => {
-  const dispatch = useDispatch();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<{ propertyDetails: PropertyDetails; unitInfo: UnitInfo; unitData?: { key: number; unitNumber: number; floor: number; unitPrice: number; }[] }>({
@@ -62,10 +60,8 @@ const DashboardPage = () => {
   const navigate = useNavigate();
 
   const handleCardClick = (property: Property) => {
-    dispatch(setPropertyId(property.id)); // Dispatch the setPropertyId action
-    navigate('/home', { state: { property, unitData: formData.unitData } });
+    navigate('/home', { state: { propertyId: property.id } });
   };
-
   const generateUnitData = (numFloors: number, unitsPerFloor: number, offset: number = 0) => {
     const unitData = [];
     for (let floor = 1; floor <= numFloors; floor++) {
@@ -178,20 +174,28 @@ const DashboardPage = () => {
         const userCompany = await fetchUserCompany(auth.currentUser.uid);
         if (userCompany) {
           const propertiesRef = collection(db, "properties");
-          const propertyDocRef = await addDoc(propertiesRef, {
+          const propertyData = {
             propertyName: formData.propertyDetails.propertyName,
             address: formData.propertyDetails.address,
             numFloors: formData.unitInfo.numFloors,
             unitsPerFloor: formData.unitInfo.unitsPerFloor,
             companyuid: userCompany.companyuid,
-          });
+          };
+  
+          const propertyDocRef = await addDoc(propertiesRef, propertyData);
+          const propertyId = propertyDocRef.id; // Get the property ID
   
           // Save units as a subcollection under the property document
           const unitsRef = collection(propertyDocRef, "units");
           const batch = writeBatch(db);
           formData.unitData?.forEach((unit) => {
             const unitRef = doc(unitsRef);
-            batch.set(unitRef, unit);
+            batch.set(unitRef, {
+              propertyId,
+              unitNumber: unit.unitNumber,
+              floor: unit.floor,
+              unitPrice: unit.unitPrice,
+            });
           });
           await batch.commit();
   
