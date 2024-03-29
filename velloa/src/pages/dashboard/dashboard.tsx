@@ -245,7 +245,6 @@ const DashboardPage = () => {
     </Menu>
   );
 
-  const { token: { colorBgContainer } } = theme.useToken();
   const columns = [
     {
       title: 'Unit Number',
@@ -360,7 +359,7 @@ const DashboardPage = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
         <div style={{ marginLeft: 'auto', padding: '0 20px' }}>
           <Dropdown overlay={dropdownMenu} trigger={['click']}>
-            <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
+            <Avatar icon={<UserOutlined />} />
           </Dropdown>
         </div>
       </Header>

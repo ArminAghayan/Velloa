@@ -23,9 +23,46 @@ import UnitInfoPage from './pages/Units/unitinfo/unitinfo';
 import { Provider } from 'react-redux';
 import store from '../src/components/store';
 import ForgotPassword from './pages/Auth/forgotpassword';
+import { ConfigProvider } from 'antd';
+
+const theme = {
+  token: {
+    colorPrimary: '#5475ab',
+    colorInfo: '#5475ab',
+    fontSize: 14,
+    sizeStep: 4,
+    borderRadius: 6,
+    wireframe: false,
+  
+  },
+  components: {
+    Avatar: {
+      colorTextPlaceholder: '#5475ab',
+    },
+  Menu: {
+    darkItemBg: "rgb(58, 84, 133)",
+    darkSubMenuItemBg: "rgb(58, 84, 133)",
+    darkPopupBg: "rgb(58, 84, 133)",
+    
+  },
+  Layout: {
+    headerBg: "rgb(240, 242, 245)",
+    siderBg: "rgb(59, 84, 133)",
+  },
+  Button: {
+      dangerShadow: "",
+      defaultShadow: "",
+      primaryShadow: "",
+    },
+  },
+};
+
+
+
 
 const App = () => {
   return (
+  <ConfigProvider theme={theme}>
     <Provider store={store}>
       <Router>
         <Routes>
@@ -61,6 +98,8 @@ const App = () => {
         </Routes>
       </Router>
     </Provider>
+    </ConfigProvider>
+
   );
 };
 

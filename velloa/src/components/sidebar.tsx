@@ -37,9 +37,6 @@ const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(true);
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
   const location = useLocation();
   const propertyName = location.state?.property?.propertyName || localStorage.getItem('propertyName');
 
@@ -80,7 +77,7 @@ const Sidebar = () => {
           </Menu>
         </Sider>
         <Layout>
-        <Header style={{ display: 'flex', alignItems: 'center', padding: '0', background: colorBgContainer, borderBottom: '1px solid #e8e8e8', // Add a bottom border line
+        <Header style={{ display: 'flex', alignItems: 'center', padding: '0', borderBottom: '1px solid #e8e8e8', // Add a bottom border line
  }}>
             <Button
               type="text"
@@ -103,14 +100,13 @@ const Sidebar = () => {
 
               <div style={{ marginLeft: 'auto', padding: '0 40px' }}> {/* Apply padding to this wrapper div */}
                 <Dropdown overlay={dropdownMenu} trigger={['click']}>
-                  <Avatar style={{ backgroundColor: '#1677FF' }} icon={<UserOutlined />} />
+                  <Avatar icon={<UserOutlined />} />
                 </Dropdown>
             </div>
           </Header>
           <Content
             style={{
               minHeight: 280,
-              background: colorBgContainer,
             }}
           >
             <Outlet />
