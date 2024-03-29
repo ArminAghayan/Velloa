@@ -16,58 +16,45 @@ import {
   BlockOutlined,
 } from '@ant-design/icons';
 import { auth } from '../firebase-config';
+import { useDispatch } from 'react-redux';
+import { logout } from '../components/redux/authSlice';
+import { AppDispatch } from '../components/redux/store';
+import { useSelector } from 'react-redux';
+import { RootState } from '../components/redux/store';
+import { Property } from '../components/redux/store';
 
-
-const dropdownMenu = (
-  <Menu>
-    <Menu.Item icon={<SettingOutlined />}>
-      <Link to="/settings">Settings</Link>
-    </Menu.Item>
-    <Menu.Item icon={<BlockOutlined />}>
-      <Link to="/dashboard">Dashboard</Link>
-    </Menu.Item>
-    <Menu.Item icon={<LogoutOutlined />} onClick={() => auth.signOut()}>
-      Logout
-    </Menu.Item>
-  </Menu>
-);
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
 
 const Sidebar = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const propertyName = location.state?.property?.propertyName || localStorage.getItem('propertyName');
+  const selectedProperty = useSelector<RootState, Property | null>(
+    (state) => state.property.selectedProperty
+  );
 
-  useEffect(() => {
-    if (location.state?.property?.propertyName) {
-      localStorage.setItem('propertyName', location.state.property.propertyName);
-    }
-  }, [location.state?.property?.propertyName]);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (!user) {
-        navigate('/login');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      navigate('/login');
-      message.success('Logged out successfully');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      message.error('An error occurred while logging out');
-    }
+  const handleLogout = () => {
+    dispatch(logout());
   };
 
+  const dropdownMenu = (
+    <Menu>
+      <Menu.Item icon={<SettingOutlined />}>
+        <Link to="/settings">Settings</Link>
+      </Menu.Item>
+      <Menu.Item icon={<BlockOutlined />}>
+        <Link to="/dashboard">Dashboard</Link>
+      </Menu.Item>
+      <Menu.Item icon={<LogoutOutlined />} onClick={handleLogout}>
+          Logout
+      </Menu.Item>
+    </Menu>
+  );
+  
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
@@ -104,7 +91,7 @@ const Sidebar = () => {
             style={{ fontSize: '16px', width: 64, height: 64, border: 'none', padding: 0 }}
           />
           <Title level={4} style={{ margin: 0, flex: 1 }}>
-            {propertyName}
+          {selectedProperty?.propertyName || 'Velloa'}
           </Title>
           <div style={{ marginLeft: 'auto', padding: '0 40px' }}>
             <Dropdown overlay={dropdownMenu} trigger={['click']}>

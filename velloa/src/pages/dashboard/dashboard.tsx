@@ -6,8 +6,10 @@ import { collection, addDoc, query, getDocs, doc, writeBatch, where,updateDoc } 
 import './dashboard.css';
 import { useNavigate, useLocation,Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setSelectedProperty } from '../';
-
+import { setSelectedProperty } from '../../components/redux/propertySlice';
+import { logout } from '../../components/redux/authSlice';
+import { AppDispatch } from '../../components/redux/store';
+import { clearSelectedProperty } from '../../components/redux/propertySlice';
 
 interface PropertyDetails {
   propertyName: string;
@@ -39,6 +41,7 @@ const { Title } = Typography;
 const { Step } = Steps;
 
 const DashboardPage = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<{ propertyDetails: PropertyDetails; unitInfo: UnitInfo; unitData?: { key: number; unitNumber: number; floor: number; unitPrice: number; }[] }>({
@@ -62,13 +65,16 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const property = location.state?.property;
-  const dispatch = useDispatch();
 
   const handleCardClick = (property: Property) => {
     dispatch(setSelectedProperty(property));
     navigate('/home');
   };
   
+  const handleLogout = () => {
+    dispatch(logout());
+  };
+
   const generateUnitData = (numFloors: number, unitsPerFloor: number, offset: number = 0) => {
     const unitData = [];
     for (let floor = 1; floor <= numFloors; floor++) {
@@ -150,7 +156,8 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+    dispatch(clearSelectedProperty());
+  }, [location, dispatch]);
 
   const onFinishPropertyDetails = async (values: PropertyDetails) => {
     setFormData({
@@ -253,8 +260,8 @@ const DashboardPage = () => {
       <Menu.Item icon={<BlockOutlined />}>
         <Link to="/dashboard">Overview</Link>
       </Menu.Item>
-      <Menu.Item icon={<LogoutOutlined />}>
-        <Link to="/login">Logout</Link>
+      <Menu.Item icon={<LogoutOutlined />} onClick={handleLogout}>
+        Logout
       </Menu.Item>
     </Menu>
   );

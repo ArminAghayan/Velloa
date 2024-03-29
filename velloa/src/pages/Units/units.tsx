@@ -1,47 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../components/redux/store';
 import { Typography, Table, Space, Input, message } from 'antd';
 import { RightOutlined, SearchOutlined, CloseCircleFilled } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase-config';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc } from 'firebase/firestore';
 
 const { Title } = Typography;
-
-interface Property {
-  id: string;
-  propertyName: string;
-  // Add other properties as needed
-}
 
 interface UnitData {
   key: string;
   unitNumber: number;
   floor: number;
   unitPrice: number;
-  propertyId: string;
 }
 
 const UnitsPage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [units, setUnits] = useState<UnitData[]>([]);
-  const location = useLocation();
-  const propertyId = location.state?.propertyId;
-  const navigate = useNavigate(); // Add this line to get access to the navigate function
+  const selectedProperty = useSelector((state: RootState) => state.property.selectedProperty);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUnits = async () => {
-      if (propertyId) {
+      if (selectedProperty && selectedProperty.id) {
         try {
-          const unitsRef = collection(db, 'properties', propertyId, 'units');
-          const unitsQuery = query(unitsRef);
-          const snapshot = await getDocs(unitsQuery);
-          const unitsData: UnitData[] = snapshot.docs.map((doc) => ({
+          const unitsRef = collection(db, 'properties', selectedProperty.id, 'units');
+          const unitsSnapshot = await getDocs(unitsRef);
+          const unitsData: UnitData[] = unitsSnapshot.docs.map((doc) => ({
             key: doc.id,
             unitNumber: doc.data().unitNumber,
             floor: doc.data().floor,
             unitPrice: doc.data().unitPrice,
-            propertyId: propertyId,
           }));
           setUnits(unitsData);
         } catch (error) {
@@ -51,7 +43,7 @@ const UnitsPage: React.FC = () => {
       }
     };
     fetchUnits();
-  }, [propertyId]);
+  }, [selectedProperty]);
 
   const columns = [
     {
