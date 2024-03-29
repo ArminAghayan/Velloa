@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Steps, Form, Input, InputNumber, message, Layout, Menu, Dropdown, Avatar, Typography, theme, Card, Col, Row, Select, Skeleton, Table } from 'antd';
 import { SettingOutlined, LogoutOutlined, UserOutlined, BlockOutlined,PlusOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, addDoc, query, getDocs, doc, writeBatch, where } from 'firebase/firestore';
+import { collection, addDoc, query, getDocs, doc, writeBatch, where,updateDoc } from 'firebase/firestore';
 import './dashboard.css';
+import { useNavigate, useLocation,Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setSelectedProperty } from '../';
 
 
 interface PropertyDetails {
@@ -58,10 +60,15 @@ const DashboardPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const property = location.state?.property;
+  const dispatch = useDispatch();
 
   const handleCardClick = (property: Property) => {
-    navigate('/home', { state: { propertyId: property.id } });
+    dispatch(setSelectedProperty(property));
+    navigate('/home');
   };
+  
   const generateUnitData = (numFloors: number, unitsPerFloor: number, offset: number = 0) => {
     const unitData = [];
     for (let floor = 1; floor <= numFloors; floor++) {
@@ -183,7 +190,10 @@ const DashboardPage = () => {
           };
   
           const propertyDocRef = await addDoc(propertiesRef, propertyData);
-          const propertyId = propertyDocRef.id; // Get the property ID
+          const propertyId = propertyDocRef.id;
+  
+          // Update the property document with the propertyId
+          await updateDoc(propertyDocRef, { propertyId });
   
           // Save units as a subcollection under the property document
           const unitsRef = collection(propertyDocRef, "units");

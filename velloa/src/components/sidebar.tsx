@@ -40,8 +40,6 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const propertyName = location.state?.property?.propertyName || localStorage.getItem('propertyName');
-  const property = location.state?.property;
-  
 
   useEffect(() => {
     if (location.state?.property?.propertyName) {
@@ -115,7 +113,7 @@ const Sidebar = () => {
           </div>
         </Header>
         <Content style={{ minHeight: 280 }}>
-          <Outlet context={{ property }} />
+          <Outlet context={{ property: location.state?.property }} />
         </Content>
       </Layout>
     </Layout>

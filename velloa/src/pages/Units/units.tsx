@@ -27,7 +27,7 @@ const UnitsPage: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
   const location = useLocation();
   const propertyId = location.state?.propertyId;
-
+  const navigate = useNavigate(); // Add this line to get access to the navigate function
 
   useEffect(() => {
     const fetchUnits = async () => {
@@ -36,7 +36,6 @@ const UnitsPage: React.FC = () => {
           const unitsRef = collection(db, 'properties', propertyId, 'units');
           const unitsQuery = query(unitsRef);
           const snapshot = await getDocs(unitsQuery);
-
           const unitsData: UnitData[] = snapshot.docs.map((doc) => ({
             key: doc.id,
             unitNumber: doc.data().unitNumber,
@@ -44,17 +43,15 @@ const UnitsPage: React.FC = () => {
             unitPrice: doc.data().unitPrice,
             propertyId: propertyId,
           }));
-
           setUnits(unitsData);
         } catch (error) {
           console.error('Error fetching units:', error);
-          message.error('Failed to fetch units. Please try again.');        }
+          message.error('Failed to fetch units. Please try again.');
+        }
       }
     };
-
     fetchUnits();
   }, [propertyId]);
-
 
   const columns = [
     {
@@ -95,12 +92,17 @@ const UnitsPage: React.FC = () => {
 
   const onUnitClick = (record: UnitData) => {
     console.log('Unit clicked:', record);
- };
+    // Navigate to a different page or show more details about the unit
+  };
 
   const onRequestClick = (record: UnitData) => {
     // Logic to handle request action
     console.log('Request', record);
   };
+
+  const filteredUnits = units.filter((unit) =>
+    unit.unitNumber.toString().includes(searchText)
+  );
 
   return (
     <div style={{ margin: '20px' }}>
@@ -131,7 +133,7 @@ const UnitsPage: React.FC = () => {
           />
         </div>
       </div>
-      <Table columns={columns} dataSource={units} />
+      <Table columns={columns} dataSource={filteredUnits} />
     </div>
   );
 };
