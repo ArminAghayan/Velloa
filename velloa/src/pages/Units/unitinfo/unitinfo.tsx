@@ -49,15 +49,16 @@ const UnitInfoPage: React.FC = () => {
     <div >
       <Row gutter={[16, 16]}>
         <Col span={12}>
-          <Title level={2}>{unit.fullName}Armin Aghayan</Title>
+          <Title level={2}>Unit: {unit.unitNumber}</Title>
         </Col>
         <Col span={12} style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Button type="default" style={{ marginRight: '10px' }}>Edit</Button>
+          <Button type="default" style={{ marginRight: '10px' }}>List</Button>
           <Button type="default" style={{ marginRight: '10px' }}>Message</Button>
           <Button type="primary"style={{ marginRight: '10px', width: '120px'}}>Request</Button>
         </Col>
         <Col span={8}>
-          <Text>Unit Number: {unit.unitNumber}</Text>
+          <Text>Full Name:{unit.fullName}Armin Aghayan</Text>
         </Col>
         <Col span={8}>
           <Text>Last Name:</Text>

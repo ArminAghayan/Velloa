@@ -34,9 +34,6 @@ const theme = {
   
   },
   components: {
-    Avatar: {
-      colorTextPlaceholder: '#5475ab',
-    },
   Menu: {
     darkItemBg: "rgb(59, 84, 133)",
     darkSubMenuItemBg: "rgb(59, 84, 133)",
