@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Button, Dropdown, Avatar, Typography, message } from 'antd';
+import React, { useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Layout, Menu, Button, Dropdown, Avatar, Typography } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -15,28 +15,24 @@ import {
   UserOutlined,
   BlockOutlined,
 } from '@ant-design/icons';
-import { auth } from '../firebase-config';
 import { useDispatch } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
 import { AppDispatch } from '../components/redux/store';
 import { useSelector } from 'react-redux';
 import { RootState } from '../components/redux/store';
 import { Property } from '../components/redux/store';
+import 'antd/dist/reset.css';
 
-
-const { Header, Sider, Content } = Layout;
+const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
 
 const Sidebar = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
-  const navigate = useNavigate();
   const selectedProperty = useSelector<RootState, Property | null>(
     (state) => state.property.selectedProperty
   );
-
-
   const handleLogout = () => {
     dispatch(logout());
   };
@@ -50,16 +46,32 @@ const Sidebar = () => {
         <Link to="/dashboard">Dashboard</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />} onClick={handleLogout}>
-          Logout
+        Logout
       </Menu.Item>
     </Menu>
   );
-  
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed}>
+    <Layout hasSider style={{ minHeight: '100vh' }}>
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        style={{
+          overflow: 'auto',
+          height: '100vh',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+        }}
+      >
         <div className="logo" style={{ padding: '16px', textAlign: 'center' }}>
-          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
+          <img
+            src="/assests/dark_mode_velloa_logo.png"
+            alt="Logo"
+            style={{ maxWidth: '100%', maxHeight: '24px' }}
+          />
         </div>
         <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
           <Menu.Item key="1" icon={<HomeOutlined />}>
@@ -82,8 +94,18 @@ const Sidebar = () => {
           </Menu.Item>
         </Menu>
       </Sider>
-      <Layout>
-        <Header style={{ display: 'flex', alignItems: 'center', padding: '0', borderBottom: '1px solid #e8e8e8' }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 200 }}>
+        <Header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0',
+            borderBottom: '1px solid #e8e8e8',
+            position: 'fixed',
+            zIndex: 1,
+            width: `calc(100% - ${collapsed ? 80 : 200}px)`,
+          }}
+        >
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -91,7 +113,7 @@ const Sidebar = () => {
             style={{ fontSize: '16px', width: 64, height: 64, border: 'none', padding: 0 }}
           />
           <Title level={4} style={{ margin: 0, flex: 1 }}>
-          {selectedProperty?.propertyName || 'Velloa'}
+            {selectedProperty?.propertyName || 'Velloa'}
           </Title>
           <div style={{ marginLeft: 'auto', padding: '0 40px' }}>
             <Dropdown overlay={dropdownMenu} trigger={['click']}>
@@ -99,8 +121,10 @@ const Sidebar = () => {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ minHeight: 280 }}>
-          <Outlet context={{ property: location.state?.property }} />
+        <Content style={{ marginTop: 64, padding: '24px 16px', overflow: 'auto' }}>
+          <div style={{ minHeight: 280 }}>
+            <Outlet context={{ property: location.state?.property }} />
+          </div>
         </Content>
       </Layout>
     </Layout>

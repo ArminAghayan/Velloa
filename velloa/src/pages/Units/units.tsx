@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../components/redux/store';
-import { Typography, Table, Space, Input, message } from 'antd';
-import { RightOutlined, SearchOutlined, CloseCircleFilled } from '@ant-design/icons';
+import { Typography, Table, Space, Input, message, Skeleton } from 'antd';
+import { RightOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { RootState } from '../../components/redux/store';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase-config';
-import { collection, getDocs, query, where, doc } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 
 const { Title } = Typography;
 
 interface UnitData {
   key: string;
-  unitNumber: number;
-  floor: number;
-  unitPrice: number;
+  unitNumber: number | '';
+  floor: number | '';
+  unitPrice: number | '';
 }
 
 const UnitsPage: React.FC = () => {
@@ -22,14 +22,16 @@ const UnitsPage: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
   const selectedProperty = useSelector((state: RootState) => state.property.selectedProperty);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUnits = async () => {
+      setLoading(true);
       if (selectedProperty && selectedProperty.id) {
         try {
           const unitsRef = collection(db, 'properties', selectedProperty.id, 'units');
           const unitsSnapshot = await getDocs(unitsRef);
-          const unitsData: UnitData[] = unitsSnapshot.docs.map((doc) => ({
+          const unitsData = unitsSnapshot.docs.map((doc) => ({
             key: doc.id,
             unitNumber: doc.data().unitNumber,
             floor: doc.data().floor,
@@ -41,9 +43,19 @@ const UnitsPage: React.FC = () => {
           message.error('Failed to fetch units. Please try again.');
         }
       }
+      setLoading(false);
     };
     fetchUnits();
   }, [selectedProperty]);
+
+  const createSkeletonData = (count: number): UnitData[] => {
+    return Array.from({ length: count }, (_, index) => ({
+      key: `skeleton-${index}`,
+      unitNumber: '',
+      floor: '',
+      unitPrice: '',
+    }));
+  };
 
   const columns = [
     {
@@ -51,50 +63,41 @@ const UnitsPage: React.FC = () => {
       dataIndex: 'unitNumber',
       key: 'unitNumber',
       defaultSortOrder: 'ascend' as SortOrder,
-      sorter: (a: UnitData, b: UnitData) => a.unitNumber - b.unitNumber,
+      sorter: (a: UnitData, b: UnitData) => (typeof a.unitNumber === 'number' && typeof b.unitNumber === 'number' ? a.unitNumber - b.unitNumber : 0),
+      render: (text: UnitData['unitNumber']) => (loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
     },
     {
       title: 'Floor',
       dataIndex: 'floor',
       key: 'floor',
-      sorter: (a: UnitData, b: UnitData) => a.floor - b.floor,
+      sorter: (a: UnitData, b: UnitData) => (typeof a.floor === 'number' && typeof b.floor === 'number' ? a.floor - b.floor : 0),
+      render: (text: UnitData['floor']) => (loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
     },
     {
       title: 'Unit Price',
       dataIndex: 'unitPrice',
       key: 'unitPrice',
-      sorter: (a: UnitData, b: UnitData) => a.unitPrice - b.unitPrice,
+      sorter: (a: UnitData, b: UnitData) => (typeof a.unitPrice === 'number' && typeof b.unitPrice === 'number' ? a.unitPrice - b.unitPrice : 0),
+      render: (text: UnitData['unitPrice']) => (loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
     },
     {
       title: 'Action',
       key: 'action',
-      render: (text: any, record: UnitData) => (
+      render: () => (loading ? <Skeleton.Button style={{ width: '100px' }} active size="small" /> : (
         <Space size="middle">
-          <RightOutlined onClick={() => onUnitClick(record)} />
-          <a onClick={() => onRequestClick(record)}>Request</a>
+          <a>Request</a>
+          <a>Message</a>
         </Space>
-      ),
+      )),
     },
     {
       title: '',
       key: 'arrow',
-      render: () => <RightOutlined />,
+      render: () => (loading ? <Skeleton.Button style={{ width: '24px' }} active size="small" shape="circle" /> : <RightOutlined />),
     },
   ];
 
-  const onUnitClick = (record: UnitData) => {
-    console.log('Unit clicked:', record);
-    // Navigate to a different page or show more details about the unit
-  };
-
-  const onRequestClick = (record: UnitData) => {
-    // Logic to handle request action
-    console.log('Request', record);
-  };
-
-  const filteredUnits = units.filter((unit) =>
-    unit.unitNumber.toString().includes(searchText)
-  );
+  const filteredUnits = units.filter((unit) => unit.unitNumber.toString().includes(searchText));
 
   return (
     <div style={{ margin: '20px' }}>
@@ -115,17 +118,15 @@ const UnitsPage: React.FC = () => {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 200 }}
-            suffix={
-              searchText ? (
-                <CloseCircleFilled onClick={() => setSearchText('')} />
-              ) : (
-                <SearchOutlined />
-              )
-            }
           />
         </div>
       </div>
-      <Table columns={columns} dataSource={filteredUnits} />
+      <Table
+        columns={columns}
+        dataSource={loading ? createSkeletonData(10) : filteredUnits}
+        pagination={{ pageSize: 10 }}
+
+      />
     </div>
   );
 };
