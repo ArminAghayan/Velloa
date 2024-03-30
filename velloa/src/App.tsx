@@ -38,9 +38,12 @@ const theme = {
       colorTextPlaceholder: '#5475ab',
     },
   Menu: {
-    darkItemBg: "rgb(58, 84, 133)",
-    darkSubMenuItemBg: "rgb(58, 84, 133)",
-    darkPopupBg: "rgb(58, 84, 133)",
+    darkItemBg: "rgb(59, 84, 133)",
+    darkSubMenuItemBg: "rgb(59, 84, 133)",
+    darkPopupBg: "rgb(59, 84, 133)",
+    ItemBg: "rgb(59, 84, 133)",
+    SubMenuItemBg: "rgb(59, 84, 133)",
+    PopupBg: "rgb(59, 84, 133)",
     
   },
   Layout: {
@@ -90,7 +93,7 @@ const App = () => {
               <Route path="applications" element={<NewApplications />} />
               <Route path="events" element={<Events />} />
               <Route path="new-tenant" element={<NewTenant />} />
-              <Route path="/unit-info" element={<UnitInfoPage />} />
+              <Route path="/unitinfo" element={<UnitInfoPage />} />
             </Route>
           </Route>
         </Routes>

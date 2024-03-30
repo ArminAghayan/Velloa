@@ -32,7 +32,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({ icon, text, onClick }) => (
       alignItems: 'center',
       justifyContent: 'center',
       height: '150px',
-      backgroundColor: '#F2F2F2',
+      backgroundColor: '#F0F0F0',
     }}
     bodyStyle={{
       padding: '24px',
@@ -55,7 +55,7 @@ const ToolsPage = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div >
       <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
         Tools
       </Title>
@@ -80,7 +80,7 @@ const ToolsPage = () => {
           <ToolButton icon={<BulbOutlined />} text="Amenities" onClick={() => handleClick('/amenities')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<FileAddOutlined />} text="New Applications" onClick={() => handleClick('/applications')} />
+          <ToolButton icon={<FileAddOutlined />} text="Applications" onClick={() => handleClick('/applications')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
           <ToolButton icon={<CalendarOutlined />} text="Events" onClick={() => handleClick('/events')} />

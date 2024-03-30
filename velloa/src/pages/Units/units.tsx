@@ -99,8 +99,12 @@ const UnitsPage: React.FC = () => {
 
   const filteredUnits = units.filter((unit) => unit.unitNumber.toString().includes(searchText));
 
+  const handleUnitClick = (unit: UnitData) => {
+    navigate(`/unitinfo`, { state: { unit } });
+  };
+
   return (
-    <div style={{ margin: '20px' }}>
+    <div>
       <div
         style={{
           display: 'flex',
@@ -121,11 +125,14 @@ const UnitsPage: React.FC = () => {
           />
         </div>
       </div>
-      <Table
+     <Table
         columns={columns}
         dataSource={loading ? createSkeletonData(10) : filteredUnits}
         pagination={{ pageSize: 10 }}
-
+        onRow={(record: UnitData) => ({
+          onClick: () => handleUnitClick(record),
+          style: { cursor: 'pointer' },
+        })}
       />
     </div>
   );

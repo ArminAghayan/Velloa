@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Input, Button, Modal, Form } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Table, Input, Button, Modal, Form, Select, SelectProps,Typography } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { db, auth } from '../../../../firebase-config';
-import { collection, addDoc, getDocs, doc, deleteDoc, query, where,updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../../components/redux/store';
+
+const { Title } = Typography;
 
 interface Package {
   id: string;
@@ -11,63 +15,95 @@ interface Package {
   pickedUp: boolean;
 }
 
+interface Unit {
+  id: string;
+  unitNumber?: string | number | null;
+  floor?: string | number | null;
+  unitPrice?: string | number | null;
+}
+
+const SearchableSelect: React.FC<SelectProps<number>> = ({ ...props }) => {
+  return (
+    <Select
+      showSearch
+      filterOption={(input, option) =>
+        option?.value?.toString().includes(input) || false
+      }
+      {...props}
+    />
+  );
+};
+
 const PackagesPage: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [companyDocId, setCompanyDocId] = useState('');
-  const [propertyDocId, setPropertyDocId] = useState('');
-
-  useEffect(() => {
-    const fetchCompanyAndProperty = async () => {
-      if (auth.currentUser) {
-        const userUid = auth.currentUser.uid;
-        const companiesRef = collection(db, 'companies');
-        const companyQuery = query(companiesRef, where('uid', '==', userUid));
-        const companySnapshot = await getDocs(companyQuery);
-
-        if (!companySnapshot.empty) {
-          const companyDoc = companySnapshot.docs[0];
-          const companyId = companyDoc.id;
-          setCompanyDocId(companyId);
-
-          const propertiesRef = collection(db, `companies/${companyId}/properties`);
-          const propertySnapshot = await getDocs(propertiesRef);
-
-          if (!propertySnapshot.empty) {
-            const propertyDoc = propertySnapshot.docs[0];
-            const propertyId = propertyDoc.id;
-            setPropertyDocId(propertyId);
-          }
-        }
-      }
-    };
-    fetchCompanyAndProperty();
-  }, []);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [form] = Form.useForm();
+  const selectedProperty = useSelector((state: RootState) => state.property.selectedProperty);
 
   useEffect(() => {
     const fetchPackages = async () => {
-      if (companyDocId && propertyDocId) {
-        const packagesRef = collection(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`);
-        const snapshot = await getDocs(packagesRef);
-        const packagesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Package[];
-        setPackages(packagesData);
+      if (selectedProperty && selectedProperty.id) {
+        try {
+          const packagesRef = collection(db, `properties/${selectedProperty.id}/packages`);
+          const snapshot = await getDocs(packagesRef);
+          const packagesData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Package[];
+          setPackages(packagesData);
+        } catch (error) {
+          console.error('Error fetching packages:', error);
+        }
+      }
+    };
+
+    const fetchUnits = async () => {
+      if (selectedProperty && selectedProperty.id) {
+        try {
+          const unitsRef = collection(db, `properties/${selectedProperty.id}/units`);
+          const unitsSnapshot = await getDocs(unitsRef);
+          const unitsData: Unit[] = unitsSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              unitNumber: typeof data.unitNumber === 'string' || typeof data.unitNumber === 'number' ? data.unitNumber : undefined,
+              floor: typeof data.floor === 'string' || typeof data.floor === 'number' ? data.floor : undefined,
+              unitPrice: typeof data.unitPrice === 'string' || typeof data.unitPrice === 'number' ? data.unitPrice : undefined,
+            };
+          });
+          setUnits(unitsData);
+        } catch (error) {
+          console.error('Error fetching units:', error);
+        }
       }
     };
 
     fetchPackages();
-  }, [companyDocId, propertyDocId]);
+    fetchUnits();
+  }, [selectedProperty]);
 
   const handleSearch = (value: string) => {
     setSearchValue(value);
   };
 
-  const handlePickedUp = async (packageId: string) => {
-    await deleteDoc(doc(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`, packageId));
-    setPackages(packages.filter((item) => item.id !== packageId));
+  const handlePackageStatus = async (packageId: string, pickedUp: boolean) => {
+    if (selectedProperty && selectedProperty.id) {
+      try {
+        if (pickedUp) {
+          await deleteDoc(doc(db, `properties/${selectedProperty.id}/packages`, packageId));
+          setPackages(packages.filter((item) => item.id !== packageId));
+        } else {
+          await updateDoc(doc(db, `properties/${selectedProperty.id}/packages`, packageId), {
+            pickedUp: true,
+          });
+          setPackages(packages.map((item) => (item.id === packageId ? { ...item, pickedUp: true } : item)));
+        }
+      } catch (error) {
+        console.error('Error updating package:', error);
+      }
+    }
   };
 
   const columns = [
@@ -87,9 +123,10 @@ const PackagesPage: React.FC = () => {
       render: (_: any, record: Package) => (
         <Button
           type="primary"
-          onClick={() => handlePickedUp(record.id)}
+          onClick={() => handlePackageStatus(record.id, record.pickedUp)}
+          icon={record.pickedUp ? <DeleteOutlined /> : undefined}
         >
-          Confirm
+          {record.pickedUp ? 'Delete' : 'Picked Up'}
         </Button>
       ),
     },
@@ -97,40 +134,23 @@ const PackagesPage: React.FC = () => {
 
   const handleAddPackage = async (values: any) => {
     const { unitNumber, numberOfPackages } = values;
-  
-    // Parse numberOfPackages as an integer
-    const parsedNumberOfPackages = parseInt(numberOfPackages, 10);
-  
-    // Check if a package with the same unit number already exists
-    const existingPackage = packages.find((item) => item.unitNumber === unitNumber);
-  
-    if (existingPackage) {
-      // If a package with the same unit number exists, add the entered number of packages to the existing value
-      const updatedPackage: Package = {
-        ...existingPackage,
-        numberOfPackages: existingPackage.numberOfPackages + parsedNumberOfPackages,
-      };
-  
-      await updateDoc(doc(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`, existingPackage.id), {
-        numberOfPackages: updatedPackage.numberOfPackages,
-      });
-  
-      setPackages(
-        packages.map((item) => (item.id === existingPackage.id ? updatedPackage : item))
-      );
-    } else {
-      // If a package with the same unit number doesn't exist, add a new package
-      const newPackage: Omit<Package, 'id'> = {
-        unitNumber,
-        numberOfPackages: parsedNumberOfPackages,
-        pickedUp: false,
-      };
-  
-      const docRef = await addDoc(collection(db, `companies/${companyDocId}/properties/${propertyDocId}/tools/package/packageid`), newPackage);
-      setPackages([...packages, { id: docRef.id, ...newPackage }]);
+
+    if (selectedProperty && selectedProperty.id) {
+      try {
+        const newPackage: Omit<Package, 'id'> = {
+          unitNumber,
+          numberOfPackages: parseInt(numberOfPackages, 10),
+          pickedUp: false,
+        };
+
+        const docRef = await addDoc(collection(db, `properties/${selectedProperty.id}/packages`), newPackage);
+        setPackages([...packages, { id: docRef.id, ...newPackage }]);
+        setModalVisible(false);
+        form.resetFields();
+      } catch (error) {
+        console.error('Error adding package:', error);
+      }
     }
-  
-    setModalVisible(false);
   };
 
   const filteredPackages = packages.filter((item) =>
@@ -138,8 +158,8 @@ const PackagesPage: React.FC = () => {
   );
 
   return (
-    <div style={{ margin: '20px' }}>
-      <h1>Packages</h1>
+    <div>
+      <Title>Packages</Title>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Input
           placeholder="Search by unit number"
@@ -151,20 +171,29 @@ const PackagesPage: React.FC = () => {
           Add Package
         </Button>
       </div>
-      <Table columns={columns} dataSource={filteredPackages} />
+      <Table columns={columns} dataSource={filteredPackages} rowKey="id" />
       <Modal
         visible={modalVisible}
         title="Add Package"
-        onCancel={() => setModalVisible(false)}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+        }}
         footer={null}
       >
-        <Form onFinish={handleAddPackage}>
+        <Form form={form} onFinish={handleAddPackage}>
           <Form.Item
             name="unitNumber"
             label="Unit Number"
-            rules={[{ required: true, message: 'Please enter the unit number' }]}
+            rules={[{ required: true, message: 'Please select a unit' }]}
           >
-            <Input />
+            <SearchableSelect>
+              {units.map((unit) => (
+                <Select.Option key={unit.id} value={unit.unitNumber?.toString() ?? ''}>
+                  {unit.unitNumber?.toString() ?? ''}
+                </Select.Option>
+              ))}
+            </SearchableSelect>
           </Form.Item>
           <Form.Item
             name="numberOfPackages"

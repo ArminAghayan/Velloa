@@ -121,7 +121,7 @@ const Sidebar = () => {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ marginTop: 64, padding: '24px 16px', overflow: 'auto' }}>
+        <Content style={{ marginTop: 64, padding: '24px 36px', overflow: 'auto' }}>
           <div style={{ minHeight: 280 }}>
             <Outlet context={{ property: location.state?.property }} />
           </div>
