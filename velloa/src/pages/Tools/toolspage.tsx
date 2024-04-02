@@ -68,19 +68,19 @@ const ToolsPage = () => {
           <ToolButton icon={<ToolOutlined />} text="Maintenance" onClick={() => handleClick('/maintenance')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<GiftOutlined />} text="Packages" onClick={() => handleClick('/packages')} />
+        <ToolButton icon={<FileAddOutlined />} text="Applications" onClick={() => handleClick('/applications')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<TeamOutlined />} text="Visitors" onClick={() => handleClick('/visitors')} />
+        <ToolButton icon={<BookOutlined />} text="Logbook" onClick={() => handleClick('/logbook')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<BookOutlined />} text="Logbook" onClick={() => handleClick('/logbook')} />
+        <ToolButton icon={<TeamOutlined />} text="Visitors" onClick={() => handleClick('/visitors')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
           <ToolButton icon={<BulbOutlined />} text="Amenities" onClick={() => handleClick('/amenities')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-          <ToolButton icon={<FileAddOutlined />} text="Applications" onClick={() => handleClick('/applications')} />
+        <ToolButton icon={<GiftOutlined />} text="Packages" onClick={() => handleClick('/packages')} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4} xl={3}>
           <ToolButton icon={<CalendarOutlined />} text="Events" onClick={() => handleClick('/events')} />

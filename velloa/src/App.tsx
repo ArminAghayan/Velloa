@@ -48,9 +48,14 @@ const theme = {
     siderBg: "rgb(59, 84, 133)",
   },
   Button: {
-      dangerShadow: "",
-      defaultShadow: "",
-      primaryShadow: "",
+    dangerShadow: "",
+    defaultShadow: "",
+    primaryShadow: "",
+    defaultActiveBorderColor: "rgb(59, 84, 133)",
+    defaultActiveColor: "rgb(59, 84, 133)",
+    defaultHoverBorderColor: "rgb(59, 84, 133)",
+    defaultHoverColor: "rgb(59, 84, 133)",
+    groupBorderColor: "rgb(59, 84, 133)"
     },
   },
 };

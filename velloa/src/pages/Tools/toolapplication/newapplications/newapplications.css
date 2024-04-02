@@ -1,0 +1,39 @@
+.application-title {
+    margin-bottom: 20px;
+  }
+  
+  .search-bar {
+    height: 40px;
+  }
+  
+  .new-application-button {
+    height: 40px;
+  }
+  
+  .filter-button {
+    margin-right: 10px;
+    background-color: #7792b8;
+    border-color: #7792b8;
+    color: #fff;
+    border-radius: 22px;
+    height: 40px;
+
+  }
+  
+  .application-filter-row {
+    margin-bottom: 20px;
+  }
+  
+  .application-search-add-row {
+    margin-bottom: 20px;
+  }
+  
+  .filter-button:hover {
+    background-color: #3a5485;
+    border-color: #3a5485;
+  }
+  
+  .filter-button.active {
+    background-color: #3a5485;
+    border-color: #3a5485;
+  }

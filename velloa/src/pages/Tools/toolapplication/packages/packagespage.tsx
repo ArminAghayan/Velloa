@@ -159,7 +159,7 @@ const PackagesPage: React.FC = () => {
 
   return (
     <div>
-      <Title>Packages</Title>
+      <Title level={2}>Packages</Title>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Input
           placeholder="Search by unit number"
@@ -167,7 +167,7 @@ const PackagesPage: React.FC = () => {
           onChange={(e) => handleSearch(e.target.value)}
           style={{ width: 300 }}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)} >
           Add Package
         </Button>
       </div>
