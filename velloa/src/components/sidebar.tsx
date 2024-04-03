@@ -101,6 +101,7 @@ const Sidebar = () => {
             alignItems: 'center',
             padding: '0',
             borderBottom: '1px solid #e8e8e8',
+            background: '#ffffff',
             position: 'fixed',
             zIndex: 1,
             width: `calc(100% - ${collapsed ? 80 : 200}px)`,

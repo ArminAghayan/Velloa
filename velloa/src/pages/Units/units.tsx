@@ -92,6 +92,7 @@ const UnitsPage: React.FC = () => {
     },
     {
       title: '',
+      align: 'center' as 'center',
       key: 'arrow',
       render: () => (loading ? <Skeleton.Button style={{ width: '24px' }} active size="small" shape="circle" /> : <RightOutlined />),
     },
@@ -117,17 +118,18 @@ const UnitsPage: React.FC = () => {
           Units
         </Title>
         <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <Input.Search
+          <Input
             placeholder="Search units/names"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 200 }}
+            style={{ width: 200, height: 32}}
           />
         </div>
       </div>
      <Table
         columns={columns}
         size='middle'
+        bordered={true}
         dataSource={loading ? createSkeletonData(10) : filteredUnits}
         pagination={{ pageSize: 10 }}
         onRow={(record: UnitData) => ({

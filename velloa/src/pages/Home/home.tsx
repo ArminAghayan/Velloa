@@ -60,16 +60,16 @@ const TopCards: React.FC = () => {
     
       <Row gutter={16}>
         <Col span={6}>
-          <Card>
+          <Card className='homepagecards'>
             <Statistic title="Prepaid revenue" value={1000000} precision={0}   valueStyle={{ color: '#3f8600' }}
 />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className='homepagecards'>
             <Statistic title="Outstanding revenue" value={410000} precision={0} valueStyle={{ color: '#FF4D4F' }}
 />
-          </Card>
+          </Card >
         </Col>
         <Col span={6}>
           <Card>
@@ -77,12 +77,12 @@ const TopCards: React.FC = () => {
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className='homepagecards'>
             <Statistic
               title="Occupancy rate"
               value={78}
               precision={0}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: '#3f8600'}}
               suffix="%"
             />
           </Card>
@@ -90,13 +90,13 @@ const TopCards: React.FC = () => {
       </Row>
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col span={12}>
-          <Card title='Maintences'>
+          <Card  className='homepagecards' title='Maintences'>
           <List itemLayout="horizontal">
           </List>
           </Card>
         </Col>
         <Col span={12}>
-          <Card title='Profit & Loss'>
+          <Card className='homepagecards' title='Profit & Loss'>
           <List itemLayout="horizontal">
           </List>
           </Card>

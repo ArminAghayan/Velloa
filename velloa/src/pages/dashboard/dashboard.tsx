@@ -374,7 +374,7 @@ const DashboardPage = () => {
 
   return (
     <>
-      <Header style={{ display: 'flex', alignItems: 'center', padding: '0 20px', background: '#f0f2f5', borderBottom: '1px solid #e8e8e8' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', padding: '0 20px', background: '#ffffff', borderBottom: '1px solid #e8e8e8' }}>
         <img src="/assests/light_mode_velloa_logo.png" alt="Logo" style={{ maxWidth: '100%', maxHeight: '24px' }} />
         <Title level={4} style={{ margin: 0, flex: 1 }}>Velloa</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={showModal} style={{ marginRight: 20 }}>Add Property</Button>
@@ -384,7 +384,7 @@ const DashboardPage = () => {
           </Dropdown>
         </div>
       </Header>
-      <div className="site-card-wrapper">
+      <div className="site-card-wrapper" >
         <Row gutter={20}>
           {loading ? (
             Array(4)

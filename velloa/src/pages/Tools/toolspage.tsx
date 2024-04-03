@@ -32,7 +32,8 @@ const ToolButton: React.FC<ToolButtonProps> = ({ icon, text, onClick }) => (
       alignItems: 'center',
       justifyContent: 'center',
       height: '150px',
-      backgroundColor: '#F0F0F0',
+      backgroundColor: '#fffff',
+      border: '1px solid rgb(239, 240, 247)',
     }}
     bodyStyle={{
       padding: '24px',

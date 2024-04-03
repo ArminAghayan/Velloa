@@ -171,7 +171,7 @@ const PackagesPage: React.FC = () => {
           Add Package
         </Button>
       </div>
-      <Table columns={columns} dataSource={filteredPackages} rowKey="id" />
+      <Table size='small' columns={columns} dataSource={filteredPackages} rowKey="id" />
       <Modal
         visible={modalVisible}
         title="Add Package"

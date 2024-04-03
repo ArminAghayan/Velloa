@@ -4,9 +4,6 @@ import { UploadOutlined, EllipsisOutlined, ArrowRightOutlined } from '@ant-desig
 import './newapplicationsmodal.css';
 import { db } from '../../../../../firebase-config';
 import { collection, getDocs } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setSelectedFormId } from '../../../../../components/redux/formSlice';
 
 interface NewApplicationModalProps {
   visible: boolean;
@@ -14,7 +11,6 @@ interface NewApplicationModalProps {
 }
 
 interface DefaultForm {
-  key: string;
   id: string;
   title: string;
   description: string;
@@ -26,8 +22,7 @@ const NewApplicationModal: React.FC<NewApplicationModalProps> = ({ visible, onCa
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [tableData, setTableData] = useState<DefaultForm[]>([]);
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+
 
   useEffect(() => {
     const fetchDefaultForms = async () => {
@@ -76,14 +71,6 @@ const NewApplicationModal: React.FC<NewApplicationModalProps> = ({ visible, onCa
   const handleMenuClick = (record: any, e: any) => {
     // Handle the menu item click based on the record and item key
     console.log('Clicked on menu item', e.key, 'for record', record);
-  };
-
-  const handleRowClick = (record: DefaultForm) => {
-    // Dispatch the action to update the selected form ID in the Redux store
-    dispatch(setSelectedFormId(record.id));
-
-    // Navigate to the ApplicationViewer component
-    navigate('/applicationviewer');
   };
 
   const columns = [
@@ -170,9 +157,7 @@ const NewApplicationModal: React.FC<NewApplicationModalProps> = ({ visible, onCa
             onChange: handlePageChange,
           }}
           scroll={{ y: 350 }}
-          onRow={(record) => ({
-            onClick: () => handleRowClick(record),
-          })}
+          
         />
       </div>
     </Modal>

@@ -1,35 +1,29 @@
-import React, { useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../../../../components/redux/store'; // Import the root reducer
-import { db } from '../../../../../firebase-config';
-import { doc, getDoc } from 'firebase/firestore';
+import { useLocation } from 'react-router-dom';
+import { Typography } from 'antd';
+
+interface DefaultForm {
+  key: string;
+  id: string;
+  title: string;
+  description: string;
+}
 
 const ApplicationViewer: React.FC = () => {
-  const selectedFormId = useSelector((state: RootState) => state.form.selectedFormId);
-
-  useEffect(() => {
-    const fetchFormData = async () => {
-      if (selectedFormId) {
-        try {
-          // Fetch the form data based on the selectedFormId from Firestore
-          const formDoc = await getDoc(doc(db, 'default_forms', selectedFormId));
-          const formData = formDoc.data();
-
-          // Use the fetched formData to render the form
-          // ...
-        } catch (error) {
-          console.error('Error fetching form data:', error);
-        }
-      }
-    };
-
-    fetchFormData();
-  }, [selectedFormId]);
+  const location = useLocation();
+  const { form } = location.state as { form: DefaultForm };
 
   return (
     <div>
+      <Typography.Title level={2}>Application Viewer</Typography.Title>
+      <Typography.Paragraph>
+        <strong>Title:</strong> {form.title}
+      </Typography.Paragraph>
+      <Typography.Paragraph>
+        <strong>Description:</strong> {form.description}
+      </Typography.Paragraph>
+      {/* Add more fields and components to display the form data */}
     </div>
-    );
+  );
 };
 
 export default ApplicationViewer;

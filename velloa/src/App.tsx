@@ -32,6 +32,7 @@ const theme = {
     sizeStep: 4,
     borderRadius: 6,
     wireframe: false,
+    colorBgLayout: "#ebedf0",
   
   },
   components: {
@@ -53,6 +54,12 @@ const theme = {
     defaultShadow: "",
     primaryShadow: "",
   
+    },
+    Card: {
+      colorBorderSecondary: "rgb(239, 240, 247)"
+    },
+    Table: {
+      borderColor: "rgb(239, 240, 247)"
     },
   },
 };
