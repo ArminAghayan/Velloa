@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Input, Button, Modal, Form, Select, SelectProps,Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { db, auth } from '../../../../firebase-config';
+import { db } from '../../../../firebase-config';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../components/redux/store';

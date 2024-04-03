@@ -127,6 +127,7 @@ const UnitsPage: React.FC = () => {
       </div>
      <Table
         columns={columns}
+        size='middle'
         dataSource={loading ? createSkeletonData(10) : filteredUnits}
         pagination={{ pageSize: 10 }}
         onRow={(record: UnitData) => ({

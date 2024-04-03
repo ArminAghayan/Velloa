@@ -22,6 +22,7 @@ import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
 import UnitInfoPage from './pages/Units/unitinfo/unitinfo';
 import ForgotPassword from './pages/Auth/forgotpassword';
 import { ConfigProvider } from 'antd';
+import Applicationviewer from './pages/Tools/toolapplication/newapplications/applicationviewer/applicationviewer';
 
 const theme = {
   token: {
@@ -51,11 +52,7 @@ const theme = {
     dangerShadow: "",
     defaultShadow: "",
     primaryShadow: "",
-    defaultActiveBorderColor: "rgb(59, 84, 133)",
-    defaultActiveColor: "rgb(59, 84, 133)",
-    defaultHoverBorderColor: "rgb(59, 84, 133)",
-    defaultHoverColor: "rgb(59, 84, 133)",
-    groupBorderColor: "rgb(59, 84, 133)"
+  
     },
   },
 };
@@ -96,6 +93,8 @@ const App = () => {
               <Route path="events" element={<Events />} />
               <Route path="new-tenant" element={<NewTenant />} />
               <Route path="/unitinfo" element={<UnitInfoPage />} />
+              <Route path="/applicationviewer" element={<Applicationviewer />} />
+
             </Route>
           </Route>
         </Routes>

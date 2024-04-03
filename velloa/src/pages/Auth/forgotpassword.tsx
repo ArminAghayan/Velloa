@@ -52,10 +52,10 @@ const ForgotPassword: React.FC = () => {
           <Paragraph className='forgotpassword-heading'>Enter your email address to reset your password.</Paragraph>
           <Form form={form} name="basic" initialValues={{ remember: true }} onFinish={onFinish} autoComplete="off">
             <Form.Item name="email" rules={[{ required: true, message: 'Please input your email!' }]}>
-              <Input placeholder="Email" />
+              <Input className='forgotpassword-input' placeholder="Email" />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" className={'forgotpassword-button'} loading={loading} >
+              <Button type="primary" htmlType="submit" className='forgotpassword-button' loading={loading} >
                 Reset Password
               </Button>
             </Form.Item>

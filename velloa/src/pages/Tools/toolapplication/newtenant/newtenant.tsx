@@ -1,6 +1,4 @@
 import { Typography, Input, Button, Table, Row, Col } from 'antd';
-import { applyActionCode } from 'firebase/auth';
-import NewApplications from '../newapplications/newapplications';
 
 const { Title } = Typography;
 
