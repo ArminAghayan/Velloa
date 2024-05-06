@@ -7,13 +7,14 @@ import {
   HomeOutlined,
   ToolOutlined,
   AppstoreOutlined,
-  FileSearchOutlined,
+  FileTextOutlined,
   BankOutlined,
   BarChartOutlined,
   SettingOutlined,
   LogoutOutlined,
   UserOutlined,
-  BlockOutlined,
+  UsergroupDeleteOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import { useDispatch } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
@@ -41,9 +42,6 @@ const Sidebar = () => {
     <Menu>
       <Menu.Item icon={<SettingOutlined />}>
         <Link to="/settings">Settings</Link>
-      </Menu.Item>
-      <Menu.Item icon={<BlockOutlined />}>
-        <Link to="/dashboard">Dashboard</Link>
       </Menu.Item>
       <Menu.Item icon={<LogoutOutlined />} onClick={handleLogout}>
         Logout
@@ -77,19 +75,25 @@ const Sidebar = () => {
           <Menu.Item key="1" icon={<HomeOutlined />}>
             <Link to="/home">Home</Link>
           </Menu.Item>
-          <Menu.Item key="2" icon={<ToolOutlined />}>
+          <Menu.Item key="2" icon={<AppstoreOutlined />}>
+            <Link to="/property">Property</Link>
+          </Menu.Item>
+          <Menu.Item key="3" icon={<FileTextOutlined />}>
+            <Link to="/leasing">Leasing</Link>
+          </Menu.Item>
+             <Menu.Item key="4" icon={<UsergroupDeleteOutlined />}>
+            <Link to="/people">People</Link>
+          </Menu.Item>
+          <Menu.Item key="5" icon={<ToolOutlined />}>
             <Link to="/tools">Tools</Link>
           </Menu.Item>
-          <Menu.Item key="3" icon={<AppstoreOutlined />}>
-            <Link to="/units">Units</Link>
+          <Menu.Item key="6" icon={<CheckSquareOutlined/>}>
+            <Link to="/tasks">Tasks</Link>
           </Menu.Item>
-          <Menu.Item key="4" icon={<FileSearchOutlined />}>
-            <Link to="/resources">Resources</Link>
-          </Menu.Item>
-          <Menu.Item key="5" icon={<BankOutlined />}>
+          <Menu.Item key="7" icon={<BankOutlined />}>
             <Link to="/accounting">Accounting</Link>
           </Menu.Item>
-          <Menu.Item key="6" icon={<BarChartOutlined />}>
+          <Menu.Item key="9" icon={<BarChartOutlined />}>
             <Link to="/analytics">Analytics</Link>
           </Menu.Item>
         </Menu>

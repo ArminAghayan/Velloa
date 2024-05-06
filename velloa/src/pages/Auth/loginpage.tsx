@@ -28,7 +28,7 @@ const LoginPage = () => {
     try {
       await dispatch(login({ email: values.email, password: values.password }));
       console.log('User logged in successfully');
-      navigate('/dashboard');
+      navigate('/home');
     } catch (error) {
       console.error('Login failed:', error);
       setShakeButton(true);
@@ -107,7 +107,7 @@ const LoginPage = () => {
             </Form.Item>
           </Form>
           <Paragraph className="create-account-text">
-            New on our platform? <a href="/signup">Create an account</a>
+            New to our platform? <a href="/signup">Create an account</a>
           </Paragraph>
         </div>
       </div>

@@ -1,0 +1,30 @@
+.property-type-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 8px;
+  }
+  
+  .property-subtype-button {
+    margin: 5px;
+    height: 60px;
+    width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 8px;
+  }
+
+  .ant-select-selection-placeholder {
+    color: #f0f0f0;
+  }
+
+  .ant-picker-input input::placeholder {
+    color: #f0f0f0;
+  }

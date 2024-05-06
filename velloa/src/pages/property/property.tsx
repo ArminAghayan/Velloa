@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { Typography, Table, Space, Input, message, Skeleton } from 'antd';
-import { RightOutlined } from '@ant-design/icons';
+import { Typography, Table, Space, Input, Skeleton,Button  } from 'antd';
+import { RightOutlined,PlusOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
-import { RootState } from '../../components/redux/store';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase-config';
 import { collection, getDocs } from 'firebase/firestore';
@@ -12,41 +10,21 @@ const { Title } = Typography;
 
 interface UnitData {
   key: string;
-  unitNumber: number | '';
-  floor: number | '';
-  unitPrice: number | '';
+  unitNumber: string | number;
+  floor: string | number;
+  unitPrice: string | number;
 }
 
 const UnitsPage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
-  const [units, setUnits] = useState<UnitData[]>([]);
-  const selectedProperty = useSelector((state: RootState) => state.property.selectedProperty);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [units, setUnits] = useState<UnitData[]>([]);
 
-  useEffect(() => {
-    const fetchUnits = async () => {
-      setLoading(true);
-      if (selectedProperty && selectedProperty.id) {
-        try {
-          const unitsRef = collection(db, 'properties', selectedProperty.id, 'units');
-          const unitsSnapshot = await getDocs(unitsRef);
-          const unitsData = unitsSnapshot.docs.map((doc) => ({
-            key: doc.id,
-            unitNumber: doc.data().unitNumber,
-            floor: doc.data().floor,
-            unitPrice: doc.data().unitPrice,
-          }));
-          setUnits(unitsData);
-        } catch (error) {
-          console.error('Error fetching units:', error);
-          message.error('Failed to fetch units. Please try again.');
-        }
-      }
-      setLoading(false);
-    };
-    fetchUnits();
-  }, [selectedProperty]);
+  const handleAddPropertyClick = () => {
+    navigate('/addnewproperty');
+  };
+  
 
   const createSkeletonData = (count: number): UnitData[] => {
     return Array.from({ length: count }, (_, index) => ({
@@ -101,32 +79,33 @@ const UnitsPage: React.FC = () => {
   const filteredUnits = units.filter((unit) => unit.unitNumber.toString().includes(searchText));
 
   const handleUnitClick = (unit: UnitData) => {
-    navigate(`/unitinfo`, { state: { unit } });
+    navigate(`/propertyinfo`, { state: { unit } });
   };
 
   return (
     <div>
+      <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
+        Property
+      </Title>
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'end',
-          marginBottom: '10px',
+          alignItems: 'center',
+          marginBottom: '20px',
         }}
       >
-        <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
-          Units
-        </Title>
-        <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <Input
-            placeholder="Search units/names"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 200, height: 32}}
-          />
-        </div>
+        <Input
+          placeholder="Search property/names"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{ width: 250, height: 38 }}
+        />
+     <Button type="primary" onClick={handleAddPropertyClick} icon={<PlusOutlined />} style={{ height: 38 }}>
+      Add Property
+    </Button>
       </div>
-     <Table
+      <Table
         columns={columns}
         size='middle'
         bordered={true}
