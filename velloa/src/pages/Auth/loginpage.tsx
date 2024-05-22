@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../components/redux/authSlice';
 import { Form, Input, Button, Checkbox, Typography, message, Carousel } from 'antd';
 import './loginpage.css';
-import { AppDispatch } from '../../components/redux/store';
+import { AppDispatch, RootState } from '../../components/redux/store';
 
 const { Title, Paragraph } = Typography;
 
-const LoginPage = () => {
+const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
-  const [loading, setLoading] = useState(false);
+  const { isLoading, error } = useSelector((state: RootState) => state.auth);
   const [shakeButton, setShakeButton] = useState(false);
   const [form] = Form.useForm();
 
@@ -22,20 +22,17 @@ const LoginPage = () => {
   };
 
   const onFinish = async (values: LoginValues) => {
-    setLoading(true);
     setShakeButton(false);
 
     try {
-      await dispatch(login({ email: values.email, password: values.password }));
-      console.log('User logged in successfully');
+      const result = await dispatch(login({ email: values.email, password: values.password })).unwrap();
+      console.log('User logged in successfully:', result);
       navigate('/home');
     } catch (error) {
       console.error('Login failed:', error);
       setShakeButton(true);
       form.resetFields(); // Reset form fields
       message.error('Incorrect login information. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -100,7 +97,7 @@ const LoginPage = () => {
                 type="primary"
                 htmlType="submit"
                 className={`login-button ${shakeButton ? 'shake' : ''}`}
-                loading={loading}
+                loading={isLoading}
               >
                 Login
               </Button>

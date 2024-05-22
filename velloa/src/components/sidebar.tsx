@@ -16,24 +16,20 @@ import {
   UsergroupDeleteOutlined,
   CheckSquareOutlined,
 } from '@ant-design/icons';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
-import { AppDispatch } from '../components/redux/store';
-import { useSelector } from 'react-redux';
-import { RootState } from '../components/redux/store';
-import { Property } from '../components/redux/store';
+import { AppDispatch, RootState } from '../components/redux/store';
 import 'antd/dist/reset.css';
 
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
 
-const Sidebar = () => {
+const Sidebar: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
-  const selectedProperty = useSelector<RootState, Property | null>(
-    (state) => state.property.selectedProperty
-  );
+  const selectedProperty = useSelector((state: RootState) => state.property.property);
+  
   const handleLogout = () => {
     dispatch(logout());
   };
@@ -81,13 +77,13 @@ const Sidebar = () => {
           <Menu.Item key="3" icon={<FileTextOutlined />}>
             <Link to="/leasing">Leasing</Link>
           </Menu.Item>
-             <Menu.Item key="4" icon={<UsergroupDeleteOutlined />}>
+          <Menu.Item key="4" icon={<UsergroupDeleteOutlined />}>
             <Link to="/people">People</Link>
           </Menu.Item>
           <Menu.Item key="5" icon={<ToolOutlined />}>
             <Link to="/tools">Tools</Link>
           </Menu.Item>
-          <Menu.Item key="6" icon={<CheckSquareOutlined/>}>
+          <Menu.Item key="6" icon={<CheckSquareOutlined />}>
             <Link to="/tasks">Tasks</Link>
           </Menu.Item>
           <Menu.Item key="7" icon={<BankOutlined />}>
@@ -126,7 +122,7 @@ const Sidebar = () => {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ marginTop: 64, padding: '24px 36px', overflow: 'auto' }}>
+        <Content style={{ marginTop: 64, overflow: 'auto' }}>
           <div style={{ minHeight: 280 }}>
             <Outlet context={{ property: location.state?.property }} />
           </div>

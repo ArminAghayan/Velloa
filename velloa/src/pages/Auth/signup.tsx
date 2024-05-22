@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Form, Input, Button, DatePicker, Select, message,Carousel } from 'antd';
+import { Steps, Form, Input, Button, DatePicker, Select, message, Carousel } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { auth, createUserWithEmailAndPassword, db } from '../../firebase-config';
 import { sendEmailVerification } from "firebase/auth";
 import moment from 'moment';
 import { Timestamp } from 'firebase/firestore';
-import { addDoc, collection,updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
 import './signup.css';
+
 const { Step } = Steps;
 
 interface AccountFormValues {
@@ -32,8 +33,6 @@ interface PersonalInfoFormValues {
   };
 }
 
-
-
 interface CompanyInfoFormValues {
   companyName: string;
   companyPhoneNumber: string;
@@ -47,9 +46,6 @@ interface CompanyInfoFormValues {
     country: string;
   };
 }
-
-
-
 
 const Signup = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -75,43 +71,38 @@ const Signup = () => {
       setLoading(false);
     }
   };
-  
-  
-
 
   const handlePersonalInfoSubmit = async (values: PersonalInfoFormValues) => {
     if (!auth.currentUser) {
-    message.error("You must be logged in to perform this action.");
-    return;
-  }
+      message.error("You must be logged in to perform this action.");
+      return;
+    }
 
-  // Preprocess form values for Firestore compatibility
-  const processedValues = {
-    ...values,
-    middleName: values.middleName || "", // Convert undefined to empty string
-    suffix: values.suffix || "", // Ensure undefined suffix is handled
-    dob: values.dob ? Timestamp.fromDate(values.dob.toDate()) : null, // Handling Date conversion
-    address: {
-      ...values.address,
-      secondAddressLine: values.address.secondAddressLine || "", // Handling optional fields
-    },
-    uid: auth.currentUser.uid, // Including user's UID for association and rule compliance
+    const processedValues = {
+      ...values,
+      middleName: values.middleName || "",
+      suffix: values.suffix || "",
+      dob: values.dob ? Timestamp.fromDate(values.dob.toDate()) : null,
+      address: {
+        ...values.address,
+        secondAddressLine: values.address.secondAddressLine || "",
+      },
+      uid: auth.currentUser.uid,
+    };
+
+    try {
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      await setDoc(userDocRef, processedValues);
+      console.log("User document written with ID: ", userDocRef.id);
+      message.success("Personal information saved successfully!");
+
+      // Proceed to the next step
+      setCurrentStep(currentStep + 1);
+    } catch (error) {
+      console.error("Error adding user document: ", error);
+      message.error("Failed to save personal information.");
+    }
   };
-
-  try {
-    const docRef = await addDoc(collection(db, "users"), processedValues);
-    console.log("Document written with ID: ", docRef.id);
-    message.success("Personal information saved successfully!");
-    setCurrentStep(currentStep + 1); // Proceed to the next step
-  } catch (error) {
-    console.error("Error adding document: ", error);
-    message.error("Failed to save personal information.");
-  }
-};
-
-  
-  
-  
 
   useEffect(() => {
     // This function checks the user's email verification status
@@ -125,20 +116,17 @@ const Signup = () => {
         }
       }
     };
-  
+
     const intervalId = setInterval(() => {
       // Only proceed with the check if currentUser exists and email is not verified
       if (auth.currentUser && !auth.currentUser.emailVerified) {
         checkEmailVerified();
       }
     }, 10000); // Check every 15 seconds
-  
+
     // Cleanup on component unmount
     return () => clearInterval(intervalId);
   }, [currentStep]);
-  
-  
-
 
   const handleCompanyInfoSubmit = async (values: CompanyInfoFormValues) => {
     if (!auth.currentUser) {
@@ -146,45 +134,46 @@ const Signup = () => {
       message.error('You must be logged in to perform this action.');
       return;
     }
-  
-    // Destructure company address for detailed fields
+
     const { companyName, companyPhoneNumber, companyEmail, companyAddress } = values;
-  
+
     try {
-      // Prepare company address data for Firestore, converting it to a suitable format if necessary
       const companyAddressData = {
         ...companyAddress,
-        // Make sure to handle undefined optional fields appropriately
         secondAddressLine: companyAddress.secondAddressLine || "",
       };
-  
-      // Prepare the document to be saved
+
       const companyData = {
-        uid: auth.currentUser.uid, 
         companyName,
         companyPhoneNumber,
         companyEmail,
         companyAddress: companyAddressData,
+        uid: auth.currentUser.uid, // Make sure this matches the authenticated user's UID
         owner_id: auth.currentUser.uid, // Include owner_id
         members: {
           [auth.currentUser.uid]: { role: "Owner" } // Initial member with Owner role
         }
       };
-  
-      // Save company data to Firestore
+
+      // Add company document
       const companyRef = await addDoc(collection(db, "companies"), companyData);
-      const companyuid = companyRef.id; // Use companyRef.id as the companyuid
-  
+      const companyuid = companyRef.id;
+
       // Update the company document with the companyuid
       await updateDoc(companyRef, { companyuid });
-  
+
+      // Update the user's document with the companyuid
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      await updateDoc(userDocRef, { companyuid });
+
       message.success('Company information saved successfully!');
-      navigate('/dashboard', { state: { companyId: companyRef.id } }); // Use companyRef.id 
+      navigate('/home', { state: { companyId: companyRef.id } });
     } catch (error) {
       console.error('Error saving company information:', error);
       message.error('Error saving company information.');
     }
   };
+  
   
   
   const renderStepContent = (step: number) => {

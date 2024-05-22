@@ -1,0 +1,264 @@
+.header {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.header-image, .header-placeholder {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+.header-placeholder {
+  background-color: #F0F0F0;
+}
+
+.back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.title-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  padding: 10px;
+}
+
+.property-title {
+  margin: 0;
+  color: white;
+}
+
+.content-container {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.property-tabs {
+  margin-top: 20px;
+}
+
+.property-info-card {
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+.property-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  row-gap: 20px; /* Add gap between rows */
+}
+
+.property-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.quick-action-card, .property-card-content, .owners-card, .photos-card {
+  height: 100%;
+}
+
+.property-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.quick-action-buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.icon-building-estate-property-info {
+  color: #19C3C4;
+}
+
+.icon-circle-key-property-info {
+  color: #19C3C4;
+}
+
+.icon-circle-dashed-check-property-info {
+  color: #008001;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  row-gap: 20px; /* Add gap between rows */
+}
+
+.settings-card-button {
+  padding: 0;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.settings-card-button:hover .settings-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.settings-card {
+  height: 150px; /* Adjust the height as needed */
+  width: 100%; /* Ensure cards take full width of the column */
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+  transition: background-color 0.3s;
+}
+
+.settings-card:hover {
+  background-color: #f5f5f5;
+}
+
+.settings-card-content {
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.settings-card-icon {
+  margin-right: 16px;
+  color: #3B5485;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+}
+
+.settings-card-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-card-title {
+  margin: 0;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+.settings-card-description {
+  margin: 0;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.owners-card {
+  margin-bottom: 20px;
+  min-height: 200px; /* Set the minimum height */
+}
+
+.owner-card {
+  width: 22%; /* Adjust to fit 4 cards per row with some margin */
+  height: 70px;
+  margin-bottom: 16px;
+  margin-right: 2%; /* Adjust to add space between cards */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: white; /* Remove the grey background */
+}
+
+.owner-card:nth-child(4n) {
+  margin-right: 0; /* Remove margin-right for the last card in each row */
+}
+
+.owner-icon {
+  margin-right: 8px; /* Reduce the margin to move the text closer to the icon */
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #19C3C4; /* Set the color of the icon */
+}
+
+.owner-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  word-wrap: break-word; /* Allow text to wrap if it gets too long */
+}
+
+.owner-name {
+  margin: 0;
+  font-weight: bold;
+  color: #1d1d1d;
+}
+
+.owner-percentage {
+  margin: 0;
+  color: #6c757d;
+  margin-top: -4px; /* Adjust the spacing between name and percentage */
+}
+
+.owners-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.owner-card-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.photos-card {
+  min-height: 200px;
+}
+
+.photos-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.banner-image-section, .property-images-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.banner-image-preview, .property-image-preview {
+  width: 100%;
+  max-width: 300px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+}
+
+.property-images-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.crop-modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.crop-modal-content .ant-btn {
+  margin-top: 20px;
+}

@@ -1,12 +1,18 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { isAuthenticated } from '../../components/redux/authSlice';
+import { RootState } from '../../components/redux/store';
 
-const ProtectedRoute = () => {
-  const isAuth = useSelector(isAuthenticated);
+const ProtectedRoute: React.FC = () => {
+  const authenticated = useSelector(isAuthenticated);
+  const loading = useSelector((state: RootState) => state.auth.isLoading);
 
-  return isAuth ? <Outlet /> : <Navigate to="/login" />;
+  if (loading) {
+    return <div>Loading...</div>; // You can customize this loading state
+  }
+
+  return authenticated ? <Outlet /> : <Navigate to="/login" />;
 };
 
 export default ProtectedRoute;

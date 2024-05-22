@@ -4,6 +4,7 @@ import { getAnalytics } from "firebase/analytics";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFunctions } from 'firebase/functions'; // Import getFunctions
+import { getStorage } from 'firebase/storage';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
@@ -25,8 +26,9 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app); // Initialize auth
 const functions = getFunctions(app); // Initialize Cloud Functions
+const storage = getStorage(app);
 
 firebase.initializeApp(firebaseConfig);
 
-export { db, auth, analytics, app, functions, createUserWithEmailAndPassword, addDoc, collection };
+export { db, auth, analytics, app, functions,storage, createUserWithEmailAndPassword, addDoc, collection };
 export default firebase;
