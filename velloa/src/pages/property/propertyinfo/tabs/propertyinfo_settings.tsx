@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Typography, Button, Upload, Modal, Input, Form, Divider, notification } from 'antd';
+import { Row, Col, Card, Typography, Button, Modal, Input, Form, Divider, notification } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { 
   IconSettings, IconPhoto, IconBuildingBank, IconHome2, IconUserCircle, 
@@ -20,10 +20,11 @@ interface PropertySettingsProps {
   handleResize: () => void;
   handleDelete: () => void;
   handlePhotosUpload: (file: File) => Promise<boolean>;
+  updatePropertyName: (newName: string) => void;  // Add the new prop for updating the name
 }
 
 const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ 
-  showModal, handleBannerUpload, imageUrl, photos, handleResize, handleDelete, handlePhotosUpload 
+  showModal, handleBannerUpload, imageUrl, photos, handleResize, handleDelete, handlePhotosUpload, updatePropertyName 
 }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -47,7 +48,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      setPropertyName(data.name || '');
+      setPropertyName(data.propertyName || '');
       setStreet1(data.address?.street1 || '');
       setStreet2(data.address?.street2 || '');
       setCity(data.address?.city || '');
@@ -57,7 +58,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
       setPropertyDescription(data.description || '');
       setCharacterCount((data.description || '').length);
       form.setFieldsValue({
-        propertyName: data.name || '',
+        propertyName: data.propertyName || '',
         street1: data.address?.street1 || '',
         street2: data.address?.street2 || '',
         city: data.address?.city || '',
@@ -91,7 +92,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
     const docRef = doc(db, 'properties', property.key);
 
     await updateDoc(docRef, {
-      name: propertyName,
+      propertyName,
       description: propertyDescription,
       address: {
         street1,
@@ -109,6 +110,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
       placement: 'top',
     });
 
+    updatePropertyName(propertyName);  // Call the callback to update the name in PropertyInfo
     setIsModalVisible(false);
   };
 
@@ -120,7 +122,6 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
   const handleCancel = () => {
     setIsModalVisible(false);
   };
-
   return (
     <>
       <Row gutter={16} className="settings-row">

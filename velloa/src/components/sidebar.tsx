@@ -103,8 +103,8 @@ const Sidebar: React.FC = () => {
             left: 200,
           }}
         >
-          <Title level={4} style={{ margin: 0, flex: 1 }}>
-            {selectedProperty?.propertyName || 'Velloa'}
+          <Title level={4} style={{ margin: 0, flex: 1, paddingLeft: '16px' }}>
+            Velloa
           </Title>
           <div style={{ marginLeft: 'auto', padding: '0 40px' }}>
             <Dropdown overlay={dropdownMenu} trigger={['click']}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Typography, Button, Tabs, Modal, Upload, message } from 'antd';
+import { Typography, Button, Tabs, Modal, Upload, message, Form, Input, Divider } from 'antd';
 import { LeftOutlined, UploadOutlined } from '@ant-design/icons';
 import { db, storage } from '../../../firebase-config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -53,6 +53,7 @@ const PropertyInfo: React.FC = () => {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [form] = Form.useForm();
 
   const handleBackClick = () => {
     navigate('/property');
@@ -62,33 +63,44 @@ const PropertyInfo: React.FC = () => {
     setModalContent({ title, description });
     setModalType(type);
     setModalVisible(true);
+    fetchPropertyInfo(); // Fetch property info when opening the modal
   };
 
   const handleCancel = () => {
     setModalVisible(false);
   };
 
-  useEffect(() => {
-    const fetchOwners = async () => {
-      try {
-        const propertyRef = doc(db, 'properties', property.key);
-        const propertyDoc = await getDoc(propertyRef);
-        if (propertyDoc.exists()) {
-          const data = propertyDoc.data();
-          setOwners(data.ownership || []);
-          setImageUrl(data.imageUrl || '');
-          setPhotos(data.photos || []);
-        } else {
-          console.log("No such document!");
-        }
-      } catch (error) {
-        console.error("Error fetching owners: ", error);
-      } finally {
-        setLoading(false);
+  const fetchPropertyInfo = async () => {
+    try {
+      const propertyRef = doc(db, 'properties', property.key);
+      const propertyDoc = await getDoc(propertyRef);
+      if (propertyDoc.exists()) {
+        const data = propertyDoc.data();
+        setOwners(data.ownership || []);
+        setImageUrl(data.imageUrl || '');
+        setPhotos(data.photos || []);
+        form.setFieldsValue({
+          propertyName: data.propertyName || '',
+          street1: data.address?.street1 || '',
+          street2: data.address?.street2 || '',
+          city: data.address?.city || '',
+          state: data.address?.state || '',
+          zip: data.address?.zip || '',
+          country: data.address?.country || '',
+          propertyDescription: data.description || '',
+        });
+      } else {
+        console.log("No such document!");
       }
-    };
+    } catch (error) {
+      console.error("Error fetching owners: ", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchOwners();
+  useEffect(() => {
+    fetchPropertyInfo();
   }, [property.key]);
 
   const handleBannerUpload = async (file: File) => {
@@ -289,6 +301,10 @@ const PropertyInfo: React.FC = () => {
     </Modal>
   );
 
+  const updatePropertyName = (newName: string) => {
+    form.setFieldsValue({ propertyName: newName });
+  };
+
   return (
     <div className="property-info-container">
       <div className={`header ${!imageUrl ? 'header-no-image' : ''}`}>
@@ -330,7 +346,16 @@ const PropertyInfo: React.FC = () => {
             <PropertyTenants />
           </TabPane>
           <TabPane tab="Settings" key="6">
-            <PropertySettings showModal={showModal} handleBannerUpload={handleBannerUpload} imageUrl={imageUrl} photos={photos} handleResize={handleResize} handleDelete={handleDelete} handlePhotosUpload={handlePhotosUpload} />
+            <PropertySettings 
+              showModal={showModal} 
+              handleBannerUpload={handleBannerUpload} 
+              imageUrl={imageUrl} 
+              photos={photos} 
+              handleResize={handleResize} 
+              handleDelete={handleDelete} 
+              handlePhotosUpload={handlePhotosUpload} 
+              updatePropertyName={updatePropertyName}  // Pass the callback to update the name
+            />
           </TabPane>
         </Tabs>
       </div>
