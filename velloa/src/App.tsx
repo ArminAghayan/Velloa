@@ -43,7 +43,7 @@ const theme = {
     Menu: {
       darkItemBg: "rgb(59, 84, 133)",
       darkSubMenuItemBg: "rgb(59, 84, 133)",
-      darkPopupBg: "rgb(59, 84, 133)",
+      darkPopupBg: "#fffff",
       ItemBg: "rgb(59, 84, 133)",
       SubMenuItemBg: "rgb(59, 84, 133)",
       PopupBg: "rgb(59, 84, 133)",

@@ -1,0 +1,53 @@
+.custom-glass-modal .ant-modal-content {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);  
+    border-radius: 8px;
+  }
+  
+  .custom-glass-modal .custom-modal-header {
+    background: transparent;  /* Make custom modal header transparent */
+
+  }
+  
+  .custom-glass-modal .ant-modal-header {
+    background: transparent;  /* Make modal header transparent */
+    border-bottom: none;  /* Optional: Remove the border-bottom if needed */
+  }
+  
+  .custom-glass-modal .ant-modal {
+    max-width: 800px;
+  }
+  
+  .custom-glass-modal .ant-modal-body {
+    background: transparent;  
+    border-radius: 8px;
+  }
+  
+  .custom-glass-modal .ant-modal-body .ant-divider {
+    background: rgba(255, 255, 255, 0.8);  
+    height: 2px;  /* Adjust the thickness here */
+  }
+  
+  .custom-glass-modal .ant-form-item {
+    margin-bottom: 16px;
+  }
+  
+  .custom-glass-modal .ant-form-item .ant-input-textarea-show-count {
+    display: none;  
+  }
+  
+  .custom-glass-modal .ant-form-item:last-child {
+    margin-bottom: 16px;
+  }
+  
+  .custom-glass-modal .character-count {
+    margin-top: 8px;
+    color: rgba(0, 0, 0, 0.65);
+    text-align: left;  
+  }
+  
+  .generalinfo_label {
+    color: #626364;
+    font-weight: bold;
+  }
+  

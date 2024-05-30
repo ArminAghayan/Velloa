@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Dropdown, Avatar, Typography } from 'antd';
+import { Layout, Menu, Dropdown, Avatar, Typography } from 'antd';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   HomeOutlined,
   ToolOutlined,
   AppstoreOutlined,
@@ -26,10 +24,9 @@ const { Title } = Typography;
 
 const Sidebar: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
   const selectedProperty = useSelector((state: RootState) => state.property.property);
-  
+
   const handleLogout = () => {
     dispatch(logout());
   };
@@ -46,11 +43,9 @@ const Sidebar: React.FC = () => {
   );
 
   return (
-    <Layout hasSider style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh' }}>
       <Sider
         trigger={null}
-        collapsible
-        collapsed={collapsed}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -64,7 +59,7 @@ const Sidebar: React.FC = () => {
           <img
             src="/assests/dark_mode_velloa_logo.png"
             alt="Logo"
-            style={{ maxWidth: '100%', maxHeight: '24px' }}
+            style={{ maxWidth: '100%', maxHeight: '36px' }}
           />
         </div>
         <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
@@ -94,7 +89,7 @@ const Sidebar: React.FC = () => {
           </Menu.Item>
         </Menu>
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200 }}>
+      <Layout>
         <Header
           style={{
             display: 'flex',
@@ -104,15 +99,10 @@ const Sidebar: React.FC = () => {
             background: '#ffffff',
             position: 'fixed',
             zIndex: 1,
-            width: `calc(100% - ${collapsed ? 80 : 200}px)`,
+            width: 'calc(100% - 200px)',
+            left: 200,
           }}
         >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: '16px', width: 64, height: 64, border: 'none', padding: 0 }}
-          />
           <Title level={4} style={{ margin: 0, flex: 1 }}>
             {selectedProperty?.propertyName || 'Velloa'}
           </Title>
@@ -122,7 +112,7 @@ const Sidebar: React.FC = () => {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ marginTop: 64, overflow: 'auto' }}>
+        <Content style={{ marginTop: 64, marginLeft: 200, overflow: 'auto' }}>
           <div style={{ minHeight: 280 }}>
             <Outlet context={{ property: location.state?.property }} />
           </div>
