@@ -77,7 +77,7 @@ const PropertyInfoOverview: React.FC<PropertyOverviewProps> = ({ property }) => 
           <Card className="quick-action-card">
             <div className="property-card-content">
               <IconBuildingEstate size={48} className="icon-building-estate-property-info" />
-              <Title level={5} className="label">Property Type</Title>
+              <Title level={5} className="label">Property Type:</Title>
               <Text className="value">{property.propertyType}</Text>
             </div>
           </Card>
@@ -95,7 +95,7 @@ const PropertyInfoOverview: React.FC<PropertyOverviewProps> = ({ property }) => 
           <Card className="quick-action-card">
             <div className="property-card-content">
               <IconCircleDashedCheck size={48} className="icon-circle-dashed-check-property-info" />
-              <Title level={5} className="label">Status</Title>
+              <Title level={5} className="label">Status:</Title>
               <Text className="value" style={{ color: 'green' }}>{property.status || 'N/A'}</Text>
             </div>
           </Card>

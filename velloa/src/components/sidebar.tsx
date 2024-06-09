@@ -46,6 +46,8 @@ const Sidebar: React.FC = () => {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         trigger={null}
+        width={200}
+
         style={{
           overflow: 'auto',
           height: '100vh',
