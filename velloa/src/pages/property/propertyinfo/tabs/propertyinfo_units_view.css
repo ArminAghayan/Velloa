@@ -1,0 +1,63 @@
+.property-info-unit-view {
+    position: relative;
+    padding: 20px;
+  }
+  
+  .back-button-unit-view {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: white;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .back-button-unit-view:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .unit-title {
+    margin-top: 60px;
+    margin-bottom: 16px;
+  }
+  
+  .unit-details-card,
+  .description-card,
+  .images-card,
+  .tenant-info-card {
+    margin-bottom: 16px;
+  }
+  
+  .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .ant-card-head-title {
+    padding: 16px 0;
+  }
+  
+  .ant-typography {
+    margin-bottom: 0;
+  }
+  
+  .ant-card-body {
+    padding: 16px;
+  }
+  
+  .ant-typography strong {
+    margin-right: 8px;
+  }
+  
+  .description-card .ant-input {
+    margin-top: 10px;
+  }
+  
+  @media (max-width: 768px) {
+    .property-info-unit-view {
+      padding: 10px;
+    }
+    
+    .unit-title {
+      margin-top: 40px;
+    }
+  }

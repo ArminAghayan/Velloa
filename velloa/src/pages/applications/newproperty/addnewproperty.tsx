@@ -7,12 +7,14 @@ import { Link } from 'react-router-dom';
 import { IconPigMoney, IconPigOff } from '@tabler/icons-react';
 import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../../../firebase-config';
+import { v4 as uuidv4 } from 'uuid'; // Import uuid for generating unique IDs
 
 const { Title } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
 interface Unit {
+  unitId: string;
   unitName: string;
   beds: string;
   baths: string;
@@ -27,7 +29,7 @@ const AddNewProperty: React.FC = () => {
   const [selectedDescription, setSelectedDescription] = useState('');
   const [country, setCountry] = useState('');
   const [state, setState] = useState('');
-  const [units, setUnits] = useState<Unit[]>([{ unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+  const [units, setUnits] = useState<Unit[]>([{ unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
   const [useDefaultAccount, setUseDefaultAccount] = useState(true);
   const [specificBankAccount, setSpecificBankAccount] = useState('');
   const [defaultAccount] = useState("Noam's bank");
@@ -38,6 +40,7 @@ const AddNewProperty: React.FC = () => {
   const isPercentageValid = totalPercentage <= 100;
   const navigate = useNavigate();
   const [form] = Form.useForm();
+
 
   useEffect(() => {
     if (!auth.currentUser) {
@@ -59,7 +62,7 @@ const AddNewProperty: React.FC = () => {
     setSelectedDescription('');
     setCountry('');
     setState('');
-    setUnits([{ unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+    setUnits([{ unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
     setUseDefaultAccount(true);
     setSpecificBankAccount('');
   };
@@ -71,7 +74,7 @@ const AddNewProperty: React.FC = () => {
   };
 
   const addAnotherUnit = () => {
-    setUnits([...units, { unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+    setUnits([...units, { unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
   };
 
   const removeUnit = (index: number) => {
@@ -160,35 +163,35 @@ const AddNewProperty: React.FC = () => {
         message.error('User not logged in. Please log in and try again.');
         return;
       }
-  
+
       const userId = currentUser.uid;
       const userDocRef = doc(db, 'users', userId);
       const userSnapshot = await getDoc(userDocRef);
-  
+
       if (!userSnapshot.exists()) {
         message.error('User document not found. Please contact support.');
         return;
       }
-  
+
       const userData = userSnapshot.data();
       const companyuid = userData?.companyuid;
-  
+
       if (!companyuid) {
         message.error('User is not associated with any company. Please contact support.');
         return;
       }
-  
+
       const companyDocRef = doc(db, 'companies', companyuid);
       const companySnapshot = await getDoc(companyDocRef);
-  
+
       if (!companySnapshot.exists()) {
         message.error('Company document not found. Please contact support.');
         return;
       }
-  
+
       const companyData = companySnapshot.data();
       const companyName = companyData?.companyName;
-  
+
       const propertyData = {
         companyuid,
         propertyType: propertyType || '',
@@ -202,6 +205,7 @@ const AddNewProperty: React.FC = () => {
           country: form.getFieldValue('country') || '',
         },
         units: units.map(unit => ({
+          unitId: unit.unitId,
           unitName: unit.unitName || '',
           beds: unit.beds || '',
           baths: unit.baths || '',
@@ -217,7 +221,7 @@ const AddNewProperty: React.FC = () => {
             percentage: owner.percentage || '',
           })),
       };
-  
+
       const docRef = await addDoc(collection(db, 'properties'), propertyData);
       resetForms();
       navigate('/property');
@@ -227,12 +231,6 @@ const AddNewProperty: React.FC = () => {
       message.error('An error occurred while adding the property. Please try again.');
     }
   };
-  
-  
-  
-  
-
-
 
   const renderStepContent = () => {
     switch (current) {
@@ -331,520 +329,517 @@ const AddNewProperty: React.FC = () => {
           </div>
         );
       case 1:
-          return (
-            <Form form={form} onFinish={next}>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <label htmlFor="street1" className="visually-hidden">
-                    Street 1
-                  </label>
-                  <Form.Item
-                    name="street1"
-                    rules={[{ required: true, message: 'Please enter Street 1' }]}
-                  >
-                    <Input id="street1" placeholder="Street 1" style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <label htmlFor="street2" className="visually-hidden">
-                    Street 2
-                  </label>
-                  <Form.Item name="street2">
-                    <Input id="street2" placeholder="Street 2" style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <label htmlFor="city" className="visually-hidden">
-                    City
-                  </label>
-                  <Form.Item
-                    name="city"
-                    rules={[{ required: true, message: 'Please enter City' }]}
-                  >
-                    <Input id="city" placeholder="City" style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <label htmlFor="state" className="visually-hidden">
-                    State/Province
-                  </label>
-                  <Form.Item
-                    name="state"
-                    rules={[{ required: true, message: 'Please select State/Province' }]}
-                  >
-                    <Select id="state" placeholder="State/Province" style={{ width: '100%' }}>
-                      <Option value="Ontario">Ontario</Option>
-                      <Option value="Quebec">Quebec</Option>
-                      {/* Add more options as needed */}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <label htmlFor="zip" className="visually-hidden">
-                    Zip/Postal Code
-                  </label>
-                  <Form.Item
-                    name="zip"
-                    rules={[{ required: true, message: 'Please enter Zip/Postal Code' }]}
-                  >
-                    <Input id="zip" placeholder="Zip/Postal Code" style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <label htmlFor="country" className="visually-hidden">
-                    Country
-                  </label>
-                  <Form.Item
-                    name="country"
-                    rules={[{ required: true, message: 'Please select a country' }]}
-                  >
-                    <Select id="country" placeholder="Country" style={{ width: '100%' }}>
-                      <Option value="USA">USA</Option>
-                      <Option value="Canada">Canada</Option>
-                      {/* Add more options as needed */}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-      
-            </Form>
-          );
-      case 2:
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <h3>Let's add the units for the property</h3>
-                <p>Add all your units below.</p>
-          
-                <Form form={form} onFinish={next}>
-                  {units.map((unit, index) => (
-                    <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                      <div style={{ marginRight: '10px' }}>{index + 1}</div>
-                      <Form.Item
-                        name={`unitName-${index}`}
-                        rules={[{ required: true, message: 'Please enter Unit Name' }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder="Unit Name"
-                          value={unit.unitName}
-                          onChange={(e) => handleUnitChange(index, 'unitName', e.target.value)}
-                          style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name={`beds-${index}`}
-                        rules={[{ required: true, message: 'Please enter Beds' }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder="Beds"
-                          value={unit.beds}
-                          onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
-                          style={{ width: '120px', marginRight: '10px', fontSize: '16px' }}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name={`baths-${index}`}
-                        rules={[{ required: true, message: 'Please enter Baths' }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder="Baths"
-                          value={unit.baths}
-                          onChange={(e) => handleUnitChange(index, 'baths', e.target.value)}
-                          style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name={`size-${index}`}
-                        rules={[{ required: true, message: 'Please enter Size' }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder="Size"
-                          value={unit.size}
-                          onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
-                          style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name={`marketRent-${index}`}
-                        rules={[{ required: true, message: 'Please enter Market Rent' }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder="Market Rent"
-                          value={unit.marketRent}
-                          onChange={(e) => handleUnitChange(index, 'marketRent', e.target.value)}
-                          style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
-                        />
-                      </Form.Item>
-                      {index !== 0 && <Button danger onClick={() => removeUnit(index)}>X</Button>}
-                    </div>
-                  ))}
-          
-                  <Button type="dashed" onClick={addAnotherUnit} style={{ marginTop: '20px' }}>
-                    + Add Another Unit
-                  </Button>
-          
-                </Form>
-              </div>
-            );
-      case 3:
-          return (
-            <div>
-              <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
-                Property Bank Account
-              </Title>
-              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                Which bank accounts should be used for this property?
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                <Button
-                  type={useDefaultAccount ? 'primary' : 'default'}
-                  onClick={() => setUseDefaultAccount(true)}
-                  style={{
-                    marginRight: '10px',
-                    width: '150px',
-                    height: '150px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '10px 10px 20px',
-                  }}
+        return (
+          <Form form={form} onFinish={next}>
+            <Row gutter={16}>
+              <Col span={8}>
+                <label htmlFor="street1" className="visually-hidden">
+                  Street 1
+                </label>
+                <Form.Item
+                  name="street1"
+                  rules={[{ required: true, message: 'Please enter Street 1' }]}
                 >
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <BankOutlined style={{ fontSize: '50px' }} />
-                  </div>
-                  <Typography.Text
-                    style={{
-                      textAlign: 'center',
-                      whiteSpace: 'normal',
-                      wordWrap: 'break-word',
-                      color: useDefaultAccount ? 'white' : 'inherit',
-                    }}
-                  >
-                    Use company default account
-                  </Typography.Text>
-                </Button>
-                <Button
-                  type={!useDefaultAccount ? 'primary' : 'default'}
-                  onClick={() => setUseDefaultAccount(false)}
-                  style={{
-                    width: '150px',
-                    height: '150px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '10px 10px 20px',
-                  }}
-                >
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <DollarOutlined style={{ fontSize: '50px' }} />
-                  </div>
-                  <Typography.Text
-                    style={{
-                      textAlign: 'center',
-                      whiteSpace: 'normal',
-                      wordWrap: 'break-word',
-                      color: !useDefaultAccount ? 'white' : 'inherit',
-                    }}
-                  >
-                    Specify bank account
-                  </Typography.Text>
-                </Button>
-              </div>
-              {useDefaultAccount && (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginTop: '40px',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '500px',
-                      textAlign: 'left',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '8px',
-                      border: '1px solid #d9d9d9',
-                      padding: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div
-                        style={{
-                          backgroundColor: '#7692B8',
-                          borderRadius: '50%',
-                          padding: '8px',
-                          marginRight: '10px',
-                        }}
-                      >
-                        <BankOutlined style={{ fontSize: '24px', color: 'white' }} />
-                      </div>
-                      <Typography.Text strong>{defaultAccount}</Typography.Text>
-                    </div>
-                    <Tag
-                      icon={<CheckCircleOutlined />}
-                      color="#52c41a"
-                      style={{
-                        border: 'none',
-                        padding: '6px 6px',
-                      }}
-                    >
-                      Default Account
-                    </Tag>
-                  </div>
-                  <div style={{ marginTop: '16px' }}>
-                    <Typography.Text>
-                      Your company's default bank account can be modified at any time through your{' '}
-                      <Link to="/companysettings">Company Settings</Link>.
-                    </Typography.Text>
-                  </div>
-                </div>
-              )}
-        
-              {!useDefaultAccount && (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginTop: '40px',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ marginTop: '20px' }}>
-                    <Input
-                      placeholder="Specify bank account"
-                      value={specificBankAccount}
-                      onChange={(e) => setSpecificBankAccount(e.target.value)}
-                    />
-                  </div>
-                  <div style={{ marginTop: '16px' }}>
-                    <Typography.Text>
-                      Your company's default bank account can be modified at any time through your{' '}
-                      <Link to="/companysettings">Company Settings</Link>.
-                    </Typography.Text>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-      case 4:
-            return (
-              <div>
-                <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  Reserve Funds
-                </Title>
-                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                  Would you like to maintain a minimum balance ("Reserve") for this property?
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                  <Button
-                    type={useReserveFund ? 'primary' : 'default'}
-                    onClick={() => setUseReserveFund(true)}
-                    style={{
-                      marginRight: '10px',
-                      width: '150px',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      padding: '10px 10px 20px',
-                    }}
-                  >
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <IconPigMoney size={50} />
-                    </div>
-                    <Typography.Text
-                      style={{
-                        textAlign: 'center',
-                        whiteSpace: 'normal',
-                        wordWrap: 'break-word',
-                        color: useReserveFund ? 'white' : 'inherit',
-                      }}
-                    >
-                      Set a Reserve fund for this property
-                    </Typography.Text>
-                  </Button>
-                  <Button
-                    type={!useReserveFund ? 'primary' : 'default'}
-                    onClick={() => setUseReserveFund(false)}
-                    style={{
-                      width: '150px',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      padding: '10px 10px 20px',
-                    }}
-                  >
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <IconPigOff size={50} />
-                    </div>
-                    <Typography.Text
-                      style={{
-                        textAlign: 'center',
-                        whiteSpace: 'normal',
-                        wordWrap: 'break-word',
-                        color: !useReserveFund ? 'white' : 'inherit',
-                      }}
-                    >
-                      No Reserve fund for this property
-                    </Typography.Text>
-                  </Button>
-                </div>
-          
-                {useReserveFund && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      marginTop: '40px',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div style={{ marginTop: '20px' }}>
-                      <Input
-                        placeholder="Enter reserve amount"
-                        value={reserveAmount}
-                        onChange={(e) => setReserveAmount(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-      case 5:
-           
-              return (
-                <div>
-                  <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
-                    Ownership of the Property
-                  </Title>
-                  <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    How is the Ownership of the property divided?
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                    <Button
-                      type={useDefaultAccount ? 'primary' : 'default'}
-                      onClick={() => {
-                        setUseDefaultAccount(true);
-                        setOwners([{ name: '', percentage: '' }]);
-                      }}
-                      style={{
-                        marginRight: '10px',
-                        width: '150px',
-                        height: '150px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: '10px 10px 20px',
-                      }}
-                    >
-                      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <DollarOutlined style={{ fontSize: '50px' }} />
-                      </div>
-                      <Typography.Text
-                        style={{
-                          textAlign: 'center',
-                          whiteSpace: 'normal',
-                          wordWrap: 'break-word',
-                          color: useDefaultAccount ? 'white' : 'inherit',
-                        }}
-                      >
-                        Full Ownership
-                      </Typography.Text>
-                    </Button>
-                    <Button
-                      type={!useDefaultAccount ? 'primary' : 'default'}
-                      onClick={() => {
-                        setUseDefaultAccount(false);
-                        setOwners([{ name: '', percentage: '' }]);
-                      }}
-                      style={{
-                        width: '150px',
-                        height: '150px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: '10px 10px 20px',
-                      }}
-                    >
-                      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <DollarOutlined style={{ fontSize: '50px' }} />
-                      </div>
-                      <Typography.Text
-                        style={{
-                          textAlign: 'center',
-                          whiteSpace: 'normal',
-                          wordWrap: 'break-word',
-                          color: !useDefaultAccount ? 'white' : 'inherit',
-                        }}
-                      >
-                        Multiple Owners
-                      </Typography.Text>
-                    </Button>
-                  </div>
-            
-                  {!useDefaultAccount && (
-        <div style={{ marginTop: '40px' }}>
-          <Row gutter={[16, 16]} justify="center">
-            {owners.map((owner, index) => (
-              <Col key={index} xs={24} sm={12} md={8}>
-                <Input
-                  placeholder="Owner Name"
-                  value={owner.name}
-                  onChange={(e) => handleOwnerNameChange(index, e.target.value)}
-                  style={{ marginBottom: '8px' }}
-                />
-                <Input
-                  placeholder="Ownership Percentage"
-                  value={owner.percentage}
-                  onChange={(e) => handleOwnerPercentageChange(index, e.target.value)}
-                  suffix="%"
-                />
-                {owners.length > 1 && (
-                  <Button
-                    type="link"
-                    danger
-                    onClick={() => removeOwner(index)}
-                    style={{ marginTop: '8px' }}
-                  >
-                    Remove
-                  </Button>
-                )}
+                  <Input id="street1" placeholder="Street 1" style={{ width: '100%' }} />
+                </Form.Item>
               </Col>
-            ))}
-          </Row>
-          {!isPercentageValid && (
-            <div style={{ color: 'red', textAlign: 'center', marginTop: '16px' }}>
-              Total ownership percentage cannot exceed 100%.
-            </div>
-          )}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-            <Button type="dashed" onClick={addOwner}>
-              + Add Owner
-            </Button>
+              <Col span={8}>
+                <label htmlFor="street2" className="visually-hidden">
+                  Street 2
+                </label>
+                <Form.Item name="street2">
+                  <Input id="street2" placeholder="Street 2" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <label htmlFor="city" className="visually-hidden">
+                  City
+                </label>
+                <Form.Item
+                  name="city"
+                  rules={[{ required: true, message: 'Please enter City' }]}
+                >
+                  <Input id="city" placeholder="City" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <label htmlFor="state" className="visually-hidden">
+                  State/Province
+                </label>
+                <Form.Item
+                  name="state"
+                  rules={[{ required: true, message: 'Please select State/Province' }]}
+                >
+                  <Select id="state" placeholder="State/Province" style={{ width: '100%' }}>
+                    <Option value="Ontario">Ontario</Option>
+                    <Option value="Quebec">Quebec</Option>
+                    {/* Add more options as needed */}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <label htmlFor="zip" className="visually-hidden">
+                  Zip/Postal Code
+                </label>
+                <Form.Item
+                  name="zip"
+                  rules={[{ required: true, message: 'Please enter Zip/Postal Code' }]}
+                >
+                  <Input id="zip" placeholder="Zip/Postal Code" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <label htmlFor="country" className="visually-hidden">
+                  Country
+                </label>
+                <Form.Item
+                  name="country"
+                  rules={[{ required: true, message: 'Please select a country' }]}
+                >
+                  <Select id="country" placeholder="Country" style={{ width: '100%' }}>
+                    <Option value="USA">USA</Option>
+                    <Option value="Canada">Canada</Option>
+                    {/* Add more options as needed */}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        );
+      case 2:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h3>Let's add the units for the property</h3>
+            <p>Add all your units below.</p>
+
+            <Form form={form} onFinish={next}>
+              {units.map((unit, index) => (
+                <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ marginRight: '10px' }}>{index + 1}</div>
+                  <Form.Item
+                    name={`unitName-${index}`}
+                    rules={[{ required: true, message: 'Please enter Unit Name' }]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      placeholder="Unit Name"
+                      value={unit.unitName}
+                      onChange={(e) => handleUnitChange(index, 'unitName', e.target.value)}
+                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={`beds-${index}`}
+                    rules={[{ required: true, message: 'Please enter Beds' }]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      placeholder="Beds"
+                      value={unit.beds}
+                      onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
+                      style={{ width: '120px', marginRight: '10px', fontSize: '16px' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={`baths-${index}`}
+                    rules={[{ required: true, message: 'Please enter Baths' }]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      placeholder="Baths"
+                      value={unit.baths}
+                      onChange={(e) => handleUnitChange(index, 'baths', e.target.value)}
+                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={`size-${index}`}
+                    rules={[{ required: true, message: 'Please enter Size' }]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      placeholder="Size"
+                      value={unit.size}
+                      onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
+                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={`marketRent-${index}`}
+                    rules={[{ required: true, message: 'Please enter Market Rent' }]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      placeholder="Market Rent"
+                      value={unit.marketRent}
+                      onChange={(e) => handleUnitChange(index, 'marketRent', e.target.value)}
+                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                    />
+                  </Form.Item>
+                  {index !== 0 && <Button danger onClick={() => removeUnit(index)}>X</Button>}
+                </div>
+              ))}
+
+              <Button type="dashed" onClick={addAnotherUnit} style={{ marginTop: '20px' }}>
+                + Add Another Unit
+              </Button>
+            </Form>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        );
+      case 3:
+        return (
+          <div>
+            <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
+              Property Bank Account
+            </Title>
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              Which bank accounts should be used for this property?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <Button
+                type={useDefaultAccount ? 'primary' : 'default'}
+                onClick={() => setUseDefaultAccount(true)}
+                style={{
+                  marginRight: '10px',
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <BankOutlined style={{ fontSize: '50px' }} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: useDefaultAccount ? 'white' : 'inherit',
+                  }}
+                >
+                  Use company default account
+                </Typography.Text>
+              </Button>
+              <Button
+                type={!useDefaultAccount ? 'primary' : 'default'}
+                onClick={() => setUseDefaultAccount(false)}
+                style={{
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <DollarOutlined style={{ fontSize: '50px' }} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: !useDefaultAccount ? 'white' : 'inherit',
+                  }}
+                >
+                  Specify bank account
+                </Typography.Text>
+              </Button>
+            </div>
+            {useDefaultAccount && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginTop: '40px',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '500px',
+                    textAlign: 'left',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '8px',
+                    border: '1px solid #d9d9d9',
+                    padding: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        backgroundColor: '#7692B8',
+                        borderRadius: '50%',
+                        padding: '8px',
+                        marginRight: '10px',
+                      }}
+                    >
+                      <BankOutlined style={{ fontSize: '24px', color: 'white' }} />
+                    </div>
+                    <Typography.Text strong>{defaultAccount}</Typography.Text>
+                  </div>
+                  <Tag
+                    icon={<CheckCircleOutlined />}
+                    color="#52c41a"
+                    style={{
+                      border: 'none',
+                      padding: '6px 6px',
+                    }}
+                  >
+                    Default Account
+                  </Tag>
+                </div>
+                <div style={{ marginTop: '16px' }}>
+                  <Typography.Text>
+                    Your company's default bank account can be modified at any time through your{' '}
+                    <Link to="/companysettings">Company Settings</Link>.
+                  </Typography.Text>
+                </div>
+              </div>
+            )}
+
+            {!useDefaultAccount && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginTop: '40px',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ marginTop: '20px' }}>
+                  <Input
+                    placeholder="Specify bank account"
+                    value={specificBankAccount}
+                    onChange={(e) => setSpecificBankAccount(e.target.value)}
+                  />
+                </div>
+                <div style={{ marginTop: '16px' }}>
+                  <Typography.Text>
+                    Your company's default bank account can be modified at any time through your{' '}
+                    <Link to="/companysettings">Company Settings</Link>.
+                  </Typography.Text>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 4:
+        return (
+          <div>
+            <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
+              Reserve Funds
+            </Title>
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              Would you like to maintain a minimum balance ("Reserve") for this property?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <Button
+                type={useReserveFund ? 'primary' : 'default'}
+                onClick={() => setUseReserveFund(true)}
+                style={{
+                  marginRight: '10px',
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <IconPigMoney size={50} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: useReserveFund ? 'white' : 'inherit',
+                  }}
+                >
+                  Set a Reserve fund for this property
+                </Typography.Text>
+              </Button>
+              <Button
+                type={!useReserveFund ? 'primary' : 'default'}
+                onClick={() => setUseReserveFund(false)}
+                style={{
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <IconPigOff size={50} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: !useReserveFund ? 'white' : 'inherit',
+                  }}
+                >
+                  No Reserve fund for this property
+                </Typography.Text>
+              </Button>
+            </div>
+
+            {useReserveFund && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginTop: '40px',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ marginTop: '20px' }}>
+                  <Input
+                    placeholder="Enter reserve amount"
+                    value={reserveAmount}
+                    onChange={(e) => setReserveAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 5:
+        return (
+          <div>
+            <Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
+              Ownership of the Property
+            </Title>
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              How is the Ownership of the property divided?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <Button
+                type={useDefaultAccount ? 'primary' : 'default'}
+                onClick={() => {
+                  setUseDefaultAccount(true);
+                  setOwners([{ name: '', percentage: '' }]);
+                }}
+                style={{
+                  marginRight: '10px',
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <DollarOutlined style={{ fontSize: '50px' }} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: useDefaultAccount ? 'white' : 'inherit',
+                  }}
+                >
+                  Full Ownership
+                </Typography.Text>
+              </Button>
+              <Button
+                type={!useDefaultAccount ? 'primary' : 'default'}
+                onClick={() => {
+                  setUseDefaultAccount(false);
+                  setOwners([{ name: '', percentage: '' }]);
+                }}
+                style={{
+                  width: '150px',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '10px 10px 20px',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <DollarOutlined style={{ fontSize: '50px' }} />
+                </div>
+                <Typography.Text
+                  style={{
+                    textAlign: 'center',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    color: !useDefaultAccount ? 'white' : 'inherit',
+                  }}
+                >
+                  Multiple Owners
+                </Typography.Text>
+              </Button>
+            </div>
+
+            {!useDefaultAccount && (
+              <div style={{ marginTop: '40px' }}>
+                <Row gutter={[16, 16]} justify="center">
+                  {owners.map((owner, index) => (
+                    <Col key={index} xs={24} sm={12} md={8}>
+                      <Input
+                        placeholder="Owner Name"
+                        value={owner.name}
+                        onChange={(e) => handleOwnerNameChange(index, e.target.value)}
+                        style={{ marginBottom: '8px' }}
+                      />
+                      <Input
+                        placeholder="Ownership Percentage"
+                        value={owner.percentage}
+                        onChange={(e) => handleOwnerPercentageChange(index, e.target.value)}
+                        suffix="%"
+                      />
+                      {owners.length > 1 && (
+                        <Button
+                          type="link"
+                          danger
+                          onClick={() => removeOwner(index)}
+                          style={{ marginTop: '8px' }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </Col>
+                  ))}
+                </Row>
+                {!isPercentageValid && (
+                  <div style={{ color: 'red', textAlign: 'center', marginTop: '16px' }}>
+                    Total ownership percentage cannot exceed 100%.
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                  <Button type="dashed" onClick={addOwner}>
+                    + Add Owner
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
   case 6:
     return (
       <div>

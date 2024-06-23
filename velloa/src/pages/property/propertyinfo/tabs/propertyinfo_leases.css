@@ -1,0 +1,11 @@
+/* propertyInfoLeases.css */
+.leases-container {
+    padding: 16px;
+  }
+  
+  .leases-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+  

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Layout, Menu, Dropdown, Avatar, Typography } from 'antd';
+import { Layout, Menu, Dropdown, Avatar } from 'antd';
 import {
   HomeOutlined,
   ToolOutlined,
@@ -19,8 +19,7 @@ import { logout } from '../components/redux/authSlice';
 import { AppDispatch, RootState } from '../components/redux/store';
 import 'antd/dist/reset.css';
 
-const { Header, Content, Sider } = Layout;
-const { Title } = Typography;
+const { Content, Sider } = Layout;
 
 const Sidebar: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -45,9 +44,8 @@ const Sidebar: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
-        trigger={null}
-        width={200}
-
+        width={80}
+        collapsed={true}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -57,7 +55,15 @@ const Sidebar: React.FC = () => {
           bottom: 0,
         }}
       >
-        <div className="logo" style={{ padding: '16px', textAlign: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '16px',
+            textAlign: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <img
             src="/assests/dark_mode_velloa_logo.png"
             alt="Logo"
@@ -90,32 +96,15 @@ const Sidebar: React.FC = () => {
             <Link to="/analytics">Analytics</Link>
           </Menu.Item>
         </Menu>
+        <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: '16px', textAlign: 'center' }}>
+          <Dropdown overlay={dropdownMenu} trigger={['click']}>
+            <Avatar icon={<UserOutlined />} />
+          </Dropdown>
+        </div>
       </Sider>
       <Layout>
-        <Header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0',
-            borderBottom: '1px solid #e8e8e8',
-            background: '#ffffff',
-            position: 'fixed',
-            zIndex: 1,
-            width: 'calc(100% - 200px)',
-            left: 200,
-          }}
-        >
-          <Title level={4} style={{ margin: 0, flex: 1, paddingLeft: '16px' }}>
-            Velloa
-          </Title>
-          <div style={{ marginLeft: 'auto', padding: '0 40px' }}>
-            <Dropdown overlay={dropdownMenu} trigger={['click']}>
-              <Avatar icon={<UserOutlined />} />
-            </Dropdown>
-          </div>
-        </Header>
-        <Content style={{ marginTop: 64, marginLeft: 200, overflow: 'auto' }}>
-          <div style={{ minHeight: 280 }}>
+        <Content style={{ marginLeft: 80, overflow: 'auto' }}>
+          <div style={{ minHeight: '100vh'}}>
             <Outlet context={{ property: location.state?.property }} />
           </div>
         </Content>

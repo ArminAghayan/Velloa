@@ -80,11 +80,12 @@
 }
 
 .icon-building-estate-property-info {
-  color: #19C3C4;
+  color: #3B5485;
 }
 
 .icon-circle-key-property-info {
-  color: #19C3C4;
+  color: #3B5485;
+
 }
 
 .icon-circle-dashed-check-property-info {
@@ -159,16 +160,14 @@
 }
 
 .owners-card {
-  margin-bottom: 20px;
   min-height: 200px; /* Set the minimum height */
 }
 
 .owner-card {
   width: 22%; /* Adjust to fit 4 cards per row with some margin */
   height: 70px;
-  margin-bottom: 16px;
   margin-right: 2%; /* Adjust to add space between cards */
-  border-radius: 8px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   padding: 10px;
@@ -187,7 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #19C3C4; /* Set the color of the icon */
+  color: #3B5485;
 }
 
 .owner-details {

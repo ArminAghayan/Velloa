@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { ConfigProvider } from 'antd';
-import { Provider } from 'react-redux'; // Import Provider from react-redux
-import store from './components/redux/store'; // Import the configured store
+import { Provider } from 'react-redux';
+import store from './components/redux/store';
 import HomePage from './pages/Home/home';
 import Toolspage from './pages/Tools/toolspage';
 import Propertypage from './pages/property/property';
@@ -24,20 +24,21 @@ import ForgotPassword from './pages/Auth/forgotpassword';
 import Applicationviewer from './pages/Tools/toolapplication/newapplications/applicationviewer/applicationviewer';
 import AddNewProperty from './pages/applications/newproperty/addnewproperty';
 import PropertyInfo from './pages/property/propertyinfo/propertyinfo';
+import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/propertyinfo_units_view';
 
 import { fetchUserDetails } from './components/redux/authSlice';
 import { AppDispatch } from './components/redux/store';
-import { auth } from './firebase-config'; // Import the auth object from your Firebase config
- 
+import { auth } from './firebase-config';
+
 const theme = {
   token: {
     colorPrimary: '#5475ab',
     colorInfo: '#5475ab',
     fontSize: 14,
     sizeStep: 4,
-    borderRadius: 6,
+    borderRadius: 4,
     wireframe: false,
-    colorBgLayout: "#ebedf0",
+    colorBgLayout: "#F3F5F8",
   },
   components: {
     Menu: {
@@ -56,20 +57,24 @@ const theme = {
       dangerShadow: "",
       defaultShadow: "",
       primaryShadow: "",
-      defaultBorderColor: "#5475AB",
-      lineWidth: 1.5,
+      lineWidth: 1.25,
   
     },
     Card: {
-      colorBorderSecondary: "rgb(239, 240, 247)"
+      colorBorderSecondary: "rgb(230, 233, 236)",
+      lineWidth: 1.25,
+
+      
     },
     Table: {
-      borderColor: "rgb(239, 240, 247)"
+      borderColor: "rgb(230, 233, 236)",
+      lineWidth: 1.25,
+      
     },
     Tabs: {
       lineWidth: 2,
       lineWidthBold: 2,
-      colorBorderSecondary: "rgb(217,219,226)",
+      colorBorderSecondary: "rgb(230, 233, 236)",
     },
   },
 };
@@ -113,6 +118,8 @@ const App: React.FC = () => {
                 <Route path="/applicationviewer" element={<Applicationviewer />} />
                 <Route path="/addnewproperty" element={<AddNewProperty />} />
                 <Route path="/propertyinfo" element={<PropertyInfo />} /> {/* Route for PropertyInfo */}
+                <Route path="propertyinfo/:unitName" element={<PropertyInfoUnitView />} /> {/* Add this route */}
+
               </Route>
             </Route>
           </Routes>

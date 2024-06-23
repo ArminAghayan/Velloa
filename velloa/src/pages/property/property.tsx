@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import './property.css'; // Import the CSS file
 
 const { Title } = Typography;
 
@@ -135,7 +136,7 @@ const PropertyPage: React.FC = () => {
   );
 
   const handlePropertyClick = (property: PropertyData) => {
-    navigate('/propertyinfo', { state: { property } });
+    navigate('/propertyinfo/', { state: { property } });
   };
 
   return (
@@ -143,35 +144,30 @@ const PropertyPage: React.FC = () => {
       <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
         Property
       </Title>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-        }}
-      >
-        <Input
-          placeholder="Search property/names or address"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 250, height: 38 }}
+      <div className="property-page-container">
+        <div className="search-and-add">
+          <Input
+            placeholder="Search property/names or address"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="search-input"
+          />
+          <Button type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
+            Add Property
+          </Button>
+        </div>
+        <Table
+          columns={columns}
+          size="middle"
+          dataSource={loading ? createSkeletonData(10) : filteredProperties}
+          pagination={{ pageSize: 10 }}
+          onRow={(record: PropertyData) => ({
+            onClick: () => handlePropertyClick(record),
+            style: { cursor: 'pointer' },
+          })}
+          className="custom-table"
         />
-        <Button type="primary" onClick={handleAddPropertyClick} icon={<PlusOutlined />} style={{ height: 38 }}>
-          Add Property
-        </Button>
       </div>
-      <Table
-        columns={columns}
-        size='middle'
-        dataSource={loading ? createSkeletonData(10) : filteredProperties}
-        pagination={{ pageSize: 10 }}
-        onRow={(record: PropertyData) => ({
-          onClick: () => handlePropertyClick(record),
-          style: { cursor: 'pointer' },
-        })}
-        className="custom-table"
-      />
     </div>
   );
 };

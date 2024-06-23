@@ -1,8 +1,11 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Typography, Row, Col, Button,Card,List  } from 'antd';
+import { Typography, Row, Col, Button, Card, List, Table, Input, Select } from 'antd';
+import './UnitInfoPage.css'; 
 
 const { Title, Text } = Typography;
+const { Option } = Select;
+const { Search } = Input;
 
 // Define the UnitData type
 type UnitData = {
@@ -40,14 +43,71 @@ interface documentsData {
   type: string;
 }
 
+const columns = [
+  {
+    title: 'Unit Number',
+    dataIndex: 'unitNumber',
+    key: 'unitNumber',
+  },
+  {
+    title: 'Tenant',
+    dataIndex: 'tenant',
+    key: 'tenant',
+  },
+  {
+    title: 'Beds',
+    dataIndex: 'beds',
+    key: 'beds',
+  },
+  {
+    title: 'Baths',
+    dataIndex: 'baths',
+    key: 'baths',
+  },
+  {
+    title: 'Market Rent',
+    dataIndex: 'marketRent',
+    key: 'marketRent',
+  },
+  {
+    title: 'Size',
+    dataIndex: 'size',
+    key: 'size',
+  },
+];
+
+const dataSource = [
+  {
+    key: '1',
+    unitNumber: '1',
+    tenant: 'Vacant',
+    beds: '1',
+    baths: '1',
+    marketRent: '1',
+    size: '1',
+  },
+];
 
 const UnitInfoPage: React.FC = () => {
   const location = useLocation();
   const { unit } = location.state as { unit: UnitData };
 
   return (
-    <div >
-      <Row gutter={[16, 16]}>
+    <div className="unit-info-container">
+      <Row gutter={[16, 16]} className="search-row">
+        <Col span={24}>
+          <Search placeholder="Search units" style={{ width: 200, marginRight: 10 }} />
+          <Select defaultValue="Filter by status" style={{ width: 200 }}>
+            <Option value="vacant">Vacant</Option>
+            <Option value="occupied">Occupied</Option>
+          </Select>
+          <Button type="primary" className="new-unit-button">+ New Unit</Button>
+        </Col>
+      </Row>
+
+      <Table dataSource={dataSource} columns={columns} pagination={{ pageSize: 1 }} />
+
+      <Row gutter={[16, 16]} style={{ marginTop: '20px' }}>
         <Col span={12}>
           <Title level={2}>Unit: {unit.unitNumber}</Title>
         </Col>
@@ -55,66 +115,64 @@ const UnitInfoPage: React.FC = () => {
           <Button type="default" style={{ marginRight: '10px' }}>Edit</Button>
           <Button type="default" style={{ marginRight: '10px' }}>List</Button>
           <Button type="default" style={{ marginRight: '10px' }}>Message</Button>
-          <Button type="primary"style={{ marginRight: '10px', width: '120px'}}>Request</Button>
+          <Button type="primary" style={{ marginRight: '10px', width: '120px' }}>Request</Button>
         </Col>
         <Col span={8}>
-          <Text>Full Name:{unit.fullName}Armin Aghayan</Text>
+          <Text>Full Name: {unit.fullName}</Text>
         </Col>
         <Col span={8}>
-          <Text>Last Name:</Text>
+          <Text>Last Name: {unit.lastName}</Text>
         </Col>
         <Col span={8}>
-          <Text>Email: arminarmin@gmail.com</Text>
+          <Text>Email: {unit.email}</Text>
         </Col>
         <Col span={8}>
-        <Text>Title:</Text>
+          <Text>Title: </Text>
         </Col>
         <Col span={8}>
-          <Text>Suffix: N/a</Text>
+          <Text>Suffix: N/A</Text>
         </Col>
         <Col span={8}>
-          <Text>Phone Number: 416-319-2828</Text>
+          <Text>Phone Number: {unit.phoneNumber}</Text>
         </Col>
         <Col span={8}>
-          <Text>First Name:</Text>
+          <Text>First Name: {unit.firstName}</Text>
         </Col>
         <Col span={8}>
           <Text>Unit Price: {unit.unitPrice}</Text>
         </Col>
         <Col span={8}>
-          <Text>Other Number:</Text>
+          <Text>Other Number: </Text>
         </Col>
         <Col span={8}>
-          <Text>Middle Name: N/a</Text>
+          <Text>Middle Name: N/A</Text>
         </Col>
         <Col span={16}>
-          <Text>Tenent Rent Period: 10/10/2023</Text>
+          <Text>Tenant Rent Period: 10/10/2023</Text>
         </Col>
-     
-        
       </Row>
-  
+
       <Row gutter={[16, 16]} style={{ marginTop: '20px' }}>
         <Col span={24}>
           <Card title="Payments">
             <List itemLayout="horizontal">
-
+              {/* Add List items here */}
             </List>
-          </Card>        
+          </Card>
         </Col>
         <Col span={24}>
-          <Card title="Serivce Requests">
+          <Card title="Service Requests">
             <List itemLayout="horizontal">
-
+              {/* Add List items here */}
             </List>
-          </Card>  
+          </Card>
         </Col>
         <Col span={24}>
           <Card title="Documents">
             <List itemLayout="horizontal">
-
+              {/* Add List items here */}
             </List>
-          </Card>  
+          </Card>
         </Col>
       </Row>
     </div>

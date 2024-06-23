@@ -1,0 +1,24 @@
+.property-page-container {
+  background-color: #ffffff; /* White background */
+  padding: 24px;
+  border-radius: 4px; /* Rounded corners */
+  border: 1.25px #E6E9EC solid ; /* Black border */
+  }
+  
+  .search-and-add {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .search-input {
+    width: 250px;
+    height: 36px;
+  }
+  
+  .add-property-button {
+    height: 36px;
+    font-weight: 500; /* Make the text a little more bold */
+
+  }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Typography, Button, Tabs, Modal, Upload, message, Form, Input, Divider } from 'antd';
 import { LeftOutlined, UploadOutlined } from '@ant-design/icons';
@@ -337,7 +337,7 @@ const PropertyInfo: React.FC = () => {
             <PropertyReports />
           </TabPane>
           <TabPane tab="Units" key="3">
-            <PropertyUnits />
+            <PropertyUnits propertyId={property.key} />
           </TabPane>
           <TabPane tab="Leases" key="4">
             <PropertyLeases />
