@@ -7,11 +7,17 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } f
 import { DndContext, PointerSensor, useSensor, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { v4 as uuidv4 } from 'uuid';
 import PropertyInfoUnitViewNotes from './PropertyInfoUnitViewNotes';
 import './propertyinfo_units_view.css';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
+
+interface Image {
+  id: string;
+  url: string;
+}
 
 interface Unit {
   unitName: string;
@@ -22,7 +28,7 @@ interface Unit {
   tenant: string;
   description: string;
   notes?: string[];
-  images?: string[];
+  images?: Image[];
 }
 
 interface Property {
@@ -77,26 +83,30 @@ const PropertyInfoUnitView: React.FC = () => {
         navigate(-1);
         return;
       }
-
+  
       const db = getFirestore();
       const propertyRef = doc(db, 'properties', propertyId);
-
+  
       try {
         const propertySnap = await getDoc(propertyRef);
         if (propertySnap.exists()) {
           const propertyData = { id: propertySnap.id, ...propertySnap.data() } as Property;
           setProperty(propertyData);
-
+  
           const unitData = propertyData.units.find((u: Unit) => u.unitName === unitName);
           if (unitData) {
             setUnit(unitData);
             setEditedUnit(unitData);
-            setFileList(unitData.images ? unitData.images.map((url: string, index: number) => ({
-              uid: index.toString(),
-              name: url.split('%2F').pop()?.split('?').shift() || `image-${index}.png`,
-              status: 'done',
-              url,
-            })) : []);
+            setFileList(unitData.images ? unitData.images.map(({ url, id }) => {
+              const fileName = url ? url.split('%2F').pop()?.split('?').shift() : `image-${id}.png`;
+              return {
+                uid: id,
+                name: fileName || `image-${id}.png`,
+                status: 'done',
+                url,
+              };
+            }) : []);
+            
           } else {
             message.error('Unit not found');
           }
@@ -110,9 +120,10 @@ const PropertyInfoUnitView: React.FC = () => {
         setIsLoading(false);
       }
     };
-
+  
     fetchPropertyAndUnit();
   }, [propertyId, unitName, navigate, isImageUpdated]); // Add isImageUpdated to dependency array
+  
 
   const handleBack = () => {
     navigate(-1);
@@ -198,11 +209,12 @@ const PropertyInfoUnitView: React.FC = () => {
 
   const handleBeforeUpload = async (file: File) => {
     const storage = getStorage();
-    const storageRef = ref(storage, `units/${propertyId}/${unitName}/${file.name}`);
+    const id = uuidv4(); // Generate a unique ID for the image
+    const storageRef = ref(storage, `units/${propertyId}/${unitName}/${id}`);
     console.log('Uploading file to:', storageRef.fullPath); // Add logging
-
+  
     const uploadTask = uploadBytesResumable(storageRef, file);
-
+  
     uploadTask.on('state_changed',
       (snapshot) => {
         // Observe state change events such as progress, pause, and resume
@@ -217,40 +229,40 @@ const PropertyInfoUnitView: React.FC = () => {
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
           setEditedUnit(prev => {
             if (!prev) return null;
-            const newImages = prev.images ? [...prev.images, downloadURL] : [downloadURL];
+            const newImages = prev.images ? [...prev.images, { id, url: downloadURL }] : [{ id, url: downloadURL }];
             return { ...prev, images: newImages };
           });
           message.success('Image uploaded successfully');
         });
       }
     );
-
+  
     return false; // Prevent default upload behavior
   };
+  
+
 
   const handleRemoveImage = async (file: UploadFile) => {
-    if (!file.url) {
-      message.error('File URL is undefined');
-      return;
-    }
-
     try {
-      // Parse the URL to get the path
-      const url = new URL(file.url);
-      // Extract the path from the URL
-      const pathname = url.pathname;
-      // The file path in Firebase Storage should be the part after '/o/'
-      const filePath = decodeURIComponent(pathname.split('/o/')[1].split('?')[0]);
-
+      // Extract the image ID from the fileList
+      const image = fileList.find(f => f.uid === file.uid);
+      if (!image) {
+        message.error('Image not found');
+        return;
+      }
+      const id = image.uid;
+  
+      console.log(`Attempting to delete file with ID: ${id}`);
+  
       const storage = getStorage();
-      const imageRef = ref(storage, filePath);
-
-      console.log('Deleting file from:', imageRef.fullPath); // Add logging
-
-      await deleteObject(imageRef);
+      const storageRef = ref(storage, `units/${propertyId}/${unitName}/${id}`);
+  
+      console.log('Deleting file from:', storageRef.fullPath); // Add logging
+  
+      await deleteObject(storageRef);
       setEditedUnit(prev => {
         if (!prev) return null;
-        const newImages = prev.images?.filter((img: string) => img !== file.url) || [];
+        const newImages = prev.images?.filter((img) => img.id !== id) || [];
         return { ...prev, images: newImages };
       });
       setFileList(prevList => prevList.filter(item => item.uid !== file.uid));
@@ -260,6 +272,10 @@ const PropertyInfoUnitView: React.FC = () => {
       message.error('Failed to delete image');
     }
   };
+  
+
+  
+  
 
   if (isLoading) {
     return <Spin size="large" />;
@@ -306,12 +322,12 @@ const PropertyInfoUnitView: React.FC = () => {
                     <Text strong style={{ marginRight: 8 }}>{label}:</Text>
                     {isEditingDetails ? (
                       <Input 
-                        value={editedUnit[field]} 
-                        onChange={(e) => handleInputChange(field, e.target.value)}
+                      value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
+                      onChange={(e) => handleInputChange(field, e.target.value)}
                         style={{ flex: 1 }}
                       />
                     ) : (
-                      <Text style={{ flex: 1 }}>{field === 'tenant' ? (editedUnit.tenant || 'Vacant') : editedUnit[field]}</Text>
+                      <Text style={{ flex: 1 }}>{typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}</Text>
                     )}
                   </div>
                 </Form.Item>
@@ -403,6 +419,8 @@ const PropertyInfoUnitView: React.FC = () => {
                 Add
               </Button>
             }
+            style={{ minHeight: '240px' }}  // Adjust this value as needed
+
           >
             {fileList.length === 0 ? (
               <div className="empty-upload-area">
@@ -531,8 +549,8 @@ const PropertyInfoUnitView: React.FC = () => {
           ).map((field) => (
             <Form.Item key={field} label={field.charAt(0).toUpperCase() + field.slice(1)}>
               <Input 
-                value={editedUnit[field]} 
-                onChange={(e) => handleInputChange(field, e.target.value)}
+          value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
+            onChange={(e) => handleInputChange(field, e.target.value)}
               />
             </Form.Item>
           ))}
@@ -551,7 +569,7 @@ const PropertyInfoUnitView: React.FC = () => {
   <DndContext sensors={[sensor]} onDragEnd={onDragEnd}>
     <SortableContext items={fileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
       <div style={{ paddingBottom: '20px' }}>
-        <Upload
+        <Upload.Dragger
           listType="picture"
           fileList={fileList}
           onChange={handleUploadChange}
@@ -561,26 +579,21 @@ const PropertyInfoUnitView: React.FC = () => {
             <DraggableUploadListItem originNode={originNode} file={file} />
           )}
           showUploadList={{ showRemoveIcon: true }}
-        />
-        {fileList.length === 0 && (
-          <div className="empty-upload-area" style={{ border: '1px dashed #d9d9d9', padding: '20px', textAlign: 'center', marginTop: '20px' }}>
-            <Empty 
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No images available"
-            />
-          </div>
-        )}
+          style={{ marginBottom: '20px' }} // Ensure spacing between drag area and buttons
+        >
+          <p className="ant-upload-drag-icon">
+            <UploadOutlined />
+          </p>
+          <p className="ant-upload-text">Click or drag file to this area to upload</p>
+          <p className="ant-upload-hint">
+            Support for a single or bulk upload. Strictly prohibit from uploading company data or other
+            banned files
+          </p>
+        </Upload.Dragger>
       </div>
     </SortableContext>
   </DndContext>
-  <div className="upload-drawer-buttons" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-    <Upload
-      listType="picture"
-      beforeUpload={handleBeforeUpload}
-      showUploadList={false}
-    >
-      <Button icon={<UploadOutlined />}>Upload</Button>
-    </Upload>
+  <div className="upload-drawer-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
     <Button
       icon={<SaveOutlined />}
       onClick={() => {
@@ -592,11 +605,6 @@ const PropertyInfoUnitView: React.FC = () => {
     </Button>
   </div>
 </Drawer>
-
-
-
-
-
 
       <Modal
         title="New Note"
