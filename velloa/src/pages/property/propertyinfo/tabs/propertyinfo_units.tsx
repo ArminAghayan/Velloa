@@ -5,10 +5,12 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { UploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setSelectedUnit } from '../../../../components/redux/unitslice'; // Corrected path
+import { setSelectedUnit } from '../../../../components/redux/unitslice';
+import { v4 as uuidv4 } from 'uuid';
 import './propertyinfo_units.css';
 
 export interface Unit {
+  unitId: string;
   unitName: string;
   tenant?: string;
   beds: number;
@@ -131,7 +133,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
 
   const handleRowClick = (unit: Unit) => {
     dispatch(setSelectedUnit(unit));
-    navigate(`/propertyinfo/${unit.unitName}`);
+    navigate(`/propertyinfo/${propertyId}/unit/${unit.unitName}`);
   };
 
   const handleNewUnitClick = () => {
@@ -167,8 +169,9 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
   const handleFormSubmit = async () => {
     try {
       const values = await form.validateFields();
-      console.log('Form Values:', values);  // Debugging the form values
-  
+      console.log('Form Values:', values); // Debugging the form values
+      const newUnit = { ...values, unitId: uuidv4() }; // Add unique unitId
+
       const propertyRef = doc(db, 'properties', propertyId);
       const propertyDoc = await getDoc(propertyRef);
       if (propertyDoc.exists()) {
@@ -176,11 +179,11 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
         if (!data.units) {
           data.units = [];
         }
-        const updatedUnits = [...(data.units || []), values];
-        console.log('Updated Units:', updatedUnits);  // Debugging the updated units
-  
+        const updatedUnits = [...(data.units || []), newUnit];
+        console.log('Updated Units:', updatedUnits); // Debugging the updated units
+
         await updateDoc(propertyRef, { units: updatedUnits });
-  
+
         setUnits(updatedUnits);
         setFilteredUnits(updatedUnits);
         message.success('Unit added successfully');
@@ -196,9 +199,6 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
       message.error("Failed to add unit. Please check your permissions.");
     }
   };
-  
-  
-  
 
   return (
     <div className="units-container">
@@ -260,127 +260,125 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
           <Step title="Review" />
         </Steps>
         <Form layout="vertical" form={form} onFinish={handleFormSubmit}>
-  {visibleSteps.includes(0) && currentStep === 0 && (
-    <div style={{ marginTop: '24px' }}>
-      <Form.Item
-        name="unitName"
-        label="Unit Number"
-        rules={[{ required: true, message: 'Please enter the unit number' }]}
-        className="unitdrawerinput"
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item
-        name="beds"
-        label="Number of Beds"
-        rules={[{ required: true, message: 'Please enter the number of beds' }]}
-        className="unitdrawerinput"
-      >
-        <InputNumber min={0} className="unitdrawerinput" />
-      </Form.Item>
-      <Form.Item
-        name="baths"
-        label="Number of Baths"
-        rules={[{ required: true, message: 'Please enter the number of baths' }]}
-        className="unitdrawerinput"
-      >
-        <InputNumber min={0} className="unitdrawerinput" />
-      </Form.Item>
-      <Form.Item
-        name="marketRent"
-        label="Market Rent"
-        rules={[{ required: true, message: 'Please enter the market rent' }]}
-        className="unitdrawerinput"
-      >
-        <InputNumber min={0} className="unitdrawerinput" />
-      </Form.Item>
-      <Form.Item
-        name="size"
-        label="Size"
-        rules={[{ required: true, message: 'Please enter the size' }]}
-        className="unitdrawerinput"
-      >
-        <InputNumber min={0} className="unitdrawerinput" />
-      </Form.Item>
-      <Form.Item>
-        <Button type="primary" onClick={handleNext}>
-          Next
-        </Button>
-      </Form.Item>
-    </div>
-  )}
-  {visibleSteps.includes(1) && currentStep === 1 && (
-    <div style={{ marginTop: '24px' }}>
-      <Form.Item
-        name="description"
-        label="Description"
-        rules={[{ required: false, message: 'Please enter a description' }]}
-        className="unitdrawerinput"
-      >
-        <Input.TextArea rows={4} />
-      </Form.Item>
-      <Form.Item
-        name="images"
-        label="Images"
-        valuePropName="fileList"
-        getValueFromEvent={e => (Array.isArray(e) ? e : e && e.fileList)}
-        rules={[{ required: false, message: 'Please upload images' }]}
-      >
-        <Upload.Dragger name="files" multiple={true} beforeUpload={() => false}>
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">Click or drag file to this area to upload</p>
-          <p className="ant-upload-hint">Support for multiple images</p>
-        </Upload.Dragger>
-      </Form.Item>
-      <Form.Item>
-        <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-          Previous
-        </Button>
-        <Button type="primary" onClick={handleNext}>
-          Next
-        </Button>
-      </Form.Item>
-    </div>
-  )}
-  {visibleSteps.includes(2) && currentStep === 2 && (
-    <div style={{ marginTop: '24px' }}>
-      <Title level={4}>Review Information</Title>
-      <div className="review-item">
-        <Text strong>Unit Number:</Text> <Text>{form.getFieldValue('unitName')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Number of Beds:</Text> <Text>{form.getFieldValue('beds')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Number of Baths:</Text> <Text>{form.getFieldValue('baths')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Market Rent:</Text> <Text>{form.getFieldValue('marketRent')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Size:</Text> <Text>{form.getFieldValue('size')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Description:</Text> <Text>{form.getFieldValue('description')}</Text>
-      </div>
-      <div className="review-item">
-        <Text strong>Images:</Text> <Text>{form.getFieldValue('images')?.length || 0} images uploaded</Text>
-      </div>
-      <Form.Item>
-        <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-          Previous
-        </Button>
-        <Button type="primary" htmlType="submit">
-          Submit
-        </Button>
-      </Form.Item>
-    </div>
-  )}
-</Form>
-
-
+          {visibleSteps.includes(0) && currentStep === 0 && (
+            <div style={{ marginTop: '24px' }}>
+              <Form.Item
+                name="unitName"
+                label="Unit Number"
+                rules={[{ required: true, message: 'Please enter the unit number' }]}
+                className="unitdrawerinput"
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="beds"
+                label="Number of Beds"
+                rules={[{ required: true, message: 'Please enter the number of beds' }]}
+                className="unitdrawerinput"
+              >
+                <InputNumber min={0} className="unitdrawerinput" />
+              </Form.Item>
+              <Form.Item
+                name="baths"
+                label="Number of Baths"
+                rules={[{ required: true, message: 'Please enter the number of baths' }]}
+                className="unitdrawerinput"
+              >
+                <InputNumber min={0} className="unitdrawerinput" />
+              </Form.Item>
+              <Form.Item
+                name="marketRent"
+                label="Market Rent"
+                rules={[{ required: true, message: 'Please enter the market rent' }]}
+                className="unitdrawerinput"
+              >
+                <InputNumber min={0} className="unitdrawerinput" />
+              </Form.Item>
+              <Form.Item
+                name="size"
+                label="Size"
+                rules={[{ required: true, message: 'Please enter the size' }]}
+                className="unitdrawerinput"
+              >
+                <InputNumber min={0} className="unitdrawerinput" />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" onClick={handleNext}>
+                  Next
+                </Button>
+              </Form.Item>
+            </div>
+          )}
+          {visibleSteps.includes(1) && currentStep === 1 && (
+            <div style={{ marginTop: '24px' }}>
+              <Form.Item
+                name="description"
+                label="Description"
+                rules={[{ required: false, message: 'Please enter a description' }]}
+                className="unitdrawerinput"
+              >
+                <Input.TextArea rows={4} />
+              </Form.Item>
+              <Form.Item
+                name="images"
+                label="Images"
+                valuePropName="fileList"
+                getValueFromEvent={e => (Array.isArray(e) ? e : e && e.fileList)}
+                rules={[{ required: false, message: 'Please upload images' }]}
+              >
+                <Upload.Dragger name="files" multiple={true} beforeUpload={() => false}>
+                  <p className="ant-upload-drag-icon">
+                    <UploadOutlined />
+                  </p>
+                  <p className="ant-upload-text">Click or drag file to this area to upload</p>
+                  <p className="ant-upload-hint">Support for multiple images</p>
+                </Upload.Dragger>
+              </Form.Item>
+              <Form.Item>
+                <Button style={{ marginRight: 8 }} onClick={handlePrev}>
+                  Previous
+                </Button>
+                <Button type="primary" onClick={handleNext}>
+                  Next
+                </Button>
+              </Form.Item>
+            </div>
+          )}
+          {visibleSteps.includes(2) && currentStep === 2 && (
+            <div style={{ marginTop: '24px' }}>
+              <Title level={4}>Review Information</Title>
+              <div className="review-item">
+                <Text strong>Unit Number:</Text> <Text>{form.getFieldValue('unitName')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Number of Beds:</Text> <Text>{form.getFieldValue('beds')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Number of Baths:</Text> <Text>{form.getFieldValue('baths')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Market Rent:</Text> <Text>{form.getFieldValue('marketRent')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Size:</Text> <Text>{form.getFieldValue('size')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Description:</Text> <Text>{form.getFieldValue('description')}</Text>
+              </div>
+              <div className="review-item">
+                <Text strong>Images:</Text> <Text>{form.getFieldValue('images')?.length || 0} images uploaded</Text>
+              </div>
+              <Form.Item>
+                <Button style={{ marginRight: 8 }} onClick={handlePrev}>
+                  Previous
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  Submit
+                </Button>
+              </Form.Item>
+            </div>
+          )}
+        </Form>
       </Drawer>
     </div>
   );

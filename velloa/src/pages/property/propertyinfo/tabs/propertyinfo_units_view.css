@@ -16,7 +16,7 @@
     background-color: #f0f0f0;
   }
   
-  .unit-title {
+  .property-title {
     margin-top: 60px;
     margin-bottom: 16px;
   }
@@ -61,3 +61,13 @@
       margin-top: 40px;
     }
   }
+
+.property-info-unit-view .unit-details-card,
+.property-info-unit-view .description-card,
+.property-info-unit-view .notes-card,
+.property-info-unit-view .images-card,
+.property-info-unit-view .tenant-info-card,
+.property-info-unit-view .listings-card,
+.property-info-unit-view .maintenance-card {
+  margin-bottom: 20px;
+}

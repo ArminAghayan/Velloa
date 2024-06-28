@@ -8,6 +8,9 @@ import HomePage from './pages/Home/home';
 import Toolspage from './pages/Tools/toolspage';
 import Propertypage from './pages/property/property';
 import Resourcespage from './pages/Resources/resources';
+import Leasingpage from './pages/leasing/leasingPage';
+import Peoplepage from './pages/people/peoplePage';
+import Taskpage from './pages/task/taskPage';
 import Accountingpage from './pages/Accounting/accounting';
 import Analyticsspage from './pages/Analytics/analytics';
 import ProtectedRoute from './pages/Auth/PrivateRoute';
@@ -25,15 +28,23 @@ import Applicationviewer from './pages/Tools/toolapplication/newapplications/app
 import AddNewProperty from './pages/applications/newproperty/addnewproperty';
 import PropertyInfo from './pages/property/propertyinfo/propertyinfo';
 import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/propertyinfo_units_view';
-
 import { fetchUserDetails } from './components/redux/authSlice';
 import { AppDispatch } from './components/redux/store';
 import { auth } from './firebase-config';
 
 const theme = {
   token: {
-    colorPrimary: '#5475ab',
-    colorInfo: '#5475ab',
+    colorPrimary: "#009688",
+    colorInfo: "#009688",
+    colorPrimaryBg: "#E0F7FA",
+    colorPrimaryBgHover: "#B2EBF2",
+    colorPrimaryBorder: "#80DEEA",
+    colorPrimaryBorderHover: "#4DD0E1",
+    colorPrimaryHover: "#00796B",
+    colorPrimaryActive: "#004D40",
+    colorPrimaryTextHover: "#00796B",
+    colorPrimaryTextActive: "#212529",
+    colorPrimaryText: "#343A40",
     fontSize: 14,
     sizeStep: 4,
     borderRadius: 4,
@@ -42,34 +53,30 @@ const theme = {
   },
   components: {
     Menu: {
-      darkItemBg: "rgb(59, 84, 133)",
-      darkSubMenuItemBg: "rgb(59, 84, 133)",
-      darkPopupBg: "#fffff",
-      ItemBg: "rgb(59, 84, 133)",
-      SubMenuItemBg: "rgb(59, 84, 133)",
-      PopupBg: "rgb(59, 84, 133)",
+      darkItemBg: "#004D40",
+      darkSubMenuItemBg: "#004D40",
+      darkPopupBg: "#FFFFFF", // Corrected typo to include the full hex value for white
+      ItemBg: "#004D40",
+      SubMenuItemBg: "#004D40",
+      PopupBg: "#E0F7FA", // Light Green for popups to match background
     },
     Layout: {
-      headerBg: "rgb(240, 242, 245)",
-      siderBg: "rgb(59, 84, 133)",
+      headerBg: "#E0F7FA", // Light Green for header
+      siderBg: "#004D40", // Dark Green for sider
     },
     Button: {
       dangerShadow: "",
       defaultShadow: "",
       primaryShadow: "",
       lineWidth: 1.25,
-  
     },
     Card: {
       colorBorderSecondary: "rgb(230, 233, 236)",
       lineWidth: 1.25,
-
-      
     },
     Table: {
       borderColor: "rgb(230, 233, 236)",
       lineWidth: 1.25,
-      
     },
     Tabs: {
       lineWidth: 2,
@@ -107,6 +114,9 @@ const App: React.FC = () => {
                 <Route path="tools" element={<Toolspage />} />
                 <Route path="property" element={<Propertypage />} />
                 <Route path="resources" element={<Resourcespage />} />
+                <Route path="leasing" element={<Leasingpage />} />
+                <Route path="people" element={<Peoplepage />} />
+                <Route path="tasks" element={<Taskpage />} />
                 <Route path="accounting" element={<Accountingpage />} />
                 <Route path="analytics" element={<Analyticsspage />} />
                 <Route path="messages" element={<MessagesPage />} />
@@ -117,9 +127,8 @@ const App: React.FC = () => {
                 <Route path="/unitinfo" element={<UnitInfoPage />} />
                 <Route path="/applicationviewer" element={<Applicationviewer />} />
                 <Route path="/addnewproperty" element={<AddNewProperty />} />
-                <Route path="/propertyinfo" element={<PropertyInfo />} /> {/* Route for PropertyInfo */}
-                <Route path="propertyinfo/:unitName" element={<PropertyInfoUnitView />} /> {/* Add this route */}
-
+                <Route path="/propertyinfo/" element={<PropertyInfo />} />
+                <Route path="propertyinfo/:propertyId/unit/:unitName" element={<PropertyInfoUnitView />} />
               </Route>
             </Route>
           </Routes>

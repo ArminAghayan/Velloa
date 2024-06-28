@@ -14,7 +14,7 @@ body, html {
   justify-content: flex-start;
   align-items: center;
   padding: 20px;
-  background-color: #5475ab;
+  background-color: #004D3F;
   border-top-right-radius: 28px;
   border-bottom-right-radius: 28px;
 
@@ -99,7 +99,7 @@ body, html {
 }
 
 .forgot-password-link {
-  color: #5475ab;
+  color: #004D3F;
 }
 
 .login-button {
@@ -107,17 +107,8 @@ body, html {
   height: 40px;
   font-size: 16px;
   font-weight: bold;
-  color: #fff;
-  background-color: #5475ab;
-  border-color: #5475ab;
-  border-radius: 6px;
 }
 
-.login-button:hover {
-  background-color: #5475ab;
-  border-color: #5475ab;
-  
-}
 
 .create-account-text {
   margin-top: 20px;
@@ -125,7 +116,7 @@ body, html {
 }
 
 .create-account-text a {
-  color: #5475ab;
+  color: #004D3F;
 }
 .heading{
 
@@ -151,5 +142,5 @@ body, html {
 
 .forgot-password-link {
   margin-left: auto; /* This will push the link to the right */
-  color: #5475ab;
+  color: #004D3F;
 }

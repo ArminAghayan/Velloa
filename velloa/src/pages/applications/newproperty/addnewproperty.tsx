@@ -74,7 +74,8 @@ const AddNewProperty: React.FC = () => {
   };
 
   const addAnotherUnit = () => {
-    setUnits([...units, { unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+    const newUnitId = doc(collection(db, 'temp')).id; // Generate a new Firebase UUID
+    setUnits([...units, { unitId: newUnitId, unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
   };
 
   const removeUnit = (index: number) => {
