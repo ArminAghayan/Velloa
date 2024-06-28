@@ -65,7 +65,7 @@ const Sidebar: React.FC = () => {
           }}
         >
           <img
-            src="/assests/dark_mode_velloa_logo.png"
+            src="/assets/dark_mode_velloa_logo.png"
             alt="Logo"
             style={{ maxWidth: '100%', maxHeight: '36px' }}
           />

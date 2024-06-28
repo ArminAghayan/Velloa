@@ -16,6 +16,7 @@ import Analyticsspage from './pages/Analytics/analytics';
 import ProtectedRoute from './pages/Auth/PrivateRoute';
 import LoginPage from './pages/Auth/loginpage';
 import SignupPage from './pages/Auth/signup';
+import PropertyInfoUnitViewNotes from './pages/property/propertyinfo/tabs/PropertyInfoUnitViewNotes'
 import SideBarPage from './components/sidebar';
 import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
 import MaintenancePage from './pages/Tools/toolapplication/maintenance/maintenancepage';

@@ -40,12 +40,12 @@ const LoginPage: React.FC = () => {
     <div className="login-container">
       <div className="carousel-section">
         <div className="countertop">
-          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" className="logo" />
+          <img src="/assets/dark_mode_velloa_logo.png" alt="Logo" className="logo" />
         </div>
         <Carousel autoplay dots={false} autoplaySpeed={8000}>
           <div>
             <img
-              src="/assests/Account-rafiki.png"
+              src="/assets/Account-rafiki.png"
               alt="Slide 1"
               style={{ width: '100%', height: '500px', objectFit: 'cover' }}
             />
@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
           </div>
           <div>
             <img
-              src="/assests/Accept tasks-pana.png"
+              src="/assets/Accept tasks-pana.png"
               alt="Slide 2"
               style={{ width: '100%', height: '500px', objectFit: 'cover' }}
             />
@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
           </div>
           <div>
             <img
-              src="/assests/Fill out-pana.png"
+              src="/assets/Fill out-pana.png"
               alt="Slide 3"
               style={{ width: '100%', height: '500px', objectFit: 'cover' }}
             />

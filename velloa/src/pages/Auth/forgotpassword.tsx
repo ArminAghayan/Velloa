@@ -29,19 +29,19 @@ const ForgotPassword: React.FC = () => {
     <div className="forgotpassword-container">
       <div className="forgotpassword-carousel-section">
         <div className="forgotpassword-countertop">
-          <img src="/assests/dark_mode_velloa_logo.png" alt="Logo" className="forgotpassword-logo" />
+          <img src="/assets/dark_mode_velloa_logo.png" alt="Logo" className="forgotpassword-logo" />
         </div>
         <Carousel autoplay dots={false} autoplaySpeed={8000}>
           <div>
-            <img src="/assests/Account-rafiki.png" alt="Slide 1" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <img src="/assets/Account-rafiki.png" alt="Slide 1" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
             <h3>Manage and collect rent with E-transfers</h3>
           </div>
           <div>
-            <img src="/assests/Accept tasks-pana.png" alt="Slide 2" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <img src="/assets/Accept tasks-pana.png" alt="Slide 2" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
             <h3> Manging your property made simple </h3>
           </div>
           <div>
-            <img src="/assests/Fill out-pana.png" alt="Slide 3" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
+            <img src="/assets/Fill out-pana.png" alt="Slide 3" style={{ width: '100%', height: '500px', objectFit: 'cover' }} />
             <h3> Have all your tenent infomation in one place </h3>
           </div>
         </Carousel>
