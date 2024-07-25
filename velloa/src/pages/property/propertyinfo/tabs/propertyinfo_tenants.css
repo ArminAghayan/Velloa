@@ -1,0 +1,186 @@
+.tenants-container {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 4px;
+  border: 1.25px #E6E9EC solid;
+}
+
+.tenant-search-input,
+.tenant-dropdown-input {
+  width: 200px;
+  height: 36px;
+}
+
+.new-tenant-button {
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  background-color: #fff;
+  font-weight: 500;
+  margin-left: 16px;
+}
+
+.tenant-form-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* Center content vertically */
+  width: 100%;
+  margin: 0 auto; /* Center horizontally */
+  padding-bottom: 60px; /* Add space for the footer */
+}
+
+.steps-content {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.steps-action {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ant-drawer-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ant-steps {
+  margin-bottom: 24px;
+}
+
+.selected-row {
+  background-color: #e6f7ff;
+}
+
+.ant-form-item-label {
+  text-align: left;
+}
+
+.ant-card-actions {
+  background: none;
+  border-top: none;
+}
+
+.ant-card-actions > li {
+  margin: 0;
+}
+
+.ant-card-actions > li > span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.ant-form-item {
+  margin-bottom: 24px;
+}
+
+.ant-card {
+  margin-bottom: 24px;
+}
+
+.ant-modal-body {
+  padding-top: 12px;
+}
+
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  cursor: pointer;
+}
+
+.ant-drawer-footer {
+  border-top: 1px solid #f0f0f0;
+  padding: 10px 16px;
+}
+
+.ant-form-item-control-input-content > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* New styles for unit selection */
+.unit-selection-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.unit-card .ant-card-body {
+  padding: 16px;
+}
+
+.unit-card .ant-card-meta-title {
+  margin-bottom: 8px;
+}
+
+.unit-card .ant-card-meta-description {
+  height: 40px;
+}
+
+/* Media queries */
+@media (max-width: 768px) {
+  .tenant-search-input,
+  .tenant-dropdown-input,
+  .new-tenant-button {
+    width: 100%;
+    margin-bottom: 16px;
+    margin-left: 0;
+  }
+
+  .ant-col {
+    margin-bottom: 16px;
+  }
+
+  .unit-card {
+    width: 100%;
+  }
+}
+
+.tenant-unit-search {
+  width: 300px;
+  height: 36px;
+}
+
+
+
+.tenant-unit h4 {
+  margin-bottom: 16px;
+}
+
+/* Styles for tenant portal and renters insurance */
+.tenant-options {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 16px; /* Add space between the cards */
+  margin-top: 24px;
+}
+
+.tenant-options .ant-card {
+  text-align: left;
+  flex: 1; /* Ensure the cards are of equal width */
+}
+
+.tenant-options .ant-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.tenant-options .ant-card .ant-card-body .ant-form-item {
+  margin-bottom: 0;
+}
+
+.move-in-date {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+

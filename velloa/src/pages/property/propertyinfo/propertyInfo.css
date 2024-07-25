@@ -80,16 +80,16 @@
 }
 
 .icon-building-estate-property-info {
-  color: #009688;
+  color: #28a745;
 }
 
 .icon-circle-key-property-info {
-  color: #009688;
+  color: #28a745;
 
 }
 
 .icon-circle-dashed-check-property-info {
-  color: #009688;
+  color: #28a745;
 }
 
 .settings-row {
@@ -180,7 +180,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #009688;
+  color: #28a745;
 }
 
 .owner-details {

@@ -52,55 +52,63 @@ const PropertyInfoOverview: React.FC<PropertyOverviewProps> = ({ property }) => 
 
   return (
     <div>
-      <Row gutter={16} className="property-row">
-        <Col span={6} className="property-col">
-          <Card size="small" title="Quick Action" className="quick-action-card">
-            <div className="quick-action-buttons">
-              <Row gutter={[8, 8]}>
-                <Col span={12}>
-                  <Button type="default" block>New Lease</Button>
-                </Col>
-                <Col span={12}>
-                  <Button type="default" block>New Unit</Button>
-                </Col>
-                <Col span={12}>
-                  <Button type="default" block>Notes</Button>
-                </Col>
-                <Col span={12}>
-                  <Button type="default" block>Settings</Button>
-                </Col>
-              </Row>
-            </div>
-          </Card>
+
+    <Row gutter={16} className="property-row">
+    <Col span={24} className="property-col">
+    <div className="quick-action-buttons">
+      <Row gutter={[8, 8]}>
+        <Col span={2}>
+          <Button type="primary" block>New Lease</Button>
         </Col>
-        <Col span={6} className="property-col">
-          <Card className="quick-action-card">
-            <div className="property-card-content">
-              <IconBuildingEstate size={48} className="icon-building-estate-property-info" />
-              <Title level={5} className="label">Property Type:</Title>
-              <Text className="value">{property.propertyType}</Text>
-            </div>
-          </Card>
+        <Col span={2}>
+          <Button type="primary" block>New Unit</Button>
         </Col>
-        <Col span={6} className="property-col">
-          <Card className="quick-action-card">
-            <div className="property-card-content">
-              <IconKey size={48} className="icon-circle-key-property-info" />
-              <Title level={5} className="label">Active Units:</Title>
-              <Text className="value">{property.numberOfUnits}</Text>
-            </div>
-          </Card>
+        <Col span={2}>
+          <Button type="primary" block>Quick Note</Button>
         </Col>
-        <Col span={6} className="property-col">
-          <Card className="quick-action-card">
-            <div className="property-card-content">
-              <IconCircleDashedCheck size={48} className="icon-circle-dashed-check-property-info" />
-              <Title level={5} className="label">Status:</Title>
-              <Text className="value" style={{ color: 'green' }}>{property.status || 'N/A'}</Text>
-            </div>
-          </Card>
-        </Col>
+     
+        
       </Row>
+    </div>
+  </Col>
+      <Col span={6} className="property-col">
+        <Card className="quick-action-card">
+          <div className="property-card-content">
+            <IconBuildingEstate size={48} className="icon-building-estate-property-info" />
+            <Title level={5} className="label">Property Type:</Title>
+            <Text className="value">{property.propertyType}</Text>
+          </div>
+        </Card>
+      </Col>
+      <Col span={6} className="property-col">
+        <Card className="quick-action-card">
+          <div className="property-card-content">
+            <IconKey size={48} className="icon-circle-key-property-info" />
+            <Title level={5} className="label">Active Units:</Title>
+            <Text className="value">{property.numberOfUnits}</Text>
+          </div>
+        </Card>
+      </Col>
+      <Col span={6} className="property-col">
+    <Card className="quick-action-card">
+      <div className="property-card-content">
+        <IconUserCircle size={48} className="icon-circle-dashed-check-property-info" />
+        <Title level={5} className="label">Pending Applications:</Title>
+        <Text className="value">5</Text> {/* Replace with actual dynamic value */}
+      </div>
+    </Card>
+  </Col>
+      <Col span={6} className="property-col">
+        <Card className="quick-action-card">
+          <div className="property-card-content">
+            <IconCircleDashedCheck size={48} className="icon-circle-dashed-check-property-info" />
+            <Title level={5} className="label">Status:</Title>
+            <Text className="value" style={{ color: 'green' }}>{property.status || 'N/A'}</Text>
+          </div>
+        </Card>
+      </Col>
+      
+    </Row>
       <Row gutter={16} className="property-row">
         <Col span={24} className="property-col">
           <Card size="small" title="Owners" className="owners-card">
@@ -113,8 +121,16 @@ const PropertyInfoOverview: React.FC<PropertyOverviewProps> = ({ property }) => 
                     <Card key={index} className="owner-card">
                       <div className="owner-card-content">
                         <div className="owner-icon">
-                          <IconUserCircle size={48} />
-                        </div>
+                          <img
+                            src={`https://api.dicebear.com/6.x/initials/svg?seed=${owner.name}&backgroundColor=28a745`}
+                            style={{
+                              height: 48,
+                              width: 48,
+                              objectFit: 'cover',
+                              borderRadius: '50%',
+                            }}
+                          />
+                        </div>                      
                         <div className="owner-details">
                           <Title level={5} className="owner-name">{owner.name}</Title>
                           <Text className="owner-percentage">{owner.percentage}% Ownership</Text>

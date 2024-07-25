@@ -1,0 +1,52 @@
+.custom-icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Sidebar.css */
+.ant-menu-item {
+  transition: background-color 0.5s, color 0.5s;
+}
+
+.ant-menu-item-selected {
+  color: #ffffff !important;
+}
+
+.ant-menu-item:hover,
+.ant-menu-item-active {
+  background-color: #47b35d !important; /* colorPrimaryHover */
+  color: #ffffff !important;
+}
+
+.user-info-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Align to the left */
+  padding: 10px;
+  background-color: #188034; /* colorPrimaryActive */
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin: 12px; /* Added margin to reduce the size */
+  border-radius: 8px; /* Optional: Adds a slight rounded corner effect */
+}
+
+.user-info-container:hover {
+  background-color: #47b35d; /* colorPrimaryHover */
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+}
+
+.user-name {
+  margin-left: 8px;
+  font-weight: bold;
+}
+
+.dropdownsideIcon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}

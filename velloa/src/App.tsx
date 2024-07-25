@@ -35,17 +35,8 @@ import { auth } from './firebase-config';
 
 const theme = {
   token: {
-    colorPrimary: "#009688",
-    colorInfo: "#009688",
-    colorPrimaryBg: "#E0F7FA",
-    colorPrimaryBgHover: "#B2EBF2",
-    colorPrimaryBorder: "#80DEEA",
-    colorPrimaryBorderHover: "#4DD0E1",
-    colorPrimaryHover: "#00796B",
-    colorPrimaryActive: "#004D40",
-    colorPrimaryTextHover: "#00796B",
-    colorPrimaryTextActive: "#212529",
-    colorPrimaryText: "#343A40",
+    colorPrimary: "#28a745",
+    colorInfo: "#28a745",
     fontSize: 14,
     sizeStep: 4,
     borderRadius: 4,
@@ -54,17 +45,17 @@ const theme = {
   },
   components: {
     Menu: {
-      darkItemBg: "#004D40",
-      darkSubMenuItemBg: "#004D40",
-      darkPopupBg: "#FFFFFF", // Corrected typo to include the full hex value for white
-      ItemBg: "#004D40",
-      SubMenuItemBg: "#004D40",
-      PopupBg: "#E0F7FA", // Light Green for popups to match background
+      darkItemBg: "#188034", // colorPrimaryActive
+      darkSubMenuItemBg: "#188034", // colorPrimaryActive
+      darkPopupBg: "#FFFFFF", // Keeping white as it was
+      ItemBg: "#188034", // colorPrimaryActive
+      SubMenuItemBg: "#188034", // colorPrimaryActive
+      PopupBg: "#d8e6d9", // colorPrimaryBg
     },
     Layout: {
-      headerBg: "#E0F7FA", // Light Green for header
-      siderBg: "#004D40", // Dark Green for sider
-    },
+      headerBg: "#d8e6d9", // colorPrimaryBg
+      siderBg: "#188034", // colorPrimaryActive
+    },    
     Button: {
       dangerShadow: "",
       defaultShadow: "",

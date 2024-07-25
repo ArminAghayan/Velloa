@@ -13,6 +13,7 @@ import PropertyUnits from './tabs/propertyinfo_units';
 import PropertyLeases from './tabs/propertyinfo_leases';
 import PropertyTenants from './tabs/propertyinfo_tenants';
 import PropertySettings from './tabs/propertyinfo_settings';
+import PropertyRentalApplications from './tabs/propertyinfo_rental_applications'
 import './propertyInfo.css';
 
 const { Title } = Typography;
@@ -343,9 +344,13 @@ const PropertyInfo: React.FC = () => {
             <PropertyLeases />
           </TabPane>
           <TabPane tab="Tenants" key="5">
-            <PropertyTenants />
+          <PropertyTenants propertyId={property.key} />
           </TabPane>
-          <TabPane tab="Settings" key="6">
+          <TabPane tab="Rental Applications" key="6">
+          <PropertyRentalApplications propertyId={property.key} />
+          </TabPane>
+
+          <TabPane tab="Settings" key="7">
             <PropertySettings 
               showModal={showModal} 
               handleBannerUpload={handleBannerUpload} 
