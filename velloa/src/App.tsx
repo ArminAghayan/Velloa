@@ -69,6 +69,8 @@ const theme = {
     Table: {
       borderColor: "rgb(230, 233, 236)",
       lineWidth: 1.25,
+        headerBg: "rgb(255, 255, 255)",
+      
     },
     Tabs: {
       lineWidth: 2,

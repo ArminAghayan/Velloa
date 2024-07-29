@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, Row, Col, Typography, Input, Form, message, Spin, Drawer, Badge, Empty, List, Modal, Upload, UploadFile } from 'antd';
 import { LeftOutlined, EditOutlined, SaveOutlined, PlusOutlined, RightOutlined, UploadOutlined } from '@ant-design/icons';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { DndContext, PointerSensor, useSensor, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -20,6 +20,7 @@ interface Image {
 }
 
 interface Unit {
+  unitId: string;
   unitName: string;
   size: string;
   beds: number;
@@ -34,7 +35,6 @@ interface Unit {
 interface Property {
   id: string;
   name: string;
-  units: Unit[];
 }
 
 const listings = [
@@ -74,7 +74,7 @@ const PropertyInfoUnitView: React.FC = () => {
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [isImageUpdated, setIsImageUpdated] = useState(false); // New state to track image updates
+  const [isImageUpdated, setIsImageUpdated] = useState(false);
 
   useEffect(() => {
     const fetchPropertyAndUnit = async () => {
@@ -93,8 +93,14 @@ const PropertyInfoUnitView: React.FC = () => {
           const propertyData = { id: propertySnap.id, ...propertySnap.data() } as Property;
           setProperty(propertyData);
   
-          const unitData = propertyData.units.find((u: Unit) => u.unitName === unitName);
-          if (unitData) {
+          // Fetch the specific unit from the 'units' subcollection
+          const unitsCollectionRef = collection(db, 'properties', propertyId, 'units');
+          const q = query(unitsCollectionRef, where("unitName", "==", unitName));
+          const unitQuerySnapshot = await getDocs(q);
+  
+          if (!unitQuerySnapshot.empty) {
+            const unitDoc = unitQuerySnapshot.docs[0];
+            const unitData = { unitId: unitDoc.id, ...unitDoc.data() } as Unit;
             setUnit(unitData);
             setEditedUnit(unitData);
             setFileList(unitData.images ? unitData.images.map(({ url, id }) => {
@@ -106,7 +112,6 @@ const PropertyInfoUnitView: React.FC = () => {
                 url,
               };
             }) : []);
-            
           } else {
             message.error('Unit not found');
           }
@@ -122,8 +127,7 @@ const PropertyInfoUnitView: React.FC = () => {
     };
   
     fetchPropertyAndUnit();
-  }, [propertyId, unitName, navigate, isImageUpdated]); // Add isImageUpdated to dependency array
-  
+  }, [propertyId, unitName, navigate, isImageUpdated]);
 
   const handleBack = () => {
     navigate(-1);
@@ -148,17 +152,26 @@ const PropertyInfoUnitView: React.FC = () => {
       message.error('Cannot update unit: Missing data');
       return;
     }
-
+  
     const db = getFirestore();
-    const propertyRef = doc(db, 'properties', property.id);
-
+    const unitRef = doc(db, 'properties', property.id, 'units', editedUnit.unitId);
+  
     try {
-      const updatedUnits = property.units.map((u: Unit) =>
-        u.unitName === editedUnit.unitName ? editedUnit : u
-      );
-
-      await updateDoc(propertyRef, { units: updatedUnits });
-
+      // Create an object with only the fields that should be updated
+      const updateData: Partial<Unit> = {
+        unitName: editedUnit.unitName,
+        size: editedUnit.size,
+        beds: editedUnit.beds,
+        baths: editedUnit.baths,
+        marketRent: editedUnit.marketRent,
+        tenant: editedUnit.tenant,
+        description: editedUnit.description,
+        notes: editedUnit.notes,
+        images: editedUnit.images,
+      };
+  
+      await updateDoc(unitRef, updateData);
+  
       if (section === 'details') {
         setIsEditingDetails(false);
         setDrawerVisible(false);
@@ -167,13 +180,12 @@ const PropertyInfoUnitView: React.FC = () => {
       } else if (section === 'notes') {
         setIsEditingNotes(false);
       }
-
+  
       setUnit(editedUnit);
-      setProperty({ ...property, units: updatedUnits });
       message.success('Unit updated successfully');
-
+  
       if (section === 'details' || section === 'notes') {
-        setIsImageUpdated(!isImageUpdated); // Toggle image update state to refresh images
+        setIsImageUpdated(!isImageUpdated);
       }
     } catch (error) {
       console.error("Error updating document: ", error);
@@ -209,9 +221,9 @@ const PropertyInfoUnitView: React.FC = () => {
 
   const handleBeforeUpload = async (file: File) => {
     const storage = getStorage();
-    const id = uuidv4(); // Generate a unique ID for the image
+    const id = uuidv4();
     const storageRef = ref(storage, `units/${propertyId}/${unitName}/${id}`);
-    console.log('Uploading file to:', storageRef.fullPath); // Add logging
+    console.log('Uploading file to:', storageRef.fullPath);
   
     const uploadTask = uploadBytesResumable(storageRef, file);
   
@@ -220,12 +232,10 @@ const PropertyInfoUnitView: React.FC = () => {
         // Observe state change events such as progress, pause, and resume
       },
       (error) => {
-        // Handle unsuccessful uploads
         console.error('Upload failed:', error);
         message.error('Failed to upload image');
       },
       () => {
-        // Handle successful uploads on complete
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
           setEditedUnit(prev => {
             if (!prev) return null;
@@ -237,14 +247,11 @@ const PropertyInfoUnitView: React.FC = () => {
       }
     );
   
-    return false; // Prevent default upload behavior
+    return false;
   };
-  
-
 
   const handleRemoveImage = async (file: UploadFile) => {
     try {
-      // Extract the image ID from the fileList
       const image = fileList.find(f => f.uid === file.uid);
       if (!image) {
         message.error('Image not found');
@@ -257,7 +264,7 @@ const PropertyInfoUnitView: React.FC = () => {
       const storage = getStorage();
       const storageRef = ref(storage, `units/${propertyId}/${unitName}/${id}`);
   
-      console.log('Deleting file from:', storageRef.fullPath); // Add logging
+      console.log('Deleting file from:', storageRef.fullPath);
   
       await deleteObject(storageRef);
       setEditedUnit(prev => {
@@ -272,10 +279,6 @@ const PropertyInfoUnitView: React.FC = () => {
       message.error('Failed to delete image');
     }
   };
-  
-
-  
-  
 
   if (isLoading) {
     return <Spin size="large" />;
@@ -322,8 +325,8 @@ const PropertyInfoUnitView: React.FC = () => {
                     <Text strong style={{ marginRight: 8 }}>{label}:</Text>
                     {isEditingDetails ? (
                       <Input 
-                      value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
-                      onChange={(e) => handleInputChange(field, e.target.value)}
+                        value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
                         style={{ flex: 1 }}
                       />
                     ) : (
@@ -349,7 +352,7 @@ const PropertyInfoUnitView: React.FC = () => {
                 {isEditingDescription ? 'Save' : 'Edit'}
               </Button>
             }
-            style={{ minHeight: '262px' }}  // Adjust this value as needed
+            style={{ minHeight: '262px' }}
           >
             {isEditingDescription ? (
               <TextArea
@@ -376,7 +379,7 @@ const PropertyInfoUnitView: React.FC = () => {
             }
           >
             <Row style={{ fontWeight: 'bold', marginBottom: '10px' }}>
-              <Col span={8}>Name</Col>
+            <Col span={8}>Name</Col>
               <Col span={8}>Date</Col>
               <Col span={8} style={{ textAlign: 'right' }}>Action</Col>
             </Row>
@@ -419,8 +422,7 @@ const PropertyInfoUnitView: React.FC = () => {
                 Add
               </Button>
             }
-            style={{ minHeight: '240px' }}  // Adjust this value as needed
-
+            style={{ minHeight: '240px' }}
           >
             {fileList.length === 0 ? (
               <div className="empty-upload-area">
@@ -523,7 +525,7 @@ const PropertyInfoUnitView: React.FC = () => {
                   />
                 </List.Item>
               )}
-              style={{ minHeight: '275px' }}  // Adjust this value as needed
+              style={{ minHeight: '275px' }}
             />
           </Card>
         </Col>
@@ -549,63 +551,62 @@ const PropertyInfoUnitView: React.FC = () => {
           ).map((field) => (
             <Form.Item key={field} label={field.charAt(0).toUpperCase() + field.slice(1)}>
               <Input 
-          value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
-            onChange={(e) => handleInputChange(field, e.target.value)}
+                value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
+                onChange={(e) => handleInputChange(field, e.target.value)}
               />
             </Form.Item>
           ))}
         </Form>
       </Drawer>
       <Drawer
-  title="Upload Images"
-  width={480}
-  onClose={() => {
-    setIsImageDrawerVisible(false);
-    setIsImageUpdated(!isImageUpdated); // Toggle image update state to refresh images
-  }}
-  visible={isImageDrawerVisible}
-  bodyStyle={{ paddingBottom: 80 }}
->
-  <DndContext sensors={[sensor]} onDragEnd={onDragEnd}>
-    <SortableContext items={fileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
-      <div style={{ paddingBottom: '20px' }}>
-        <Upload.Dragger
-          listType="picture"
-          fileList={fileList}
-          onChange={handleUploadChange}
-          beforeUpload={handleBeforeUpload}
-          onRemove={handleRemoveImage}
-          itemRender={(originNode, file) => (
-            <DraggableUploadListItem originNode={originNode} file={file} />
-          )}
-          showUploadList={{ showRemoveIcon: true }}
-          style={{ marginBottom: '20px' }} // Ensure spacing between drag area and buttons
-        >
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">Click or drag file to this area to upload</p>
-          <p className="ant-upload-hint">
-            Support for a single or bulk upload. Strictly prohibit from uploading company data or other
-            banned files
-          </p>
-        </Upload.Dragger>
-      </div>
-    </SortableContext>
-  </DndContext>
-  <div className="upload-drawer-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-    <Button
-      icon={<SaveOutlined />}
-      onClick={() => {
-        handleSave('details');
-        setIsImageDrawerVisible(false);
-      }}
-    >
-      Save
-    </Button>
-  </div>
-</Drawer>
-
+        title="Upload Images"
+        width={480}
+        onClose={() => {
+          setIsImageDrawerVisible(false);
+          setIsImageUpdated(!isImageUpdated);
+        }}
+        visible={isImageDrawerVisible}
+        bodyStyle={{ paddingBottom: 80 }}
+      >
+        <DndContext sensors={[sensor]} onDragEnd={onDragEnd}>
+          <SortableContext items={fileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
+            <div style={{ paddingBottom: '20px' }}>
+              <Upload.Dragger
+                listType="picture"
+                fileList={fileList}
+                onChange={handleUploadChange}
+                beforeUpload={handleBeforeUpload}
+                onRemove={handleRemoveImage}
+                itemRender={(originNode, file) => (
+                  <DraggableUploadListItem originNode={originNode} file={file} />
+                )}
+                showUploadList={{ showRemoveIcon: true }}
+                style={{ marginBottom: '20px' }}
+              >
+                <p className="ant-upload-drag-icon">
+                  <UploadOutlined />
+                </p>
+                <p className="ant-upload-text">Click or drag file to this area to upload</p>
+                <p className="ant-upload-hint">
+                  Support for a single or bulk upload. Strictly prohibit from uploading company data or other
+                  banned files
+                </p>
+              </Upload.Dragger>
+            </div>
+          </SortableContext>
+        </DndContext>
+        <div className="upload-drawer-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <Button
+            icon={<SaveOutlined />}
+            onClick={() => {
+              handleSave('details');
+              setIsImageDrawerVisible(false);
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </Drawer>
       <Modal
         title="New Note"
         visible={isNoteModalVisible}

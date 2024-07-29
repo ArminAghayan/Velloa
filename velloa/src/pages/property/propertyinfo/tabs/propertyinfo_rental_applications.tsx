@@ -1,13 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Table, message, Button, Row, Col, Drawer, Form, Input, Tag, Carousel, DatePicker, Steps, Typography, Select, Dropdown, Menu, InputNumber, Card, Modal, App as AntdApp } from 'antd';
 import { db } from '../../../../firebase-config';
-import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc, query, getDocs } from 'firebase/firestore';
 import { PlusOutlined, EllipsisOutlined, LinkOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import './propertyinfo_rental_applications.css';
+
+const { Step } = Steps;
+const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
 
 export interface RentalApplication {
   applicationId: string;
@@ -59,9 +63,13 @@ interface RentalApplicationsProps {
   propertyId: string;
 }
 
-const { Step } = Steps;
-const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
+const listings = [
+  { website: "Zillow", status: "Active", date: "2024-06-20", imgSrc: "/assets/zillow-btn-png.png", statusColor: "green" },
+  { website: "Hotpads", status: "Active", date: "2024-06-20", imgSrc: "/assets/hotpads-logo.svg", statusColor: "green" },
+  { website: "Trulia", status: "Active", date: "2024-06-20", imgSrc: "/assets/trulia-btn.png", statusColor: "green" },
+  { website: "Dwellsy", status: "Inactive", date: "n/a", imgSrc: "/assets/Dwellsy-btn.png", statusColor: "red" },
+  { website: "Other", status: "Inactive", date: "n/a", imgSrc: "/assets/Other-btn-light.png", statusColor: "red" },
+];
 
 const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) => {
   const [applications, setApplications] = useState<RentalApplication[]>([]);
@@ -83,59 +91,68 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
 
   useEffect(() => {
     console.log('Component mounted. Property ID:', propertyId);
-    const unsubscribe = onSnapshot(doc(db, 'properties', propertyId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        console.log('Firestore data updated:', data);
-
-        // Fetch applications from the subcollection
-        const applicationsRef = collection(db, 'properties', propertyId, 'applications');
-        const unsubscribeApplications = onSnapshot(applicationsRef, (snapshot) => {
-          const applicationsData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              applicationId: doc.id,
-              lesseeName: `${data.firstName} ${data.lastName}`,
-              property: data.property || '',
-              unitName: data.unitName || '',
-              unitId: data.unitId || '',
-              anticipatedMoveInDate: data.anticipatedMoveInDate || '',
-              createdDate: data.createdDate || '',
-              decision: data.decision || '',
-              firstName: data.firstName || '',
-              middleName: data.middleName || '',
-              lastName: data.lastName || '',
-              ssn: data.ssn || '',
-              dob: data.dob || '',
-              email: data.email || '',
-              phoneNumber: data.phoneNumber || '',
-              gender: data.gender || '',
-              maritalStatus: data.maritalStatus || '',
-              driverLicenseState: data.driverLicenseState || '',
-              driverLicenseNumber: data.driverLicenseNumber || '',
-              residentialHistory: data.residentialHistory || {
-                address: '',
-                moveInDate: '',
-                monthlyPayment: 0
-              },
-              employment: data.employment || {
-                jobType: '',
-                annualIncome: 0,
-                title: '',
-                companyName: ''
-              }
-            } as RentalApplication;
-          });
-          setApplications(applicationsData);
-          setFilteredApplications(applicationsData);
-          setLoading(false);
+    const fetchApplications = async () => {
+      setLoading(true);
+      const applicationsRef = collection(db, 'properties', propertyId, 'applications');
+      const q = query(applicationsRef);
+      
+      try {
+        const querySnapshot = await getDocs(q);
+        const applicationsData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            applicationId: doc.id,
+            lesseeName: `${data.firstName} ${data.lastName}`,
+            property: data.property || '',
+            unitName: data.unitName || '',
+            unitId: data.unitId || '',
+            anticipatedMoveInDate: data.anticipatedMoveInDate || '',
+            createdDate: data.createdDate || '',
+            decision: data.decision || '',
+            firstName: data.firstName || '',
+            middleName: data.middleName || '',
+            lastName: data.lastName || '',
+            ssn: data.ssn || '',
+            dob: data.dob || '',
+            email: data.email || '',
+            phoneNumber: data.phoneNumber || '',
+            gender: data.gender || '',
+            maritalStatus: data.maritalStatus || '',
+            driverLicenseState: data.driverLicenseState || '',
+            driverLicenseNumber: data.driverLicenseNumber || '',
+            residentialHistory: data.residentialHistory || {
+              address: '',
+              moveInDate: '',
+              monthlyPayment: 0
+            },
+            employment: data.employment || {
+              jobType: '',
+              annualIncome: 0,
+              title: '',
+              companyName: ''
+            }
+          } as RentalApplication;
         });
-
-        return () => unsubscribeApplications();
-      } else {
-        console.log("No such document!");
+        setApplications(applicationsData);
+        setFilteredApplications(applicationsData);
+      } catch (error) {
+        console.error("Error fetching applications: ", error);
+        message.error("Failed to fetch applications");
+      } finally {
         setLoading(false);
       }
+    };
+
+    fetchApplications();
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(collection(db, 'properties', propertyId, 'applications'), (snapshot) => {
+      const updatedApplications = snapshot.docs.map(doc => ({
+        applicationId: doc.id,
+        ...doc.data()
+      }) as RentalApplication);
+      setApplications(updatedApplications);
+      setFilteredApplications(updatedApplications);
     });
 
     return () => unsubscribe();
@@ -297,9 +314,6 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
       const docRef = await addDoc(applicationsRef, newApplication);
       console.log('New application added with ID:', docRef.id, newApplication);
 
-      setApplications(prevApplications => [...prevApplications, newApplication]);
-      setFilteredApplications(prevFiltered => [...prevFiltered, newApplication]);
-
       message.success('Application added successfully');
 
       form.resetFields();
@@ -325,8 +339,6 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
         const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.applicationId);
         await updateDoc(applicationRef, { decision: 'Approved' });
         setSelectedApplication({ ...selectedApplication, decision: 'Approved' });
-        setApplications(apps => apps.map(app => app.applicationId === selectedApplication.applicationId ? { ...app, decision: 'Approved' } : app));
-        setFilteredApplications(apps => apps.map(app => app.applicationId === selectedApplication.applicationId ? { ...app, decision: 'Approved' } : app));
         message.success('Application approved successfully');
         setIsModalVisible(false);
       } catch (error) {
@@ -342,8 +354,6 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
         const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.applicationId);
         await updateDoc(applicationRef, { decision: 'Denied' });
         setSelectedApplication({ ...selectedApplication, decision: 'Denied' });
-        setApplications(apps => apps.map(app => app.applicationId === selectedApplication.applicationId ? { ...app, decision: 'Denied' } : app));
-        setFilteredApplications(apps => apps.map(app => app.applicationId === selectedApplication.applicationId ? { ...app, decision: 'Denied' } : app));
         message.success('Application denied successfully');
         setIsModalVisible(false);
       } catch (error) {

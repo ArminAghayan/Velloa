@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './addnewproperty.css';
 import { Link } from 'react-router-dom';
 import { IconPigMoney, IconPigOff } from '@tabler/icons-react';
-import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDoc, doc,writeBatch } from 'firebase/firestore';
 import { auth, db } from '../../../firebase-config';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid for generating unique IDs
 
@@ -205,14 +205,6 @@ const AddNewProperty: React.FC = () => {
           zip: form.getFieldValue('zip') || '',
           country: form.getFieldValue('country') || '',
         },
-        units: units.map(unit => ({
-          unitId: unit.unitId,
-          unitName: unit.unitName || '',
-          beds: unit.beds || '',
-          baths: unit.baths || '',
-          size: unit.size || '',
-          marketRent: unit.marketRent || '',
-        })),
         bankAccount: useDefaultAccount ? defaultAccount : (specificBankAccount || ''),
         reserveFund: useReserveFund ? (reserveAmount || '') : null,
         ownership: useDefaultAccount
@@ -223,10 +215,29 @@ const AddNewProperty: React.FC = () => {
           })),
       };
 
-      const docRef = await addDoc(collection(db, 'properties'), propertyData);
+      // Add the property document to the 'properties' collection
+      const propertyDocRef = await addDoc(collection(db, 'properties'), propertyData);
+
+      // Add units as a subcollection under the property document
+      const batch = writeBatch(db);
+      units.forEach((unit) => {
+        const unitDocRef = doc(collection(propertyDocRef, 'units'));
+        batch.set(unitDocRef, {
+          unitId: unit.unitId,
+          unitName: unit.unitName || '',
+          beds: unit.beds || '',
+          baths: unit.baths || '',
+          size: unit.size || '',
+          marketRent: unit.marketRent || '',
+        });
+      });
+
+      // Commit the batch
+      await batch.commit();
+
       resetForms();
       navigate('/property');
-      message.success('Property added successfully!');
+      message.success('Property and units added successfully!');
     } catch (error) {
       console.error('Error adding property:', error);
       message.error('An error occurred while adding the property. Please try again.');
