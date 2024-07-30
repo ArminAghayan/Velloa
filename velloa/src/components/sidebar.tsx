@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, Outlet, useLocation, } from 'react-router-dom';
 import { Layout, Menu, Dropdown, Avatar } from 'antd';
 import {
   HomeIcon,
@@ -18,6 +18,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
 import { AppDispatch, RootState } from '../components/redux/store';
 import 'antd/dist/reset.css';
+import GlobalSettings from './globalsettings'
 
 import './Sidebar.css'; // Import your CSS file
 
@@ -28,17 +29,26 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const selectedProperty = useSelector((state: RootState) => state.property.property);
   const userData = useSelector((state: RootState) => state.auth.userData);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   const handleLogout = () => {
     dispatch(logout());
   };
 
+  const showSettings = () => {
+    setIsSettingsVisible(true);
+  };
+
+  const hideSettings = () => {
+    setIsSettingsVisible(false);
+  };
+
   const dropdownMenu = (
     <Menu>
-      <Menu.Item icon={<Cog6ToothIcon className="dropdownsideIcon" />}>
-        <Link to="/settings">Settings</Link>
+      <Menu.Item key="settings" icon={<Cog6ToothIcon className="dropdownsideIcon" />} onClick={showSettings}>
+        Settings
       </Menu.Item>
-      <Menu.Item icon={<ArrowLeftOnRectangleIcon className="dropdownsideIcon" />} onClick={handleLogout}>
+      <Menu.Item key="logout" icon={<ArrowLeftOnRectangleIcon className="dropdownsideIcon" />} onClick={handleLogout}>
         Logout
       </Menu.Item>
     </Menu>
@@ -96,29 +106,29 @@ const Sidebar: React.FC = () => {
           <Menu.Item key="7" icon={<BanknotesIcon className="custom-icon" />}>
             <Link to="/accounting">Accounting</Link>
           </Menu.Item>
-          <Menu.Item key="9" icon={<ChartBarIcon className="custom-icon" />}>
+          <Menu.Item key="8" icon={<ChartBarIcon className="custom-icon" />}>
             <Link to="/analytics">Analytics</Link>
           </Menu.Item>
         </Menu>
         <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
-        <Dropdown overlay={dropdownMenu} trigger={['click']} placement="topCenter" className="sidebar-dropdown">
-          <div className="user-info-container">
-            <div className="user-info">
-              <Avatar icon={<UserIcon className="custom-icon" />} />
-              {userData && <span className="user-name">{`${userData.firstName} ${userData.lastName}`}</span>}
+          <Dropdown overlay={dropdownMenu} trigger={['click']} placement="topCenter" className="sidebar-dropdown">
+            <div className="user-info-container">
+              <div className="user-info">
+                <Avatar icon={<UserIcon className="custom-icon" />} />
+                {userData && <span className="user-name">{`${userData.firstName} ${userData.lastName}`}</span>}
+              </div>
             </div>
-          </div>
-        </Dropdown>
-
+          </Dropdown>
         </div>
       </Sider>
       <Layout>
-        <Content style={{ marginLeft: 250, overflow: 'auto',  }}>
+        <Content style={{ marginLeft: 250, overflow: 'auto' }}>
           <div style={{ minHeight: '100vh' }}>
             <Outlet context={{ property: location.state?.property }} />
           </div>
         </Content>
       </Layout>
+      <GlobalSettings isVisible={isSettingsVisible} onClose={hideSettings} />
     </Layout>
   );
 };

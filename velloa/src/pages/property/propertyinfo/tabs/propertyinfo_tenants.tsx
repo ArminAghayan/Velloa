@@ -225,46 +225,55 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
     try {
       const propertyRef = doc(db, 'properties', propertyId);
       const propertyDoc = await getDoc(propertyRef);
-      if (propertyDoc.exists()) {
-        const data = propertyDoc.data();
-        const propertyImageUrl = data.imageUrl;
-        const propertyName = data.propertyName;
-
-        if (!data.units) {
-          console.log("No units field found in the property data");
-          setUnits([]);
-          return;
-        }
-
-        if (Array.isArray(data.units)) {
-          const availableUnits = data.units.map((unit: any) => ({
-            ...unit,
-            propertyImageUrl,
-            propertyName,
-            unitName: unit.unitName || unit.unitNumber,
-            unitId: unit.unitId,
-            images: unit.images || [],
-            marketRent: unit.marketRent,
-            size: unit.size
-          }));
-          console.log('Available units:', availableUnits);
-          setUnits(availableUnits);
-        } else {
-          setUnits([]);
-        }
-      } else {
-        console.log("No such document!");
+      
+      if (!propertyDoc.exists()) {
+        console.log("No such property document!");
         setUnits([]);
+        return;
       }
+  
+      const propertyData = propertyDoc.data();
+      const propertyImageUrl = propertyData.imageUrl;
+      const propertyName = propertyData.propertyName;
+  
+      // Fetch units from the subcollection
+      const unitsCollectionRef = collection(propertyRef, 'units');
+      const unitsSnapshot = await getDocs(unitsCollectionRef);
+  
+      if (unitsSnapshot.empty) {
+        console.log("No units found in the subcollection");
+        setUnits([]);
+        return;
+      }
+  
+      const availableUnits: Unit[] = unitsSnapshot.docs.map(doc => {
+        const unitData = doc.data();
+        return {
+          unitId: doc.id,
+          unitName: unitData.unitName || unitData.unitNumber,
+          unitNumber: unitData.unitNumber,
+          beds: unitData.beds,
+          baths: unitData.baths,
+          sqft: unitData.sqft,
+          rent: unitData.rent,
+          propertyImageUrl,
+          images: unitData.images || [],
+          propertyName,
+          marketRent: unitData.marketRent,
+          size: unitData.size
+        };
+      });
+  
+      console.log('Available units:', availableUnits);
+      setUnits(availableUnits);
     } catch (error) {
       console.error("Error fetching units: ", error);
       message.error("Failed to fetch units. Please check your permissions.");
       setUnits([]);
     }
   };
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchText(e.target.value);
+    setSearchTerm(e.target.value);
   };
 
   const handleFilterChange = (value: string) => {
@@ -568,8 +577,7 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
 
   useEffect(() => {
     const filtered = units.filter(unit => 
-      unit.unitName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unit.unitNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      unit.unitName.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUnits(filtered);
   }, [searchTerm, units]);
@@ -704,55 +712,56 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       case 1:
         return (
           <div className="tenant-unit">
-            <Divider orientation="center">
-              <Title level={4}>Select Unit</Title>
-            </Divider>
-            <Input
-              placeholder="Search by unit number"
-              style={{ marginBottom: 16 }}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="tenant-unit-search"
+          <Divider orientation="center">
+            <Title level={4}>Select Unit</Title>
+          </Divider>
+    <Input
+      placeholder="Search by unit number"
+      style={{ marginBottom: 16 }}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="tenant-unit-search"
+    />
+    <Row gutter={[16, 16]}>
+      {filteredUnits.map(unit => (
+        <Col xs={24} sm={24} md={12} lg={12} xl={12} key={unit.unitId}>
+          <Card
+            hoverable
+            cover={
+              <img 
+                alt={unit.unitName}
+                src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
+                style={{ height: '200px', objectFit: 'cover' }}
+              />
+            }
+            onClick={() => handleUnitSelect(unit.unitId)}
+            className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
+          >
+            <Card.Meta
+              title={
+                <div>
+                  <Text strong style={{ fontSize: '18px' }}>{unit.propertyName}</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: '14px' }}>Unit {unit.unitName}</Text>
+                </div>
+              }
+              description={
+                <>
+                  <Text>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
+                  <br />
+                  <Text strong>{`$${unit.marketRent}/month`}</Text>
+                </>
+              }
             />
-            <div className="unit-selection-container">
-              {filteredUnits.map(unit => (
-                <Card
-                  key={unit.unitId}
-                  hoverable
-                  cover={
-                    <img 
-                      alt={unit.unitName}
-                      src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
-                      style={{ height: '200px', objectFit: 'cover' }}
-                    />
-                  }
-                  onClick={() => handleUnitSelect(unit.unitId)}
-                  className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
-                >
-                  <Card.Meta
-                    title={
-                      <div>
-                        <Text strong style={{ fontSize: '18px' }}>{unit.propertyName}</Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: '14px' }}>Unit {unit.unitName}</Text>
-                      </div>
-                    }
-                    description={
-                      <>
-                        <Text>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
-                        <br />
-                        <Text strong>{`$${unit.marketRent}/month`}</Text>
-                      </>
-                    }
-                  />
-                  {unit.unitId === selectedUnit && (
-                    <Tag color="green" style={{ marginTop: 8, width: '100%', textAlign: 'center' }}>
-                      <CheckCircleOutlined /> Selected
-                    </Tag>
-                  )}
-                </Card>
-              ))}
-            </div>
-          </div>
+            {unit.unitId === selectedUnit && (
+              <Tag color="green" style={{ marginTop: 8, width: '100%', textAlign: 'center' }}>
+                <CheckCircleOutlined /> Selected
+              </Tag>
+            )}
+          </Card>
+        </Col>
+      ))}
+    </Row>
+  </div>
         );
       case 2:
         return (

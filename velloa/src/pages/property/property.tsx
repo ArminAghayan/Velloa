@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Typography, Table, Space, Input, Skeleton, Button, message } from 'antd';
-import { RightOutlined, PlusOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Typography, Table, Space, Input, Skeleton, Button, message, Tooltip } from 'antd';
+import { RightOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import './property.css'; // Import the CSS file
+import './property.css';
 
 const { Title } = Typography;
 
@@ -26,10 +26,42 @@ const PropertyPage: React.FC = () => {
   const [properties, setProperties] = useState<PropertyData[]>([]);
   const [user, setUser] = useState<any>(null);
   const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddPropertyClick = () => {
     navigate('/addnewproperty');
   };
+
+  const fetchProperties = useCallback(async () => {
+    if (!user || companyIds.length === 0) return;
+
+    try {
+      setLoading(true);
+      const propertiesQuery = query(collection(db, 'properties'), where('companyuid', 'in', companyIds));
+      const querySnapshot = await getDocs(propertiesQuery);
+      
+      const propertiesData: PropertyData[] = await Promise.all(querySnapshot.docs.map(async (doc) => {
+        const data = doc.data();
+        const unitsSnapshot = await getDocs(collection(db, 'properties', doc.id, 'units'));
+        return {
+          key: doc.id,
+          propertyName: data.propertyName || '',
+          propertyType: data.propertyType || '',
+          propertyDescription: data.propertyDescription || '',
+          address: `${data.address.street1 || ''}, ${data.address.city || ''}, ${data.address.state || ''}, ${data.address.zip || ''}`,
+          numberOfUnits: unitsSnapshot.size,
+        };
+      }));
+      
+      setProperties(propertiesData);
+    } catch (error) {
+      console.error("Error fetching properties: ", error);
+      message.error("Failed to fetch properties. Please try again.");
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user, companyIds]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -48,33 +80,13 @@ const PropertyPage: React.FC = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      if (!user || companyIds.length === 0) return;
-
-      try {
-        const propertiesQuery = query(collection(db, 'properties'), where('companyuid', 'in', companyIds));
-        const querySnapshot = await getDocs(propertiesQuery);
-        const propertiesData: PropertyData[] = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            key: doc.id,
-            propertyName: data.propertyName || '',
-            propertyType: data.propertyType || '',
-            propertyDescription: data.propertyDescription || '',
-            address: `${data.address.street1 || ''}, ${data.address.city || ''}, ${data.address.state || ''}, ${data.address.zip || ''}`,
-            numberOfUnits: data.units ? data.units.length : 0,
-          };
-        }) as PropertyData[];
-        setProperties(propertiesData);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching properties: ", error);
-        setLoading(false);
-      }
-    };
-
     fetchProperties();
-  }, [user, companyIds]);
+  }, [fetchProperties]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchProperties();
+  };
 
   const createSkeletonData = (count: number): PropertyData[] => {
     return Array.from({ length: count }, (_, index) => ({
@@ -152,9 +164,16 @@ const PropertyPage: React.FC = () => {
             onChange={(e) => setSearchText(e.target.value)}
             className="search-input"
           />
-          <Button type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
-            Add Property
-          </Button>
+          <Space>
+              <Button
+                icon={<ReloadOutlined spin={isRefreshing} />}
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              />
+            <Button type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
+              Add Property
+            </Button>
+          </Space>
         </div>
         <Table
           columns={columns}
