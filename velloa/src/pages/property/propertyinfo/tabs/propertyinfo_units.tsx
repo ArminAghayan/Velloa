@@ -326,7 +326,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
             <Row gutter={16}>
               <Col>
                 <Input
-                  className='unit-search-input'
+                  className='unit-dropdown-input'
                   placeholder="Search units"
                   value={searchText}
                   onChange={handleSearchChange}
