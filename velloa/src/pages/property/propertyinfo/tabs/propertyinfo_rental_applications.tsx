@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, Tag, Carousel, DatePicker, Steps, Typography, Select, Dropdown, Menu, InputNumber, Card, Modal, App as AntdApp } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input,Divider , Tag, Carousel, DatePicker, Steps, Typography, Select, Dropdown, Menu, InputNumber, Card, Modal, App as AntdApp } from 'antd';
 import { db } from '../../../../firebase-config';
-import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc, query, getDocs } from 'firebase/firestore';
-import { PlusOutlined, EllipsisOutlined, LinkOutlined } from '@ant-design/icons';
+import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc, query, getDocs, where } from 'firebase/firestore';
+import { PlusOutlined, EllipsisOutlined, LinkOutlined,ReloadOutlined,CheckCircleOutlined  } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,7 +13,8 @@ const { Step } = Steps;
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-export interface RentalApplication {
+interface RentalApplication {
+  id: string;
   applicationId: string;
   property: string;
   unitId: string;
@@ -63,14 +64,6 @@ interface RentalApplicationsProps {
   propertyId: string;
 }
 
-const listings = [
-  { website: "Zillow", status: "Active", date: "2024-06-20", imgSrc: "/assets/zillow-btn-png.png", statusColor: "green" },
-  { website: "Hotpads", status: "Active", date: "2024-06-20", imgSrc: "/assets/hotpads-logo.svg", statusColor: "green" },
-  { website: "Trulia", status: "Active", date: "2024-06-20", imgSrc: "/assets/trulia-btn.png", statusColor: "green" },
-  { website: "Dwellsy", status: "Inactive", date: "n/a", imgSrc: "/assets/Dwellsy-btn.png", statusColor: "red" },
-  { website: "Other", status: "Inactive", date: "n/a", imgSrc: "/assets/Other-btn-light.png", statusColor: "red" },
-];
-
 const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) => {
   const [applications, setApplications] = useState<RentalApplication[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<RentalApplication[]>([]);
@@ -88,75 +81,44 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
   const [unitImages, setUnitImages] = useState<{ [key: string]: string[] }>({});
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [spinning, setSpinning] = useState(false);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+
+  const fetchApplications = useCallback(async () => {
+    setLoading(true);
+    const applicationsRef = collection(db, 'properties', propertyId, 'applications');
+    const q = query(applicationsRef);
+    
+    try {
+      const querySnapshot = await getDocs(q);
+      const applicationsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as RentalApplication[];
+      setApplications(applicationsData);
+      setFilteredApplications(applicationsData);
+    } catch (error) {
+      console.error("Error fetching applications: ", error);
+      message.error("Failed to fetch applications");
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId]);
 
   useEffect(() => {
-    console.log('Component mounted. Property ID:', propertyId);
-    const fetchApplications = async () => {
-      setLoading(true);
-      const applicationsRef = collection(db, 'properties', propertyId, 'applications');
-      const q = query(applicationsRef);
-      
-      try {
-        const querySnapshot = await getDocs(q);
-        const applicationsData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            applicationId: doc.id,
-            lesseeName: `${data.firstName} ${data.lastName}`,
-            property: data.property || '',
-            unitName: data.unitName || '',
-            unitId: data.unitId || '',
-            anticipatedMoveInDate: data.anticipatedMoveInDate || '',
-            createdDate: data.createdDate || '',
-            decision: data.decision || '',
-            firstName: data.firstName || '',
-            middleName: data.middleName || '',
-            lastName: data.lastName || '',
-            ssn: data.ssn || '',
-            dob: data.dob || '',
-            email: data.email || '',
-            phoneNumber: data.phoneNumber || '',
-            gender: data.gender || '',
-            maritalStatus: data.maritalStatus || '',
-            driverLicenseState: data.driverLicenseState || '',
-            driverLicenseNumber: data.driverLicenseNumber || '',
-            residentialHistory: data.residentialHistory || {
-              address: '',
-              moveInDate: '',
-              monthlyPayment: 0
-            },
-            employment: data.employment || {
-              jobType: '',
-              annualIncome: 0,
-              title: '',
-              companyName: ''
-            }
-          } as RentalApplication;
-        });
-        setApplications(applicationsData);
-        setFilteredApplications(applicationsData);
-      } catch (error) {
-        console.error("Error fetching applications: ", error);
-        message.error("Failed to fetch applications");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchApplications();
 
-    // Set up real-time listener
     const unsubscribe = onSnapshot(collection(db, 'properties', propertyId, 'applications'), (snapshot) => {
       const updatedApplications = snapshot.docs.map(doc => ({
-        applicationId: doc.id,
+        id: doc.id,
         ...doc.data()
-      }) as RentalApplication);
+      })) as RentalApplication[];
       setApplications(updatedApplications);
       setFilteredApplications(updatedApplications);
     });
 
     return () => unsubscribe();
-  }, [propertyId]);
+  }, [propertyId, fetchApplications]);
 
   useEffect(() => {
     handleFilter();
@@ -211,32 +173,32 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
       const propertyRef = doc(db, 'properties', propertyId);
       const propertyDoc = await getDoc(propertyRef);
       if (propertyDoc.exists()) {
-        const data = propertyDoc.data();
-        const propertyImageUrl = data.imageUrl;
-        const propertyName = data.propertyName;
-
-        if (!data.units) {
-          console.log("No units field found in the property data");
-          setUnits([]);
-          return;
-        }
-
-        if (Array.isArray(data.units)) {
-          const availableUnits = data.units.filter((unit: any) => {
-            return unit.occupancy && unit.occupancy.toLowerCase() === 'vacant';
-          }).map((unit: any) => ({
-            ...unit,
+        const propertyData = propertyDoc.data();
+        const propertyImageUrl = propertyData.imageUrl;
+        const propertyName = propertyData.propertyName;
+  
+        const unitsCollectionRef = collection(db, 'properties', propertyId, 'units');
+        const unitsSnapshot = await getDocs(unitsCollectionRef);
+  
+        const availableUnits: Unit[] = unitsSnapshot.docs.map(doc => {
+          const unitData = doc.data();
+          return {
+            unitNumber: unitData.unitNumber || '',
+            unitId: doc.id,
+            unitName: unitData.unitName || '',
+            beds: unitData.beds || 0,
+            baths: unitData.baths || 0,
+            size: unitData.size || 0,
+            marketRent: unitData.marketRent || 0,
+            images: unitData.images || [],
+            occupancy: unitData.occupancy || 'vacant',
             propertyImageUrl,
-            propertyName,
-            unitName: unit.unitName,
-            unitId: unit.unitId,
-            images: unit.images || []
-          }));
-          console.log('Available units:', availableUnits);
-          setUnits(availableUnits);
-        } else {
-          setUnits([]);
-        }
+            propertyName
+          };
+        });
+  
+        console.log('Available units:', availableUnits);
+        setUnits(availableUnits);
       } else {
         setUnits([]);
       }
@@ -246,128 +208,45 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
       setUnits([]);
     }
   };
-
-  const handleNext = async () => {
-    try {
-      const values = await form.validateFields();
-      console.log('Current step values:', values);
-
-      setFormData(prevData => ({
-        ...prevData,
-        ...values
-      }));
-
-      const newCurrentStep = currentStep + 1;
-      setCurrentStep(newCurrentStep);
-      setVisibleSteps([newCurrentStep, newCurrentStep + 1]);
-    } catch (error) {
-      console.error('Validation Failed:', error);
-    }
-  };
-
-  const handleFormSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      console.log('Final step values:', values);
-
-      const allFormData = {
-        ...formData,
-        ...values
-      };
-
-      const newApplication = {
-        applicationId: uuidv4(),
-        property: allFormData.property,
-        unitId: allFormData.unitId,
-        anticipatedMoveInDate: allFormData.anticipatedMoveInDate ? allFormData.anticipatedMoveInDate.format('YYYY-MM-DD') : '',
-        createdDate: new Date().toISOString(),
-        decision: 'Pending',
-        firstName: allFormData.firstName,
-        middleName: allFormData.middleName,
-        lastName: allFormData.lastName,
-        ssn: allFormData.ssn,
-        dob: allFormData.dob ? allFormData.dob.format('YYYY-MM-DD') : '',
-        email: allFormData.email,
-        phoneNumber: allFormData.phoneNumber,
-        gender: allFormData.gender,
-        maritalStatus: allFormData.maritalStatus,
-        driverLicenseState: allFormData.driverLicenseState,
-        driverLicenseNumber: allFormData.driverLicenseNumber,
-        unitName: allFormData.unitName,
-        residentialHistory: {
-          address: allFormData.residentialHistory.address,
-          moveInDate: allFormData.residentialHistory.moveInDate ? allFormData.residentialHistory.moveInDate.format('YYYY-MM-DD') : '',
-          monthlyPayment: allFormData.residentialHistory.monthlyPayment
-        },
-        employment: {
-          jobType: allFormData.employment.jobType,
-          annualIncome: allFormData.employment.annualIncome,
-          title: allFormData.employment.title,
-          companyName: allFormData.employment.companyName
-        }
-      };
-
-      console.log('New application object:', newApplication);
-
-      const applicationsRef = collection(db, 'properties', propertyId, 'applications');
-
-      const docRef = await addDoc(applicationsRef, newApplication);
-      console.log('New application added with ID:', docRef.id, newApplication);
-
-      message.success('Application added successfully');
-
-      form.resetFields();
-      setFormData({});
-      setDrawerVisible(false);
-      setCurrentStep(0);
-      setVisibleSteps([0, 1]);
-    } catch (error) {
-      console.error("Error adding application: ", error);
-      const errorMessage = (error as Error).message;
-      message.error(`Failed to add application: ${errorMessage || 'Unknown error'}`);
-    }
-  };
-
-  const showModal = (application: RentalApplication) => {
-    setSelectedApplication(application);
-    setIsModalVisible(true);
-  };
+  
 
   const handleApprove = useCallback(async () => {
     if (selectedApplication) {
       try {
-        const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.applicationId);
+        const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.id);
         await updateDoc(applicationRef, { decision: 'Approved' });
         setSelectedApplication({ ...selectedApplication, decision: 'Approved' });
         message.success('Application approved successfully');
         setIsModalVisible(false);
+        fetchApplications();
       } catch (error) {
         console.error("Error approving application: ", error);
         message.error('Failed to approve application');
       }
     }
-  }, [selectedApplication, propertyId]);
+  }, [selectedApplication, propertyId, fetchApplications]);
 
   const handleDeny = useCallback(async () => {
     if (selectedApplication) {
       try {
-        const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.applicationId);
+        const applicationRef = doc(db, 'properties', propertyId, 'applications', selectedApplication.id);
         await updateDoc(applicationRef, { decision: 'Denied' });
         setSelectedApplication({ ...selectedApplication, decision: 'Denied' });
         message.success('Application denied successfully');
         setIsModalVisible(false);
+        fetchApplications();
       } catch (error) {
         console.error("Error denying application: ", error);
         message.error('Failed to deny application');
       }
     }
-  }, [selectedApplication, propertyId]);
+  }, [selectedApplication, propertyId, fetchApplications]);
 
   const columns = [
     {
       title: 'Lessee Name',
-      dataIndex: 'lesseeName',
       key: 'lesseeName',
+      render: (text: any, record: RentalApplication) => `${record.firstName} ${record.lastName}`.trim(),
     },
     {
       title: 'Property',
@@ -436,10 +315,117 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
     setFormData({});
   };
 
+  const handleNext = async () => {
+    if (currentStep === 0) {
+      const values = form.getFieldsValue(['unitId']);
+      if (!values.unitId) {
+        message.error('Please select a unit before proceeding.');
+        return;
+      }
+    }
+    try {
+      const values = await form.validateFields();
+      setFormData(prevData => ({
+        ...prevData,
+        ...values
+      }));
+      const newCurrentStep = currentStep + 1;
+      setCurrentStep(newCurrentStep);
+      setVisibleSteps([newCurrentStep, newCurrentStep + 1]);
+    } catch (error) {
+      console.error('Validation Failed:', error);
+    }
+  };
+  
+  
   const handlePrev = () => {
     const newCurrentStep = currentStep - 1;
     setCurrentStep(newCurrentStep);
     setVisibleSteps([newCurrentStep - 1, newCurrentStep]);
+  };
+
+  const handleFormSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      console.log('Final step values:', values);
+
+      const allFormData = {
+        ...formData,
+        ...values
+      };
+
+      // Function to remove undefined values
+      const removeUndefined = (obj: any): any => {
+        Object.keys(obj).forEach(key => {
+          if (obj[key] && typeof obj[key] === 'object') {
+            removeUndefined(obj[key]);
+          } else if (obj[key] === undefined) {
+            delete obj[key];
+          }
+        });
+        return obj;
+      };
+
+      const newApplication = removeUndefined({
+        applicationId: uuidv4(),
+        property: allFormData.property,
+        unitId: allFormData.unitId,
+        anticipatedMoveInDate: allFormData.anticipatedMoveInDate ? allFormData.anticipatedMoveInDate.format('YYYY-MM-DD') : null,
+        createdDate: new Date().toISOString(),
+        decision: 'Pending',
+        firstName: allFormData.firstName,
+        middleName: allFormData.middleName || null,
+        lastName: allFormData.lastName,
+        ssn: allFormData.ssn,
+        dob: allFormData.dob ? allFormData.dob.format('YYYY-MM-DD') : null,
+        email: allFormData.email,
+        phoneNumber: allFormData.phoneNumber,
+        gender: allFormData.gender,
+        maritalStatus: allFormData.maritalStatus,
+        driverLicenseState: allFormData.driverLicenseState,
+        driverLicenseNumber: allFormData.driverLicenseNumber,
+        unitName: allFormData.unitName,
+        residentialHistory: {
+          address: allFormData.residentialHistory.address,
+          moveInDate: allFormData.residentialHistory.moveInDate ? allFormData.residentialHistory.moveInDate.format('YYYY-MM-DD') : null,
+          monthlyPayment: allFormData.residentialHistory.monthlyPayment
+        },
+        employment: {
+          jobType: allFormData.employment.jobType,
+          annualIncome: allFormData.employment.annualIncome,
+          title: allFormData.employment.title,
+          companyName: allFormData.employment.companyName
+        }
+      });
+
+      console.log('New application object:', newApplication);
+
+      const applicationsRef = collection(db, 'properties', propertyId, 'applications');
+
+      const docRef = await addDoc(applicationsRef, newApplication);
+      console.log('New application added with ID:', docRef.id, newApplication);
+
+      message.success('Application added successfully');
+      form.resetFields();
+      setFormData({});
+      setDrawerVisible(false);
+      setCurrentStep(0);
+      setVisibleSteps([0, 1]);
+    } catch (error) {
+      console.error("Error adding application: ", error);
+      const errorMessage = (error as Error).message;
+      message.error(`Failed to add application: ${errorMessage || 'Unknown error'}`);
+    }
+  };
+  const handleFetchUnits = async () => {
+    setSpinning(true);
+    await fetchUnits();
+    setSpinning(false);
+  };
+  
+  const showModal = (application: RentalApplication) => {
+    setSelectedApplication(application);
+    setIsModalVisible(true);
   };
 
   const handleSendLinkClick = () => {
@@ -635,342 +621,370 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
         </div>
 
         <Drawer
-          title="New Application"
-          width="50%"
-          onClose={handleDrawerClose}
-          visible={drawerVisible}
-          bodyStyle={{ paddingBottom: 80 }}
+  title="New Application"
+  width="50%"
+  onClose={handleDrawerClose}
+  visible={drawerVisible}
+  bodyStyle={{ paddingBottom: 80 }}
+  footer={
+    <div style={{ textAlign: 'right' }}>
+      {currentStep > 0 && (
+        <Button style={{ marginRight: 8 }} onClick={handlePrev}>
+          Previous
+        </Button>
+      )}
+      {currentStep < 4 && (
+        <Button type="primary" onClick={handleNext}>
+          Next
+        </Button>
+      )}
+      {currentStep === 4 && (
+        <Button type="primary" onClick={handleFormSubmit}>
+          Submit
+        </Button>
+      )}
+    </div>
+  }
+>
+  <Steps current={currentStep} progressDot>
+    <Step title="Available Units" />
+    <Step title="Application Info" />
+    <Step title="Residential History" />
+    <Step title="Employment" />
+    <Step title="Review" />
+  </Steps>
+  <Form layout="vertical" form={form} onFinish={handleFormSubmit}>
+    {visibleSteps.includes(0) && currentStep === 0 && (
+      <div>
+        <Row justify="center" style={{ marginBottom: '16px' }}>
+          <Col>
+            <Title level={4}>Select a Unit</Title>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginBottom: '16px' }} justify="space-between" align="middle">
+          <Col span={8}>
+            <Input
+              placeholder="Search units"
+              className='new-app-unit-search-input'
+              onChange={(e) => {
+                const searchValue = e.target.value.toLowerCase();
+                setUnits(prevUnits => prevUnits.filter(unit => unit.unitName.toLowerCase().includes(searchValue)));
+              }}
+            />
+          </Col>
+          <Col span={8} style={{ textAlign: 'center' }}>
+            <Title level={4}></Title>
+          </Col>
+          <Col span={8} style={{ textAlign: 'right' }}>
+            <Button className='new-unit-app-refresh'
+              icon={<ReloadOutlined style={{ transform: spinning ? 'rotate(360deg)' : 'rotate(0deg)', transition: 'transform 0.5s' }} />}
+              onClick={handleFetchUnits}
+            >
+              Refresh
+            </Button>
+          </Col>
+        </Row>
+        <Divider />
+        <Row gutter={16}>
+          {units.map(unit => (
+            <Col span={8} key={unit.unitNumber}>
+              <Card
+                hoverable
+                cover={<img alt="unit" src={unit.propertyImageUrl || unit.images[0]?.url} style={{ height: '150px', objectFit: 'cover' }} />}
+                onClick={() => {
+                  form.setFieldsValue({
+                    property: unit.propertyName,
+                    unitNumber: unit.unitNumber,
+                    unitName: unit.unitName,
+                    unitId: unit.unitId // Set unitId here
+                  });
+                  setSelectedUnitId(unit.unitId); // Set selected unit ID
+                }}
+              >
+                 <Card.Meta
+                title={
+                  <div>
+                    <div>
+                      <span style={{ fontSize: '16px', fontWeight: 'bold' }}>{unit.propertyName}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px' }}>
+                      <span style={{ fontSize: '14px', color: '#888' }}>Unit {unit.unitName}</span>
+                      {selectedUnitId === unit.unitId && (
+                        <Tag color="green" icon={<CheckCircleOutlined />} style={{ marginLeft: '8px' }}>
+                          Selected
+                        </Tag>
+                      )}
+                    </div>
+                  </div>
+                }
+                description={`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft • $${unit.marketRent}`}
+              />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
+    )}
+    {visibleSteps.includes(1) && currentStep === 1 && (
+      <div style={{ marginTop: '24px' }}>
+        <Form.Item
+          name="firstName"
+          label="First Name"
+          rules={[{ required: true, message: 'Please enter the first name' }]}
+          className="applicationdrawerinput"
         >
-          <Steps current={currentStep} progressDot>
-            <Step title="Available Units" />
-            <Step title="Application Info" />
-            <Step title="Residential History" />
-            <Step title="Employment" />
-            <Step title="Review" />
-          </Steps>
-          <Form layout="vertical" form={form} onFinish={handleFormSubmit}>
-            {visibleSteps.includes(0) && currentStep === 0 && (
-              <div style={{ marginTop: '24px' }}>
-                <Row gutter={16}>
-                  {units.map(unit => (
-                    <Col span={8} key={unit.unitNumber}>
-                      <Card
-                        hoverable
-                        cover={<img alt="unit" src={unit.propertyImageUrl || unit.images[0]?.url} style={{ height: '150px', objectFit: 'cover' }} />}
-                        onClick={() => {
-                          form.setFieldsValue({
-                            property: unit.propertyName,
-                            unitNumber: unit.unitNumber,
-                            unitName: unit.unitName,
-                            unitId: unit.unitId // Set unitId here
-                          });
-                          handleNext();
-                        }}
-                      >
-                        <Card.Meta
-                          title={
-                            <div>
-                              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>{unit.propertyName}</span>
-                              <br />
-                              <span style={{ fontSize: '14px', color: '#888' }}>Unit {unit.unitName} </span>
-                            </div>
-                          }
-                          description={`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft • $${unit.marketRent}`}
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </div>
-            )}
-            {visibleSteps.includes(1) && currentStep === 1 && (
-              <div style={{ marginTop: '24px' }}>
-                <Form.Item
-                  name="firstName"
-                  label="First Name"
-                  rules={[{ required: true, message: 'Please enter the first name' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="middleName"
-                  label="Middle Name"
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="lastName"
-                  label="Last Name"
-                  rules={[{ required: true, message: 'Please enter the last name' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="ssn"
-                  label="SSN"
-                  rules={[{ required: true, message: 'Please enter the SSN' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="dob"
-                  label="Date of Birth"
-                  rules={[{ required: true, message: 'Please select the date of birth' }]}
-                  className="applicationdrawerinput"
-                >
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[{ required: true, message: 'Please enter the email' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="phoneNumber"
-                  label="Phone Number"
-                  rules={[{ required: true, message: 'Please enter the phone number' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="gender"
-                  label="Gender"
-                  rules={[{ required: true, message: 'Please select the gender' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Select>
-                    <Option value="Male">Male</Option>
-                    <Option value="Female">Female</Option>
-                    <Option value="Other">Other</Option>
-                  </Select>
-                </Form.Item>
-                <Form.Item
-                  name="maritalStatus"
-                  label="Marital Status"
-                  rules={[{ required: true, message: 'Please select the marital status' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Select>
-                    <Option value="Single">Single</Option>
-                    <Option value="Married">Married</Option>
-                    <Option value="Divorced">Divorced</Option>
-                    <Option value="Widowed">Widowed</Option>
-                  </Select>
-                </Form.Item>
-                <Form.Item
-                  name="driverLicenseState"
-                  label="Driver License Province/State"
-                  rules={[{ required: true, message: 'Please enter the driver license state' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="driverLicenseNumber"
-                  label="Driver License Number"
-                  rules={[{ required: true, message: 'Please enter the driver license number' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="anticipatedMoveInDate"
-                  label="Anticipated Move In Date"
-                  rules={[{ required: true, message: 'Please select the anticipated move-in date' }]}
-                  className="applicationdrawerinput"
-                >
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item
-                  name="property"
-                  label="Property"
-                  className="applicationdrawerinput"
-                >
-                  <Input disabled />
-                </Form.Item>
-                <Form.Item
-                  name="unitName"
-                  label="Unit Number"
-                  className="applicationdrawerinput"
-                >
-                  <Input disabled />
-                </Form.Item>
-                <Form.Item
-                  name="unitId"  // Add hidden field for unitId
-                  style={{ display: 'none' }}
-                >
-                  <Input type="hidden" />
-                </Form.Item>
-                <Form.Item style={{ textAlign: 'right' }}>
-                  <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-                    Previous
-                  </Button>
-                  <Button type="primary" onClick={handleNext}>
-                    Next
-                  </Button>
-                </Form.Item>
-              </div>
-            )}
-            {visibleSteps.includes(2) && currentStep === 2 && (
-              <div style={{ marginTop: '24px' }}>
-                <Form.Item
-                  name={['residentialHistory', 'address']}
-                  label="Last Lived Address"
-                  rules={[{ required: true, message: 'Please enter the last lived address' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name={['residentialHistory', 'moveInDate']}
-                  label="Move In Date"
-                  rules={[{ required: true, message: 'Please select the move-in date' }]}
-                  className="applicationdrawerinput"
-                >
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item
-                  name={['residentialHistory', 'monthlyPayment']}
-                  label="Monthly Payment"
-                  rules={[{ required: true, message: 'Please enter the monthly payment' }]}
-                  className="applicationdrawerinput"
-                >
-                  <InputNumber style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item style={{ textAlign: 'right' }}>
-                  <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-                    Previous
-                  </Button>
-                  <Button type="primary" onClick={handleNext}>
-                    Next
-                  </Button>
-                </Form.Item>
-              </div>
-            )}
-            {visibleSteps.includes(3) && currentStep === 3 && (
-              <div style={{ marginTop: '24px' }}>
-                <Form.Item
-                  name={['employment', 'jobType']}
-                  label="Job Type"
-                  rules={[{ required: true, message: 'Please enter the job type' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name={['employment', 'annualIncome']}
-                  label="Annual Income"
-                  rules={[{ required: true, message: 'Please enter the annual income' }]}
-                  className="applicationdrawerinput"
-                >
-                  <InputNumber style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item
-                  name={['employment', 'title']}
-                  label="Title/Position"
-                  rules={[{ required: true, message: 'Please enter the title/position' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name={['employment', 'companyName']}
-                  label="Company Name"
-                  rules={[{ required: true, message: 'Please enter the company name' }]}
-                  className="applicationdrawerinput"
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item style={{ textAlign: 'right' }}>
-                  <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-                    Previous
-                  </Button>
-                  <Button type="primary" onClick={handleNext}>
-                    Next
-                  </Button>
-                </Form.Item>
-              </div>
-            )}
-            {visibleSteps.includes(4) && currentStep === 4 && (
-              <div style={{ marginTop: '24px' }}>
-                <Title level={4}>Review Information</Title>
-                <div className="review-item">
-                  <Text strong>First Name:</Text> <Text>{form.getFieldValue('firstName')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Middle Name:</Text> <Text>{form.getFieldValue('middleName')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Last Name:</Text> <Text>{form.getFieldValue('lastName')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>SSN:</Text> <Text>{form.getFieldValue('ssn')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Date of Birth:</Text> <Text>{form.getFieldValue('dob')?.format('YYYY-MM-DD')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Email:</Text> <Text>{form.getFieldValue('email')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Phone Number:</Text> <Text>{form.getFieldValue('phoneNumber')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Gender:</Text> <Text>{form.getFieldValue('gender')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Marital Status:</Text> <Text>{form.getFieldValue('maritalStatus')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Driver License State:</Text> <Text>{form.getFieldValue('driverLicenseState')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Driver License Number:</Text> <Text>{form.getFieldValue('driverLicenseNumber')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Residential History - Address:</Text> <Text>{form.getFieldValue(['residentialHistory', 'address'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Residential History - Move In Date:</Text> <Text>{form.getFieldValue(['residentialHistory', 'moveInDate'])?.format('YYYY-MM-DD')}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Residential History - Monthly Payment:</Text> <Text>{form.getFieldValue(['residentialHistory', 'monthlyPayment'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Employment - Job Type:</Text> <Text>{form.getFieldValue(['employment', 'jobType'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Employment - Annual Income:</Text> <Text>{form.getFieldValue(['employment', 'annualIncome'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Employment - Title/Position:</Text> <Text>{form.getFieldValue(['employment', 'title'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Employment - Company Name:</Text> <Text>{form.getFieldValue(['employment', 'companyName'])}</Text>
-                </div>
-                <div className="review-item">
-                  <Text strong>Anticipated Move In Date:</Text> <Text>{form.getFieldValue('anticipatedMoveInDate')?.format('YYYY-MM-DD')}</Text>
-                </div>
-                <Form.Item style={{ textAlign: 'right' }}>
-                  <Button style={{ marginRight: 8 }} onClick={handlePrev}>
-                    Previous
-                  </Button>
-                  <Button type="primary" htmlType="submit">
-                    Submit
-                  </Button>
-                </Form.Item>
-              </div>
-            )}
-          </Form>
-        </Drawer>
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="middleName"
+          label="Middle Name"
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="lastName"
+          label="Last Name"
+          rules={[{ required: true, message: 'Please enter the last name' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="ssn"
+          label="SSN"
+          rules={[{ required: true, message: 'Please enter the SSN' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="dob"
+          label="Date of Birth"
+          rules={[{ required: true, message: 'Please select the date of birth' }]}
+          className="applicationdrawerinput"
+        >
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="email"
+          label="Email"
+          rules={[{ required: true, message: 'Please enter the email' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="phoneNumber"
+          label="Phone Number"
+          rules={[{ required: true, message: 'Please enter the phone number' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="gender"
+          label="Gender"
+          rules={[{ required: true, message: 'Please select the gender' }]}
+          className="applicationdrawerinput"
+        >
+          <Select>
+            <Option value="Male">Male</Option>
+            <Option value="Female">Female</Option>
+            <Option value="Other">Other</Option>
+          </Select>
+        </Form.Item>
+        <Form.Item
+          name="maritalStatus"
+          label="Marital Status"
+          rules={[{ required: true, message: 'Please select the marital status' }]}
+          className="applicationdrawerinput"
+        >
+          <Select>
+            <Option value="Single">Single</Option>
+            <Option value="Married">Married</Option>
+            <Option value="Divorced">Divorced</Option>
+            <Option value="Widowed">Widowed</Option>
+          </Select>
+        </Form.Item>
+        <Form.Item
+          name="driverLicenseState"
+          label="Driver License Province/State"
+          rules={[{ required: true, message: 'Please enter the driver license state' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="driverLicenseNumber"
+          label="Driver License Number"
+          rules={[{ required: true, message: 'Please enter the driver license number' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="anticipatedMoveInDate"
+          label="Anticipated Move In Date"
+          rules={[{ required: true, message: 'Please select the anticipated move-in date' }]}
+          className="applicationdrawerinput"
+        >
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="property"
+          label="Property"
+          className="applicationdrawerinput"
+        >
+          <Input disabled />
+        </Form.Item>
+        <Form.Item
+          name="unitName"
+          label="Unit Number"
+          className="applicationdrawerinput"
+        >
+          <Input disabled />
+        </Form.Item>
+        <Form.Item
+          name="unitId"  // Add hidden field for unitId
+          style={{ display: 'none' }}
+        >
+          <Input type="hidden" />
+        </Form.Item>
+      </div>
+    )}
+    {visibleSteps.includes(2) && currentStep === 2 && (
+      <div style={{ marginTop: '24px' }}>
+        <Form.Item
+          name={['residentialHistory', 'address']}
+          label="Last Lived Address"
+          rules={[{ required: true, message: 'Please enter the last lived address' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['residentialHistory', 'moveInDate']}
+          label="Move In Date"
+          rules={[{ required: true, message: 'Please select the move-in date' }]}
+          className="applicationdrawerinput"
+        >
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name={['residentialHistory', 'monthlyPayment']}
+          label="Monthly Payment"
+          rules={[{ required: true, message: 'Please enter the monthly payment' }]}
+          className="applicationdrawerinput"
+        >
+          <InputNumber style={{ width: '100%' }} />
+        </Form.Item>
+      </div>
+    )}
+    {visibleSteps.includes(3) && currentStep === 3 && (
+      <div style={{ marginTop: '24px' }}>
+        <Form.Item
+          name={['employment', 'jobType']}
+          label="Job Type"
+          rules={[{ required: true, message: 'Please enter the job type' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['employment', 'annualIncome']}
+          label="Annual Income"
+          rules={[{ required: true, message: 'Please enter the annual income' }]}
+          className="applicationdrawerinput"
+        >
+          <InputNumber style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name={['employment', 'title']}
+          label="Title/Position"
+          rules={[{ required: true, message: 'Please enter the title/position' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name={['employment', 'companyName']}
+          label="Company Name"
+          rules={[{ required: true, message: 'Please enter the company name' }]}
+          className="applicationdrawerinput"
+        >
+          <Input />
+        </Form.Item>
+      </div>
+    )}
+    {visibleSteps.includes(4) && currentStep === 4 && (
+      <div style={{ marginTop: '24px' }}>
+        <Title level={4}>Review Information</Title>
+        <div className="review-item">
+          <Text strong>First Name:</Text> <Text>{form.getFieldValue('firstName')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Middle Name:</Text> <Text>{form.getFieldValue('middleName')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Last Name:</Text> <Text>{form.getFieldValue('lastName')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>SSN:</Text> <Text>{form.getFieldValue('ssn')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Date of Birth:</Text> <Text>{form.getFieldValue('dob')?.format('YYYY-MM-DD')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Email:</Text> <Text>{form.getFieldValue('email')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Phone Number:</Text> <Text>{form.getFieldValue('phoneNumber')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Gender:</Text> <Text>{form.getFieldValue('gender')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Marital Status:</Text> <Text>{form.getFieldValue('maritalStatus')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Driver License State:</Text> <Text>{form.getFieldValue('driverLicenseState')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Driver License Number:</Text> <Text>{form.getFieldValue('driverLicenseNumber')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Residential History - Address:</Text> <Text>{form.getFieldValue(['residentialHistory', 'address'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Residential History - Move In Date:</Text> <Text>{form.getFieldValue(['residentialHistory', 'moveInDate'])?.format('YYYY-MM-DD')}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Residential History - Monthly Payment:</Text> <Text>{form.getFieldValue(['residentialHistory', 'monthlyPayment'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Employment - Job Type:</Text> <Text>{form.getFieldValue(['employment', 'jobType'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Employment - Annual Income:</Text> <Text>{form.getFieldValue(['employment', 'annualIncome'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Employment - Title/Position:</Text> <Text>{form.getFieldValue(['employment', 'title'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Employment - Company Name:</Text> <Text>{form.getFieldValue(['employment', 'companyName'])}</Text>
+        </div>
+        <div className="review-item">
+          <Text strong>Anticipated Move In Date:</Text> <Text>{form.getFieldValue('anticipatedMoveInDate')?.format('YYYY-MM-DD')}</Text>
+        </div>
+      </div>
+    )}
+  </Form>
+</Drawer>
+
+
+
+
       </div>
     </AntdApp>
   );

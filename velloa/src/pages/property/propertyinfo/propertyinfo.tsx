@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Added useCallback here
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Typography, Button, Tabs, Modal, Upload, message, Form, Input, Divider } from 'antd';
 import { LeftOutlined, UploadOutlined } from '@ant-design/icons';
@@ -13,7 +13,7 @@ import PropertyUnits from './tabs/propertyinfo_units';
 import PropertyLeases from './tabs/propertyinfo_leases';
 import PropertyTenants from './tabs/propertyinfo_tenants';
 import PropertySettings from './tabs/propertyinfo_settings';
-import PropertyRentalApplications from './tabs/propertyinfo_rental_applications'
+import PropertyRentalApplications from './tabs/propertyinfo_rental_applications';
 import './propertyInfo.css';
 
 const { Title } = Typography;
@@ -344,10 +344,10 @@ const PropertyInfo: React.FC = () => {
             <PropertyLeases />
           </TabPane>
           <TabPane tab="Tenants" key="5">
-          <PropertyTenants propertyId={property.key} />
+            <PropertyTenants propertyId={property.key} />
           </TabPane>
           <TabPane tab="Rental Applications" key="6">
-          <PropertyRentalApplications propertyId={property.key} />
+            <PropertyRentalApplications propertyId={property.key} />
           </TabPane>
 
           <TabPane tab="Settings" key="7">
