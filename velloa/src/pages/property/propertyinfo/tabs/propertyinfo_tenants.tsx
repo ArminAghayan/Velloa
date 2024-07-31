@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch, Modal, Card, InputNumber, Divider } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch,  Modal, Card, InputNumber, Divider, Dropdown, Menu } from 'antd';
 import { db } from '../../../../firebase-config';
 import { doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
-import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ClockCircleFilled, CalendarOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ClockCircleFilled, CalendarOutlined, ReloadOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { IconPigMoney, IconPigOff, IconCashBanknote, IconCashBanknoteOff } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -109,6 +109,8 @@ const TenantSummary: React.FC<TenantSummaryProps> = ({ tenant }) => {
     return `${day}${suffix} of the month`;
   };
 
+
+
   return (
     <div className="tenant-summary" style={{ paddingLeft: '24px', paddingRight: '24px', textAlign: 'center' }}>
       <Title level={3} style={{ marginBottom: '24px' }}>Tenant Summary</Title>
@@ -205,6 +207,46 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       setLoading(false);
     }
   };
+  const handleReloadUnits = () => {
+    fetchUnits();
+  };
+
+  const handleResendEmail = async (tenant: Tenant) => {
+    if (tenant.email) {
+      const functions = getFunctions();
+      const sendWelcomeEmail = httpsCallable(functions, 'sendWelcomeEmail');
+      try {
+        message.loading('Sending welcome email...', 0);
+        const result = await sendWelcomeEmail({
+          email: tenant.email,
+          tenantName: tenant.tenantName,
+        });
+        message.destroy();
+        console.log('Welcome email result:', result);
+        message.success('Welcome email resent successfully');
+      } catch (error: any) {
+        message.destroy();
+        console.error('Error resending welcome email:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        let errorMessage = 'Failed to resend welcome email. ';
+        if (error.code) {
+          errorMessage += `Error code: ${error.code}. `;
+        }
+        if (error.message) {
+          errorMessage += `Error message: ${error.message}`;
+        }
+        if (error.details) {
+          console.error('Additional error details:', error.details);
+          errorMessage += ` Additional details: ${JSON.stringify(error.details)}`;
+        }
+        
+        message.error(errorMessage);
+      }
+    } else {
+      message.warning('No email address available for this tenant');
+    }
+  };
 
   const fetchApplications = async () => {
     try {
@@ -223,7 +265,9 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       message.error("Failed to fetch applications. Please check your permissions.");
     }
   };
-
+  const handleReloadApplications = () => {
+    fetchApplications();
+  };
   const fetchUnits = async () => {
     try {
       const propertyRef = doc(db, 'properties', propertyId);
@@ -349,7 +393,25 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       key: 'rentAmount',
       render: (amount: number) => `$${amount.toFixed(2)}`,
     },
+    {
+      title: '',
+      key: 'action',
+      width: 50,
+      render: (_: any, record: Tenant) => (
+        <Dropdown
+          overlay={
+            <Menu>
+              <Menu.Item key="2" onClick={() => handleResendEmail(record)}>Resend Email</Menu.Item>
+            </Menu>
+          }
+          trigger={['click']}
+        >
+          <Button icon={<EllipsisOutlined />} size="small" />
+        </Dropdown>
+      ),
+    },
   ];
+
 
   const applicationColumns = [
     {
@@ -391,8 +453,11 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
   };
 
   const handleRowClick = (tenant: Tenant) => {
-    dispatch(setSelectedTenant(tenant as ReduxTenant));
-    navigate(`/propertyinfo/${propertyId}/tenant/${tenant.tenantName}`);
+    if (tenant.unit) {
+      navigate(`/propertyinfo/${propertyId}/unit/${tenant.unit}`);
+    } else {
+      message.warning('This tenant is not associated with any unit.');
+    }
   };
 
   const handleNewTenantClick = () => {
@@ -738,71 +803,86 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
           </div>
         );
        
-      case 1:
-        return (
-          <div className="tenant-unit">
-            <Divider orientation="center">
-              <Title level={4}>Select Unit</Title>
-            </Divider>
-            <Input
-              placeholder="Search by unit number"
-              style={{ marginBottom: 16 }}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="tenant-unit-search"
-            />
-            <Row gutter={[16, 16]}>
-              {filteredUnits.map(unit => (
-                <Col xs={24} sm={24} md={12} lg={12} xl={12} key={unit.unitId}>
-                  <Card
-                    hoverable
-                    cover={
-                      <img 
-                        alt={unit.unitName}
-                        src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
-                        style={{ height: '200px', objectFit: 'cover' }}
-                      />
-                    }
-                    onClick={() => handleUnitSelect(unit.unitId)}
-                    className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
-                    >
-                      <Card.Meta
-                        title={
-                          <div style={{ overflow: 'hidden' }}>
-                            <Text strong style={{ fontSize: '18px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{unit.propertyName}</Text>
-                            <div style={{ display: 'flex', alignItems: 'center', fontSize: '14px', flexWrap: 'wrap' }}>
-                              <Text type="secondary" style={{ marginRight: 8 }}>Unit {unit.unitName}</Text>
-                              {unit.unitId === selectedApplication?.unitId && (
-                                <Tag color="blue" style={{ marginRight: 4 }}>
-                                  Linked
-                                </Tag>
-                              )}
-                              {unit.unitId === selectedUnit && (
-                                <Tag color="green">
-                                  <CheckCircleOutlined /> Selected
-                                </Tag>
-                              )}
-                            </div>
-                          </div>
-                        }
-                        description={
-                          <>
-                            <Text style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
-                            <Text strong>{`$${unit.marketRent}/month`}</Text>
-                          </>
-                        }
-                      />
-                    </Card>
-                  </Col>
-                ))}
+        case 1:
+          return (
+            <div className="tenant-unit">
+          <div style={{ width: '100%', textAlign: 'center' }}>
+              <Typography.Title level={4} style={{ marginBottom: 24 }}>
+                Select Tenant
+              </Typography.Title>
+            </div>             
+           <Row gutter={16} >
+                <Col span={18}>
+                  <Input
+                    placeholder="Search by unit number"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="tenant-unit-search"
+                  />
+                </Col>
+                <Col span={6} style={{ textAlign: 'right' }}>
+                  <Button 
+                    className='select-unit-reload'
+                    icon={<ReloadOutlined />} 
+                    onClick={handleReloadUnits}
+                  >
+                    Reload
+                  </Button>
+                </Col>
               </Row>
+              <Divider />
+              <div style={{ padding: '16px 0' }}>
+                <Row gutter={[16, 16]}>
+                  {filteredUnits.map(unit => (
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8} key={unit.unitId}>
+                      <Card
+                        hoverable
+                        cover={
+                          <img 
+                            alt={unit.unitName}
+                            src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
+                            style={{ height: '200px', objectFit: 'cover' }}
+                          />
+                        }
+                        onClick={() => handleUnitSelect(unit.unitId)}
+                        className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
+                      >
+                        <Card.Meta
+                          title={
+                            <div style={{ overflow: 'hidden' }}>
+                              <Text strong style={{ fontSize: '18px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{unit.propertyName}</Text>
+                              <div style={{ display: 'flex', alignItems: 'center', fontSize: '14px', flexWrap: 'wrap' }}>
+                                <Text type="secondary" style={{ marginRight: 8 }}>Unit {unit.unitName}</Text>
+                                {unit.unitId === selectedApplication?.unitId && (
+                                  <Tag color="blue" style={{ marginRight: 4 }}>
+                                    Linked
+                                  </Tag>
+                                )}
+                                {unit.unitId === selectedUnit && (
+                                  <Tag color="green">
+                                    <CheckCircleOutlined /> Selected
+                                  </Tag>
+                                )}
+                              </div>
+                            </div>
+                          }
+                          description={
+                            <>
+                              <Text style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
+                              <Text strong>{`$${unit.marketRent}/month`}</Text>
+                            </>
+                          }
+                        />
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
             </div>
           );
         case 2:
           return (
             <div className="tenant-form-content">
-              <Divider orientation="center">
                 <Title level={4}>Rent Details</Title>
-              </Divider>
               <Row gutter={16} style={{ width: '100%', }}>
                 <Col span={12}>
                   <Form.Item
@@ -915,9 +995,8 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
         case 3:
           return (
             <div className="tenant-form-content">
-              <Divider orientation="center">
                 <Title level={4}>Deposit Information</Title>
-              </Divider>
+           
               <Text style={{ textAlign: 'center', marginBottom: 24 }}>Is a deposit required?</Text>
               <Form.Item required>
                 <Row gutter={16}>
@@ -1100,13 +1179,20 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
         </Row>
   
         <Table
-          columns={columns}
-          dataSource={filteredTenants}
-          loading={loading}
-          onRow={(record) => ({
-            onClick: () => handleRowClick(record),
-          })}
-        />
+        columns={columns}
+        dataSource={filteredTenants}
+        loading={loading}
+        onRow={(record) => ({
+          onClick: (event) => {
+            // Prevent row click when clicking on the ellipsis button
+            if ((event.target as HTMLElement).closest('.ant-dropdown-trigger')) {
+              event.stopPropagation();
+            } else {
+              handleRowClick(record);
+            }
+          },
+        })}
+      />
         <Drawer
           title="New Tenant"
           width="50%"
@@ -1146,38 +1232,53 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
         </Drawer>
   
         <Modal
-          title="Select Application"
-          visible={isApplicationModalVisible}
-          onOk={handleApplicationModalOk}
-          onCancel={handleApplicationModalCancel}
-          width={800}
-        >
-        <Input
-          placeholder="Search applications"
-          onChange={handleApplicationSearchChange}
-          style={{ marginBottom: '16px' }}
-        />
+        title="Select Tenant"
+        visible={isApplicationModalVisible}
+        onOk={handleApplicationModalOk}
+        onCancel={handleApplicationModalCancel}
+        width={800}
+      >
+        <Row gutter={16} style={{ marginBottom: '16px' }}>
+          <Col span={18}>
+            <Input
+              className='tenant-search-input'
+              placeholder="Search applications"
+              onChange={handleApplicationSearchChange}
+            />
+          </Col>
+          <Col span={6} style={{ textAlign: 'right' }}>
+            <Button 
+              className='select-tenant-reload'
+              icon={<ReloadOutlined />} 
+              onClick={handleReloadApplications}
+            >
+              Reload
+            </Button>
+          </Col>
+          
+        </Row>
         <Table
-            columns={applicationColumns}
-            dataSource={filteredApplications}
-            rowClassName={(record) => (record.applicationId === selectedApplication?.applicationId ? 'selected-row' : '')}
-            onRow={(record) => ({
-              onClick: () => {
-                setSelectedApplication(record);
-                setSelectedUnit(null);  // Reset the selected unit
-                setSelectedUnitRent(null);  // Reset the selected unit rent
-                setIsApplicationModalVisible(false);
-                form.setFieldsValue({
-                  rentAmount: null,
-                  unitId: null,
-                });
-              },
-            })}
-            rowKey="applicationId"
-          />
+          columns={applicationColumns}
+          dataSource={filteredApplications}
+          rowClassName={(record) => (record.applicationId === selectedApplication?.applicationId ? 'selected-row' : '')}
+          onRow={(record) => ({
+            onClick: () => {
+              setSelectedApplication(record);
+              setSelectedUnit(null);  // Reset the selected unit
+              setSelectedUnitRent(null);  // Reset the selected unit rent
+              setIsApplicationModalVisible(false);
+              form.setFieldsValue({
+                rentAmount: null,
+                unitId: null,
+              });
+            },
+          })}
+          rowKey="applicationId"
+        />
       </Modal>
     </div>
   );
 };
 
 export default PropertyInfoTenants;
+

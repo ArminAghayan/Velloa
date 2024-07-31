@@ -1,31 +1,34 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, HttpsFunction } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions";
 import * as nodemailer from "nodemailer";
+
+interface EmailData {
+  email: string;
+  tenantName: string;
+}
 
 const mailTransport = nodemailer.createTransport({
   host: 'mail.velloaapp.com',
   port: 465,
   secure: true,
   auth: {
-    user: functions.config().email.user,
-    pass: functions.config().email.pass,
+    user: functions.config().email.user as string,
+    pass: functions.config().email.pass as string,
   },
 });
 
-export const sendWelcomeEmail = functions.https.onCall(async (data, context) => {
+export const sendWelcomeEmail = functions.https.onCall(async (data: EmailData, context: functions.https.CallableContext) => {
+  logger.info('sendWelcomeEmail function called', { data });
+
+  if (!data.email || !data.tenantName) {
+    logger.error('Missing required fields', { data });
+    throw new functions.https.HttpsError('invalid-argument', 'Email and tenant name are required.');
+  }
+
   const { email, tenantName } = data;
 
-  const mailOptions = {
+  const mailOptions: nodemailer.SendMailOptions = {
     from: '"Velloa App" <noreply@velloaapp.com>',
     to: email,
     subject: 'Welcome to Your New Home!',
@@ -33,30 +36,31 @@ export const sendWelcomeEmail = functions.https.onCall(async (data, context) => 
   };
 
   try {
-    await mailTransport.sendMail(mailOptions);
-    logger.info('Welcome email sent successfully');
-    return { success: true };
+    logger.info('Attempting to send email', { mailOptions });
+    const info = await mailTransport.sendMail(mailOptions);
+    logger.info('Welcome email sent successfully', { messageId: info.messageId });
+    return { success: true, messageId: info.messageId };
   } catch (error) {
-    const typedError = error as Error; // Explicitly cast error to Error type
-    logger.error('There was an error while sending the email:', typedError);
-    return { error: typedError.toString() };
+    const typedError = error as Error;
+    logger.error('Error sending email:', { error: typedError, stack: typedError.stack });
+    throw new functions.https.HttpsError('internal', `Failed to send email: ${typedError.message}`);
   }
 });
 
-export const helloWorld = onRequest((req, res) => {
+export const helloWorld: HttpsFunction = onRequest((req, res) => {
   logger.info("Hello logs!", { structuredData: true });
   res.send("Hello from Firebase!");
 });
 
 // Example to use onCall from firebase-functions/v2/https
-export const exampleOnCallFunction = functions.https.onCall((data, context) => {
+export const exampleOnCallFunction = functions.https.onCall((data: any, context: functions.https.CallableContext) => {
   logger.info("Example onCall function triggered", { data });
   return { message: "This is an example onCall function response." };
 });
 
 // Example to use onDocumentWritten from firebase-functions/v2/firestore
 export const exampleOnDocumentWritten = functions.firestore.document('example/{docId}')
-  .onWrite((change, context) => {
+  .onWrite((change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
     logger.info("Document written event triggered", { change, context });
     return null;
   });
