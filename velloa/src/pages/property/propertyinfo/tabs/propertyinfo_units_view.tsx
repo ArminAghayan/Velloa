@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Button, Row, Col, Typography, Input, Form, message, Spin, Drawer, Badge, Empty, List, Modal, Upload, UploadFile } from 'antd';
+import { Card, Button, Row, Col, Typography, Input, Form, message, Spin, Drawer, Badge, Empty, List, Modal, Upload, UploadFile,Tag } from 'antd';
 import { LeftOutlined, EditOutlined, SaveOutlined, PlusOutlined, RightOutlined, UploadOutlined } from '@ant-design/icons';
 import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -8,7 +8,6 @@ import { DndContext, PointerSensor, useSensor, DragEndEvent } from '@dnd-kit/cor
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { v4 as uuidv4 } from 'uuid';
-import PropertyInfoUnitViewNotes from './PropertyInfoUnitViewNotes';
 import './propertyinfo_units_view.css';
 
 const { Text, Title } = Typography;
@@ -19,6 +18,22 @@ interface Image {
   url: string;
 }
 
+interface Tenant {
+  firstName: string;
+  lastName: string;
+  fullName?: string; // Optional field to store concatenated name
+  email: string;
+  depositAmount: number;
+  leaseStartDate: string;
+  leaseEndDate: string;
+  inviteToPortal: boolean;
+  lateFeeAmount: number;
+  moveInDate: string;
+  rentAmount: number;
+  rentersInsurance: boolean;
+}
+
+
 interface Unit {
   unitId: string;
   unitName: string;
@@ -26,7 +41,8 @@ interface Unit {
   beds: number;
   baths: number;
   marketRent: number;
-  tenant: string;
+  tenant?: Tenant;
+  tenantId?: string; // Add this field to reference the tenant ID
   description: string;
   notes?: string[];
   images?: Image[];
@@ -36,6 +52,7 @@ interface Property {
   id: string;
   name: string;
 }
+
 
 const listings = [
   { website: "Zillow", status: "Active", date: "2024-06-20", imgSrc: "/assets/zillow-btn-png.png", statusColor: "green" },
@@ -72,10 +89,20 @@ const PropertyInfoUnitView: React.FC = () => {
   const [isImageDrawerVisible, setIsImageDrawerVisible] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
-  const [noteContent, setNoteContent] = useState('');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isImageUpdated, setIsImageUpdated] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
+  
+  const showModal = () => {
+    setIsModalVisible(true);
+  };
+  
+  const handleCancel = () => {
+    setIsModalVisible(false);
+  };
+
+  
   useEffect(() => {
     const fetchPropertyAndUnit = async () => {
       if (!propertyId || !unitName) {
@@ -83,24 +110,36 @@ const PropertyInfoUnitView: React.FC = () => {
         navigate(-1);
         return;
       }
-  
+    
       const db = getFirestore();
       const propertyRef = doc(db, 'properties', propertyId);
-  
+    
       try {
         const propertySnap = await getDoc(propertyRef);
         if (propertySnap.exists()) {
           const propertyData = { id: propertySnap.id, ...propertySnap.data() } as Property;
           setProperty(propertyData);
-  
+    
           // Fetch the specific unit from the 'units' subcollection
           const unitsCollectionRef = collection(db, 'properties', propertyId, 'units');
           const q = query(unitsCollectionRef, where("unitName", "==", unitName));
           const unitQuerySnapshot = await getDocs(q);
-  
+    
           if (!unitQuerySnapshot.empty) {
             const unitDoc = unitQuerySnapshot.docs[0];
             const unitData = { unitId: unitDoc.id, ...unitDoc.data() } as Unit;
+    
+            // Fetch the tenant data
+            if (unitData.tenantId) {
+              const tenantRef = doc(db, 'properties', propertyId, 'tenants', unitData.tenantId);
+              const tenantSnap = await getDoc(tenantRef);
+              if (tenantSnap.exists()) {
+                const tenantData = tenantSnap.data() as Tenant;
+                tenantData.fullName = `${tenantData.firstName} ${tenantData.lastName}`;
+                unitData.tenant = tenantData;
+              }
+            }
+    
             setUnit(unitData);
             setEditedUnit(unitData);
             setFileList(unitData.images ? unitData.images.map(({ url, id }) => {
@@ -125,9 +164,15 @@ const PropertyInfoUnitView: React.FC = () => {
         setIsLoading(false);
       }
     };
+    
   
     fetchPropertyAndUnit();
   }, [propertyId, unitName, navigate, isImageUpdated]);
+  
+  
+  
+  
+  
 
   const handleBack = () => {
     navigate(-1);
@@ -197,9 +242,6 @@ const PropertyInfoUnitView: React.FC = () => {
     setIsImageDrawerVisible(true);
   };
 
-  const handleNewNote = () => {
-    navigate(`/property/${propertyId}/unit/${unitName}/notes/new`);
-  };
 
   const sensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 10 },
@@ -288,6 +330,20 @@ const PropertyInfoUnitView: React.FC = () => {
     return <div>No data available</div>;
   }
 
+
+  const fields = [
+    { field: 'tenant', label: 'Tenant:' },
+    { field: 'leaseStartDate', label: 'Lease Start:' },
+    { field: 'beds', label: 'Beds:' },
+    { field: 'email', label: 'Email:' },
+    { field: 'leaseEndDate', label: 'Lease End:' },
+    { field: 'baths', label: 'Baths:' },
+    { field: 'marketRent', label: 'Rent:' },
+    { field: 'depositAmount', label: 'Deposit:' },
+
+    { field: 'size', label: 'Size (sq ft)' },
+  ] as Array<{ field: keyof Unit | keyof Tenant, label: string }>;
+
   return (
     <div className="property-info-unit-view">
       <Button
@@ -295,50 +351,69 @@ const PropertyInfoUnitView: React.FC = () => {
         icon={<LeftOutlined />}
         onClick={handleBack}
       />
-      <Title level={2} className="property-title">{property.name}</Title>
-      <Title level={2} className="unit-title">Unit {editedUnit.unitName}</Title>
-      <Card
-        className="unit-details-card" 
-        title="Unit Details"
-        extra={
+      <div className="unit-details-container">
+        <div className="unit-details-header">
+          <Title level={4} className="unit-title">Unit {editedUnit.unitName}</Title>
           <Button
             icon={isEditingDetails ? <SaveOutlined /> : <EditOutlined />}
             onClick={() => isEditingDetails ? handleSave('details') : handleEdit('details')}
           >
             {isEditingDetails ? 'Save' : 'Edit'}
           </Button>
-        }
-      >
-        <Form layout="vertical">
-          <Row gutter={[16, 16]}>
-            {([
-              { field: 'unitName', label: 'Unit Name' },
-              { field: 'baths', label: 'Baths' },
-              { field: 'marketRent', label: 'Market Rent' },
-              { field: 'beds', label: 'Beds' },
-              { field: 'size', label: 'Size (square ft)' },
-              { field: 'tenant', label: 'Tenant' }
-            ] as Array<{ field: keyof Unit, label: string }>).map(({ field, label }) => (
-              <Col span={8} key={field}>
-                <Form.Item>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <Text strong style={{ marginRight: 8 }}>{label}:</Text>
-                    {isEditingDetails ? (
-                      <Input 
-                        value={typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}
-                        onChange={(e) => handleInputChange(field, e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                    ) : (
-                      <Text style={{ flex: 1 }}>{typeof editedUnit[field] === 'string' || typeof editedUnit[field] === 'number' ? editedUnit[field] as string | number : ''}</Text>
-                    )}
-                  </div>
+        </div>
+        <Form layout="vertical" style={{ marginTop: '10px' }}>
+          <Row gutter={[16, 0]}>
+            {fields.map(({ field, label }, index) => (
+              <Col span={8} key={field} style={{ marginBottom: '8px' }}>
+                <Form.Item 
+                  label={<Text strong style={{ fontSize: '12px' }}>{label}</Text>}
+                  style={{ marginBottom: 0 }}
+                >
+                  {isEditingDetails ? (
+                    <Input 
+                      size="small"
+                      value={
+                        field === 'tenant' && editedUnit.tenant
+                          ? editedUnit.tenant.fullName
+                          : field === 'email' && editedUnit.tenant
+                          ? editedUnit.tenant.email
+                          : field === 'depositAmount' && editedUnit.tenant
+                          ? editedUnit.tenant.depositAmount.toString()
+                          : field === 'leaseStartDate' && editedUnit.tenant
+                          ? editedUnit.tenant.leaseStartDate
+                          : field === 'leaseEndDate' && editedUnit.tenant
+                          ? editedUnit.tenant.leaseEndDate
+                          : typeof editedUnit[field as keyof Unit] === 'string' || typeof editedUnit[field as keyof Unit] === 'number'
+                          ? editedUnit[field as keyof Unit] as string | number
+                          : ''
+                      }
+                      onChange={(e) => handleInputChange(field as keyof Unit, e.target.value)}
+                    />
+                  ) : (
+                    <Text style={{ fontSize: '14px' }}>
+                      {field === 'tenant' && editedUnit.tenant
+                        ? editedUnit.tenant.fullName
+                        : field === 'email' && editedUnit.tenant
+                        ? editedUnit.tenant.email
+                        : field === 'depositAmount' && editedUnit.tenant
+                        ? `$${editedUnit.tenant.depositAmount.toFixed(2)}`
+                        : field === 'leaseStartDate' && editedUnit.tenant
+                        ? editedUnit.tenant.leaseStartDate
+                        : field === 'leaseEndDate' && editedUnit.tenant
+                        ? editedUnit.tenant.leaseEndDate
+                        : field === 'marketRent'
+                        ? `$${editedUnit[field]}`
+                        : typeof editedUnit[field as keyof Unit] === 'string' || typeof editedUnit[field as keyof Unit] === 'number'
+                        ? editedUnit[field as keyof Unit] as string | number
+                        : ''}
+                    </Text>
+                  )}
                 </Form.Item>
               </Col>
             ))}
           </Row>
         </Form>
-      </Card>
+      </div>
       <Row gutter={16}>
         <Col span={12}>
           <Card
@@ -413,48 +488,114 @@ const PropertyInfoUnitView: React.FC = () => {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={12}>
-          <Card 
-            className="images-card" 
-            title="Images"
-            extra={
-              <Button icon={<PlusOutlined />} onClick={handleAddImage}>
-                Add
-              </Button>
-            }
-            style={{ minHeight: '240px' }}
-          >
-            {fileList.length === 0 ? (
-              <div className="empty-upload-area">
-                <Empty 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No images available"
-                />
-              </div>
-            ) : (
-              <div className="image-list">
-                {fileList.map((file) => (
-                  <div key={file.uid} className="image-item">
-                    <img src={file.url} alt={file.name} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card className="tenant-info-card" title="Tenant Info">
-            {unit.tenant ? (
-              <Text>{unit.tenant}</Text>
-            ) : (
-              <Empty 
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No tenant information available"
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+  <Col span={12}>
+    <Card 
+      className="images-card" 
+      title="Images"
+      extra={
+        <Button icon={<PlusOutlined />} onClick={handleAddImage}>
+          Add
+        </Button>
+      }
+      style={{ minHeight: '240px' }}
+    >
+      {fileList.length === 0 ? (
+        <div className="empty-upload-area">
+          <Empty 
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No images available"
+          />
+        </div>
+      ) : (
+        <div className="image-list">
+          {fileList.map((file) => (
+            <div key={file.uid} className="image-item">
+              <img src={file.url} alt={file.name} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  </Col>
+
+  <Col span={12}>
+  <Card
+    className="tenant-info-card"
+    title="Tenant Info"
+    extra={
+      <Button
+        onClick={showModal}
+        type="primary"
+      >
+       Open
+      </Button>
+    }
+  > 
+      {unit.tenant ? (
+        <>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Text strong>Full Name: </Text><Text>{unit.tenant.fullName}</Text>
+            </Col>
+            <Col span={12}>
+              <Text strong>Deposit Amount: </Text><Text>${unit.tenant.depositAmount.toFixed(2)}</Text>
+            </Col>
+          </Row>
+          <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+              <Text strong>Email: </Text><Text>{unit.tenant.email}</Text>
+            </Col>
+      
+            <Col span={12}>
+              <Text strong>Move In Date: </Text><Text>{unit.tenant.moveInDate}</Text>
+            </Col>
+           
+          </Row>
+          <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+              <Text strong>Rent Amount: </Text><Text>${unit.tenant.rentAmount.toFixed(2)}</Text>
+            </Col>
+         
+            <Col span={12}>
+              <Text strong>Late Fee Amount: </Text><Text>${unit.tenant.lateFeeAmount.toFixed(2)}</Text>
+            </Col>
+          </Row>
+          <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+              <Text strong>Lease Start Date: </Text><Text>{unit.tenant.leaseStartDate}</Text>
+            </Col>
+          
+            <Col span={12}>
+            <Text strong>Invite to Portal: </Text>
+            <Tag color={unit.tenant.inviteToPortal ? 'green' : 'red'}>
+              {unit.tenant.inviteToPortal ? 'Yes' : 'No'}
+            </Tag>
+          </Col>
+            
+          </Row>
+          <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+              <Text strong>Lease End Date: </Text><Text>{unit.tenant.leaseEndDate}</Text>
+            </Col>
+            <Col span={12}>
+            <Text strong>Renter Insurance: </Text>
+            <Tag color={unit.tenant.rentersInsurance ? 'green' : 'red'}>
+              {unit.tenant.rentersInsurance ? 'Yes' : 'No'}
+            </Tag>
+          </Col>
+            
+          </Row>
+        </>
+      ) : (
+        <Empty 
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No tenant information available"
+        />
+      )}
+    </Card>
+  </Col>
+</Row>
+
       <Row gutter={16}>
         <Col span={12}>
           <Card 
@@ -613,14 +754,72 @@ const PropertyInfoUnitView: React.FC = () => {
         onCancel={() => setIsNoteModalVisible(false)}
         footer={null}
       >
-        {propertyId && unitName && (
-          <PropertyInfoUnitViewNotes
-            propertyId={propertyId}
-            unitName={unitName}
-            onSave={() => handleSave('notes')}
-          />
-        )}
+    
       </Modal>
+
+
+      
+      <Modal
+    title="Full Tenant Information"
+    visible={isModalVisible}
+    onCancel={handleCancel}
+    footer={null}
+  >
+    {unit.tenant ? (
+      <>
+        <Row gutter={16}>
+          <Col span={24}>
+            <Text strong>Full Name: </Text><Text>{unit.tenant.fullName}</Text>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={24}>
+            <Text strong>Email: </Text><Text>{unit.tenant.email}</Text>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={24}>
+            <Text strong>Rent Amount: </Text><Text>${unit.tenant.rentAmount.toFixed(2)}</Text>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+            <Text strong>Lease Start Date: </Text><Text>{unit.tenant.leaseStartDate}</Text>
+          </Col>
+          <Col span={12}>
+            <Text strong>Lease End Date: </Text><Text>{unit.tenant.leaseEndDate}</Text>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+            <Text strong>Deposit Amount: </Text><Text>${unit.tenant.depositAmount.toFixed(2)}</Text>
+          </Col>
+          <Col span={12}>
+            <Text strong>Late Fee Amount: </Text><Text>${unit.tenant.lateFeeAmount.toFixed(2)}</Text>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: '10px' }}>
+          <Col span={12}>
+            <Text strong>Invite to Portal: </Text>
+            <Tag color={unit.tenant.inviteToPortal ? 'green' : 'red'}>
+              {unit.tenant.inviteToPortal ? 'Yes' : 'No'}
+            </Tag>
+          </Col>
+          <Col span={12}>
+            <Text strong>Renter Insurance: </Text>
+            <Tag color={unit.tenant.rentersInsurance ? 'green' : 'red'}>
+              {unit.tenant.rentersInsurance ? 'Yes' : 'No'}
+            </Tag>
+          </Col>
+        </Row>
+      </>
+    ) : (
+      <Empty 
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="No tenant information available"
+      />
+    )}
+  </Modal>
     </div>
   );
 };

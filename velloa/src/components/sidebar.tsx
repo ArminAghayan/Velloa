@@ -97,11 +97,11 @@ const Sidebar: React.FC = () => {
           <Menu.Item key="4" icon={<UsersIcon className="custom-icon" />}>
             <Link to="/people">People</Link>
           </Menu.Item>
-          <Menu.Item key="5" icon={<WrenchScrewdriverIcon className="custom-icon" />}>
-            <Link to="/tools">Tools</Link>
+          <Menu.Item key="5" icon={<CheckCircleIcon className="custom-icon" />}>
+            <Link to="/Maintenance">Tasks</Link>
           </Menu.Item>
-          <Menu.Item key="6" icon={<CheckCircleIcon className="custom-icon" />}>
-            <Link to="/tasks">Tasks</Link>
+          <Menu.Item key="6" icon={<WrenchScrewdriverIcon className="custom-icon" />}>
+            <Link to="/tools">Tools</Link>
           </Menu.Item>
           <Menu.Item key="7" icon={<BanknotesIcon className="custom-icon" />}>
             <Link to="/accounting">Accounting</Link>

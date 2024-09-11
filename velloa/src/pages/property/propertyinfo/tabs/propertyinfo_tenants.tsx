@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch,  Modal, Card, InputNumber, Divider, Dropdown, Menu } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch, Modal, Card, InputNumber, Divider, Dropdown, Menu } from 'antd';
 import { db } from '../../../../firebase-config';
-import { doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ClockCircleFilled, CalendarOutlined, ReloadOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { IconPigMoney, IconPigOff, IconCashBanknote, IconCashBanknoteOff } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setSelectedTenant, Tenant as ReduxTenant } from '../../../../components/redux/tenantslice';
+import { Tenant as ReduxTenant } from '../../../../components/redux/tenantslice';
 import { v4 as uuidv4 } from 'uuid';
 import './propertyinfo_tenants.css';
 import moment from 'moment';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-
+import axios from 'axios'; 
 const { Step } = Steps;
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -91,8 +89,8 @@ const TenantSummary: React.FC<TenantSummaryProps> = ({ tenant }) => {
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'Not set';
     const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date.getTime()) 
-      ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) 
+    return date instanceof Date && !isNaN(date.getTime())
+      ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
       : 'Not set';
   };
 
@@ -109,41 +107,39 @@ const TenantSummary: React.FC<TenantSummaryProps> = ({ tenant }) => {
     return `${day}${suffix} of the month`;
   };
 
-
-
   return (
     <div className="tenant-summary" style={{ paddingLeft: '24px', paddingRight: '24px', textAlign: 'center' }}>
       <Title level={3} style={{ marginBottom: '24px' }}>Tenant Summary</Title>
       <Divider />
-      
+
       <Title level={4}>Tenant</Title>
       <Text>Name: {tenant.tenantName || 'Not set'}</Text><br />
       <Text>Move-in Date: {formatDate(tenant.moveInDate)}</Text><br />
       <Text>Invite to Portal: {tenant.inviteToPortal ? 'Yes' : 'No'}</Text><br />
       <Text>Renters Insurance: {tenant.rentersInsurance ? 'Yes' : 'No'}</Text><br />
-      
+
       <Divider />
-      
+
       <Title level={4}>Unit</Title>
       <Text>Unit: {tenant.unit || 'Not assigned'}</Text><br />
-      
+
       <Divider />
-      
+
       <Title level={4}>Rent Details</Title>
       <Text>Rent Amount: {formatCurrency(tenant.rentAmount)}</Text><br />
       <Text>Rent Due Date: {formatRentDueDate(tenant.rentDueDate)}</Text><br />
       <Text>Lease Type: {tenant.leaseType || 'Not set'}</Text><br />
       <Text>Lease Start Date: {formatDate(tenant.leaseStartDate)}</Text><br />
       <Text>Lease End Date: {formatDate(tenant.leaseEndDate)}</Text><br />
-      
+
       <Divider />
-      
+
       <Title level={4}>Deposit Information</Title>
       <Text>Deposit Amount: {tenant.depositAmount !== '' ? formatCurrency(tenant.depositAmount) : 'No deposit set'}</Text><br />
       <Text>Deposit Due Date: {tenant.depositDueDate ? formatDate(tenant.depositDueDate) : ''}</Text><br />
-      
+
       <Divider />
-      
+
       <Title level={4}>Late Fee Policy</Title>
       <Text>Late Fee Amount: {tenant.lateFeeAmount !== '' ? formatCurrency(tenant.lateFeeAmount) : 'No late fees'}</Text><br />
       <Text>Late Fee Start Day: {tenant.lateFeeStartDay !== 0 ? `${tenant.lateFeeStartDay} day(s) after due date` : ''}</Text><br />
@@ -171,7 +167,6 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
   const [filteredUnits, setFilteredUnits] = useState(units);
   const [leaseType, setLeaseType] = useState<string | null>(null);
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const [depositRequired, setDepositRequired] = useState<boolean | null>(null);
   const [lateFeesRequired, setLateFeesRequired] = useState<boolean | null>(null);
   const [formData, setFormData] = useState({});
@@ -207,46 +202,6 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       setLoading(false);
     }
   };
-  const handleReloadUnits = () => {
-    fetchUnits();
-  };
-
-  const handleResendEmail = async (tenant: Tenant) => {
-    if (tenant.email) {
-      const functions = getFunctions();
-      const sendWelcomeEmail = httpsCallable(functions, 'sendWelcomeEmail');
-      try {
-        message.loading('Sending welcome email...', 0);
-        const result = await sendWelcomeEmail({
-          email: tenant.email,
-          tenantName: tenant.tenantName,
-        });
-        message.destroy();
-        console.log('Welcome email result:', result);
-        message.success('Welcome email resent successfully');
-      } catch (error: any) {
-        message.destroy();
-        console.error('Error resending welcome email:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        
-        let errorMessage = 'Failed to resend welcome email. ';
-        if (error.code) {
-          errorMessage += `Error code: ${error.code}. `;
-        }
-        if (error.message) {
-          errorMessage += `Error message: ${error.message}`;
-        }
-        if (error.details) {
-          console.error('Additional error details:', error.details);
-          errorMessage += ` Additional details: ${JSON.stringify(error.details)}`;
-        }
-        
-        message.error(errorMessage);
-      }
-    } else {
-      message.warning('No email address available for this tenant');
-    }
-  };
 
   const fetchApplications = async () => {
     try {
@@ -265,33 +220,31 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       message.error("Failed to fetch applications. Please check your permissions.");
     }
   };
-  const handleReloadApplications = () => {
-    fetchApplications();
-  };
+
   const fetchUnits = async () => {
     try {
       const propertyRef = doc(db, 'properties', propertyId);
       const propertyDoc = await getDoc(propertyRef);
-      
+
       if (!propertyDoc.exists()) {
         console.log("No such property document!");
         setUnits([]);
         return;
       }
-  
+
       const propertyData = propertyDoc.data();
       const propertyImageUrl = propertyData.imageUrl;
       const propertyName = propertyData.propertyName;
-  
+
       const unitsCollectionRef = collection(propertyRef, 'units');
       const unitsSnapshot = await getDocs(unitsCollectionRef);
-  
+
       if (unitsSnapshot.empty) {
         console.log("No units found in the subcollection");
         setUnits([]);
         return;
       }
-  
+
       const availableUnits: Unit[] = unitsSnapshot.docs.map(doc => {
         const unitData = doc.data();
         return {
@@ -309,7 +262,7 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
           size: unitData.size
         };
       });
-  
+
       console.log('Available units:', availableUnits);
       setUnits(availableUnits);
     } catch (error) {
@@ -325,6 +278,31 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
 
   const handleFilterChange = (value: string) => {
     setFilterStatus(value);
+  };
+  const handleResendEmail = async (tenant: Tenant) => {
+    try {
+      const selectedUnitDetails = units.find(unit => unit.unitName === tenant.unit);
+      if (!selectedUnitDetails) {
+        throw new Error('Unit details not found');
+      }
+
+      const response = await axios.post('/api/send-email', {
+        to: tenant.email,
+        name: tenant.firstName,
+        last_name: tenant.lastName,
+        propertyAddress: selectedUnitDetails.propertyName,
+        company_info_name: "Velloa Property Management"
+      });
+
+      if (response.status === 200) {
+        message.success('Email resent successfully');
+      } else {
+        throw new Error('Failed to send email');
+      }
+    } catch (error) {
+      console.error("Error resending email: ", error);
+      message.error("Failed to resend email. Please try again.");
+    }
   };
 
   const handleFilter = () => {
@@ -401,7 +379,9 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
         <Dropdown
           overlay={
             <Menu>
-              <Menu.Item key="2" onClick={() => handleResendEmail(record)}>Resend Email</Menu.Item>
+              <Menu.Item key="resend" onClick={() => handleResendEmail(record)}>
+                Resend Email
+              </Menu.Item>
             </Menu>
           }
           trigger={['click']}
@@ -411,7 +391,6 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
       ),
     },
   ];
-
 
   const applicationColumns = [
     {
@@ -555,7 +534,6 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
   };
-
   const handleFormSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -592,17 +570,17 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
         rentersInsurance: Boolean(allFormData.rentersInsurance),
         rentDueDate: allFormData.rentDueDate || '',
         leaseType: allFormData.leaseType || '',
-        leaseStartDate: allFormData.leaseStartDate 
-          ? moment(allFormData.leaseStartDate).format('YYYY-MM-DD') 
-          : (allFormData.monthToMonthStartDate 
-            ? moment(allFormData.monthToMonthStartDate).format('YYYY-MM-DD') 
+        leaseStartDate: allFormData.leaseStartDate
+          ? moment(allFormData.leaseStartDate).format('YYYY-MM-DD')
+          : (allFormData.monthToMonthStartDate
+            ? moment(allFormData.monthToMonthStartDate).format('YYYY-MM-DD')
             : ''),
-        leaseEndDate: allFormData.leaseEndDate 
-          ? moment(allFormData.leaseEndDate).format('YYYY-MM-DD') 
+        leaseEndDate: allFormData.leaseEndDate
+          ? moment(allFormData.leaseEndDate).format('YYYY-MM-DD')
           : null,
         depositAmount: Number(allFormData.depositAmount) || 0,
-        depositDueDate: allFormData.depositDueDate 
-          ? moment(allFormData.depositDueDate).format('YYYY-MM-DD') 
+        depositDueDate: allFormData.depositDueDate
+          ? moment(allFormData.depositDueDate).format('YYYY-MM-DD')
           : '',
         lateFeeAmount: Number(allFormData.lateFeeAmount) || 0,
         lateFeeStartDay: Number(allFormData.lateFeeStartDay) || 0,
@@ -625,28 +603,24 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
 
       console.log('New tenant added with ID: ', newTenantDocRef.id);
 
-      message.success('Tenant added successfully');
-      handleDrawerClose();
-
-      if (cleanedTenant.email) {
-        const functions = getFunctions();
-        const sendWelcomeEmail = httpsCallable(functions, 'sendWelcomeEmail');
-        try {
-          const result = await sendWelcomeEmail({
-            email: cleanedTenant.email,
-            tenantName: cleanedTenant.tenantName,
-          });
-          console.log('Welcome email result:', result);
-        } catch (error) {
-          console.error('Error sending welcome email:', error);
-          message.warning('Tenant added successfully, but there was an issue sending the welcome email.');
+      // Send email using backend API
+      await axios.post('/api/send-email', {
+        to: cleanedTenant.email,
+        templateVariables: {
+          name: cleanedTenant.firstName,
+          last_name: cleanedTenant.lastName,
+          propertyAddress: selectedUnitDetails.propertyName,
+          company_info_name: "Velloa Property Management"
         }
-      }
+      });
+
+      message.success('Tenant added successfully and notification email sent');
+      handleDrawerClose();
 
       fetchTenantsData();
     } catch (error: any) {
-      console.error("Error adding tenant: ", error);
-      message.error(error.message || "Failed to add tenant. Please check your form inputs and try again.");
+      console.error("Error adding tenant or sending email: ", error);
+      message.error(error.message || "Failed to add tenant or send email. Please check your form inputs and try again.");
     }
   };
 
@@ -669,7 +643,7 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
   };
 
   useEffect(() => {
-    const filtered = units.filter(unit => 
+    const filtered = units.filter(unit =>
       unit.unitName.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUnits(filtered);
@@ -684,7 +658,7 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
     const values = form.getFieldsValue();
     const applicationName = selectedApplication ? `${selectedApplication.firstName} ${selectedApplication.lastName}` : 'Not set';
     const unit = units.find(unit => unit.unitId === selectedUnit);
-    
+
     return (
       <TenantSummary
         tenant={{
@@ -756,9 +730,9 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
                 )}
               </div>
             </div>
-            
+
             <Divider style={{ width: '50%', margin: '24px auto' }} />
-            
+
             <Form layout="vertical" form={form} onFinish={handleFormSubmit}>
               <Row gutter={16} className="move-in-date">
                 <Col span={12}>
@@ -802,383 +776,383 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
             </Form>
           </div>
         );
-       
-        case 1:
-          return (
-            <div className="tenant-unit">
-          <div style={{ width: '100%', textAlign: 'center' }}>
+
+      case 1:
+        return (
+          <div className="tenant-unit">
+            <div style={{ width: '100%', textAlign: 'center' }}>
               <Typography.Title level={4} style={{ marginBottom: 24 }}>
                 Select Tenant
               </Typography.Title>
-            </div>             
-           <Row gutter={16} >
-                <Col span={18}>
-                  <Input
-                    placeholder="Search by unit number"
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="tenant-unit-search"
+            </div>
+            <Row gutter={16}>
+              <Col span={18}>
+                <Input
+                  placeholder="Search by unit number"
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="tenant-unit-search"
+                />
+              </Col>
+              <Col span={6} style={{ textAlign: 'right' }}>
+                <Button
+                  className='select-unit-reload'
+                  icon={<ReloadOutlined />}
+                  onClick={fetchUnits}
+                >
+                  Reload
+                </Button>
+              </Col>
+            </Row>
+            <Divider />
+            <div style={{ padding: '16px 0' }}>
+              <Row gutter={[16, 16]}>
+                {filteredUnits.map(unit => (
+                  <Col xs={24} sm={24} md={8} lg={8} xl={8} key={unit.unitId}>
+                    <Card
+                      hoverable
+                      cover={
+                        <img
+                          alt={unit.unitName}
+                          src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
+                          style={{ height: '200px', objectFit: 'cover' }}
+                        />
+                      }
+                      onClick={() => handleUnitSelect(unit.unitId)}
+                      className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
+                    >
+                      <Card.Meta
+                        title={
+                          <div style={{ overflow: 'hidden' }}>
+                            <Text strong style={{ fontSize: '18px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{unit.propertyName}</Text>
+                            <div style={{ display: 'flex', alignItems: 'center', fontSize: '14px', flexWrap: 'wrap' }}>
+                              <Text type="secondary" style={{ marginRight: 8 }}>Unit {unit.unitName}</Text>
+                              {unit.unitId === selectedApplication?.unitId && (
+                                <Tag color="blue" style={{ marginRight: 4 }}>
+                                  Linked
+                                </Tag>
+                              )}
+                              {unit.unitId === selectedUnit && (
+                                <Tag color="green">
+                                  <CheckCircleOutlined /> Selected
+                                </Tag>
+                              )}
+                            </div>
+                          </div>
+                        }
+                        description={
+                          <>
+                            <Text style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
+                            <Text strong>{`$${unit.marketRent}/month`}</Text>
+                          </>
+                        }
+                      />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="tenant-form-content">
+            <Title level={4}>Rent Details</Title>
+            <Row gutter={16} style={{ width: '100%', }}>
+              <Col span={12}>
+                <Form.Item
+                  name="rentAmount"
+                  label="Rent Amount"
+                  rules={[{ required: true, message: 'Please enter the rent amount' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => {
+                      const parsedValue = parseFloat(value!.replace(/\$\s?|(,*)/g, ''));
+                      return isNaN(parsedValue) ? 0 : parsedValue;
+                    }}
                   />
-                </Col>
-                <Col span={6} style={{ textAlign: 'right' }}>
-                  <Button 
-                    className='select-unit-reload'
-                    icon={<ReloadOutlined />} 
-                    onClick={handleReloadUnits}
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="rentDueDate"
+                  label="Rent Due Date"
+                  rules={[{ required: true, message: 'Please select the rent due date' }]}
+                >
+                  <Select>
+                    {[...Array(28)].map((_, i) => (
+                      <Option key={i + 1} value={i + 1}>{`${i + 1}${['st', 'nd', 'rd'][i] || 'th'} of the month`}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider />
+
+            <Title level={4}>Lease Terms</Title>
+            <Form.Item label="What is the term of this lease?" required>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Button
+                    type={leaseType === 'fixedTerm' ? 'primary' : 'default'}
+                    onClick={() => handleLeaseTypeChange('fixedTerm')}
+                    style={{ width: '100%', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
                   >
-                    Reload
+                    <ClockCircleFilled style={{ fontSize: 32, marginBottom: 8 }} />
+                    Fixed Term
+                  </Button>
+                </Col>
+                <Col span={12}>
+                  <Button
+                    type={leaseType === 'monthToMonth' ? 'primary' : 'default'}
+                    onClick={() => handleLeaseTypeChange('monthToMonth')}
+                    style={{ width: '100%', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <CalendarOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                    Month-to-Month
                   </Button>
                 </Col>
               </Row>
-              <Divider />
-              <div style={{ padding: '16px 0' }}>
-                <Row gutter={[16, 16]}>
-                  {filteredUnits.map(unit => (
-                    <Col xs={24} sm={24} md={8} lg={8} xl={8} key={unit.unitId}>
-                      <Card
-                        hoverable
-                        cover={
-                          <img 
-                            alt={unit.unitName}
-                            src={unit.propertyImageUrl || unit.images?.[0]?.url || '/placeholder-image.jpg'}
-                            style={{ height: '200px', objectFit: 'cover' }}
-                          />
-                        }
-                        onClick={() => handleUnitSelect(unit.unitId)}
-                        className={`unit-card ${unit.unitId === selectedUnit ? 'selected-unit' : ''}`}
-                      >
-                        <Card.Meta
-                          title={
-                            <div style={{ overflow: 'hidden' }}>
-                              <Text strong style={{ fontSize: '18px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{unit.propertyName}</Text>
-                              <div style={{ display: 'flex', alignItems: 'center', fontSize: '14px', flexWrap: 'wrap' }}>
-                                <Text type="secondary" style={{ marginRight: 8 }}>Unit {unit.unitName}</Text>
-                                {unit.unitId === selectedApplication?.unitId && (
-                                  <Tag color="blue" style={{ marginRight: 4 }}>
-                                    Linked
-                                  </Tag>
-                                )}
-                                {unit.unitId === selectedUnit && (
-                                  <Tag color="green">
-                                    <CheckCircleOutlined /> Selected
-                                  </Tag>
-                                )}
-                              </div>
-                            </div>
-                          }
-                          description={
-                            <>
-                              <Text style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{`${unit.beds} bed • ${unit.baths} bath • ${unit.size} sqft`}</Text>
-                              <Text strong>{`$${unit.marketRent}/month`}</Text>
-                            </>
-                          }
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </div>
-            </div>
-          );
-        case 2:
-          return (
-            <div className="tenant-form-content">
-                <Title level={4}>Rent Details</Title>
-              <Row gutter={16} style={{ width: '100%', }}>
-                <Col span={12}>
+            </Form.Item>
+
+            {leaseType === 'fixedTerm' && (
+              <Row gutter={[16, 16]}>
+                <Col span={24}>
                   <Form.Item
-                    name="rentAmount"
-                    label="Rent Amount"
-                    rules={[{ required: true, message: 'Please enter the rent amount' }]}
+                    name="leaseStartDate"
+                    label="Start Date"
+                    rules={[{ required: true, message: 'Please select the lease start date' }]}
                   >
-                    <InputNumber
-                      style={{ width: '100%' }}
-                      formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={value => {
-                        const parsedValue = parseFloat(value!.replace(/\$\s?|(,*)/g, ''));
-                        return isNaN(parsedValue) ? 0 : parsedValue;
-                      }}
-                    />
+                    <DatePicker style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col span={24}>
                   <Form.Item
-                    name="rentDueDate"
-                    label="Rent Due Date"
-                    rules={[{ required: true, message: 'Please select the rent due date' }]}
+                    name="leaseEndDate"
+                    label="End Date"
+                    rules={[{ required: true, message: 'Please select the lease end date' }]}
                   >
-                    <Select>
-                      {[...Array(28)].map((_, i) => (
-                        <Option key={i + 1} value={i + 1}>{`${i + 1}${['st', 'nd', 'rd'][i] || 'th'} of the month`}</Option>
-                      ))}
-                    </Select>
+                    <DatePicker style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               </Row>
-  
-              <Divider />
-  
-              <Title level={4}>Lease Terms</Title>
-              <Form.Item label="What is the term of this lease?" required>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Button
-                      type={leaseType === 'fixedTerm' ? 'primary' : 'default'}
-                      onClick={() => handleLeaseTypeChange('fixedTerm')}
-                      style={{ width: '100%', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <ClockCircleFilled style={{ fontSize: 32, marginBottom: 8 }} />
-                      Fixed Term
-                    </Button>
-                  </Col>
-                  <Col span={12}>
-                    <Button
-                      type={leaseType === 'monthToMonth' ? 'primary' : 'default'}
-                      onClick={() => handleLeaseTypeChange('monthToMonth')}
-                      style={{ width: '100%', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <CalendarOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-                      Month-to-Month
-                    </Button>
-                  </Col>
-                </Row>
+            )}
+
+            {leaseType === 'monthToMonth' && (
+              <Row gutter={[16, 16]}>
+                <Col span={24}>
+                  <Form.Item
+                    name="monthToMonthStartDate"
+                    label="Start Date"
+                    rules={[{ required: true, message: 'Please select the start date for the month-to-month lease' }]}
+                  >
+                    <DatePicker style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            )}
+
+            {leaseType === 'fixedTerm' && (
+              <Form.Item
+                name="rollover"
+                valuePropName="checked"
+                style={{ display: 'flex', alignItems: 'center', paddingTop: 16 }}
+              >
+                <Switch style={{ marginRight: 8 }} />
+                Rollover to 'Month to Month' at the end of the term
               </Form.Item>
-  
-              {leaseType === 'fixedTerm' && (
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
+            )}
+          </div>
+        );
+      case 3:
+        return (
+          <div className="tenant-form-content">
+            <Title level={4}>Deposit Information</Title>
+
+            <Text style={{ textAlign: 'center', marginBottom: 24 }}>Is a deposit required?</Text>
+            <Form.Item required>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Button
+                    type={depositRequired === true ? 'primary' : 'default'}
+                    onClick={() => handleDepositSelection(true)}
+                    style={{ width: '100%', minWidth: '150px', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <IconPigMoney size={50} />
+                    Deposit
+                  </Button>
+                </Col>
+                <Col span={12}>
+                  <Button
+                    type={depositRequired === false ? 'primary' : 'default'}
+                    onClick={() => handleDepositSelection(false)}
+                    style={{ width: '100%', minWidth: '150px', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <IconPigOff size={50} />
+                    No Deposit
+                  </Button>
+                </Col>
+              </Row>
+            </Form.Item>
+
+            {depositRequired && (
+              <>
+                <Row gutter={16} style={{ width: '100%', maxWidth: 600, marginTop: 24 }}>
+                  <Col span={12}>
                     <Form.Item
-                      name="leaseStartDate"
-                      label="Start Date"
-                      rules={[{ required: true, message: 'Please select the lease start date' }]}
+                      name="depositAmount"
+                      label="Deposit Amount"
+                      rules={[{ required: depositRequired, message: 'Please enter the deposit amount' }]}
+                    >
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      name="depositDueDate"
+                      label="Deposit Due Date"
+                      rules={[{ required: depositRequired, message: 'Please select the deposit due date' }]}
                     >
                       <DatePicker style={{ width: '100%' }} />
                     </Form.Item>
                   </Col>
-                  <Col span={24}>
+                </Row>
+              </>
+            )}
+          </div>
+        );
+      case 4:
+        return (
+          <div className="tenant-form-content">
+            <Divider orientation="center">
+              <Title level={4}>Late Fee Policy</Title>
+            </Divider>
+
+            <Text style={{ textAlign: 'center', marginBottom: 24 }}>Are late fees applicable?</Text>
+            <Form.Item required>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Button
+                    type={lateFeesRequired === true ? 'primary' : 'default'}
+                    onClick={() => handleLateFeeSelection(true)}
+                    style={{
+                      width: '100%',
+                      minWidth: '150px',
+                      height: 150,
+                      fontSize: 18,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <IconCashBanknote size={50} />
+                    Late Fees
+                  </Button>
+                </Col>
+                <Col span={12}>
+                  <Button
+                    type={lateFeesRequired === false ? 'primary' : 'default'}
+                    onClick={() => handleLateFeeSelection(false)}
+                    style={{
+                      width: '100%',
+                      minWidth: '150px',
+                      height: 150,
+                      fontSize: 18,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <IconCashBanknoteOff size={50} />
+                    No Late Fees
+                  </Button>
+                </Col>
+              </Row>
+            </Form.Item>
+
+            {lateFeesRequired && (
+              <>
+                <Row gutter={16} style={{ width: '100%', maxWidth: 600, marginTop: 24 }}>
+                  <Col span={12}>
                     <Form.Item
-                      name="leaseEndDate"
-                      label="End Date"
-                      rules={[{ required: true, message: 'Please select the lease end date' }]}
+                      name="lateFeeAmount"
+                      label="Late Fee Amount"
+                      rules={[{ required: lateFeesRequired, message: 'Please enter the late fee amount' }]}
                     >
-                      <DatePicker style={{ width: '100%' }} />
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      name="lateFeeStartDay"
+                      label="Late Fee Start Day"
+                      rules={[{ required: lateFeesRequired, message: 'Please select when late fees start' }]}
+                    >
+                      <Select>
+                        {[...Array(60)].map((_, i) => (
+                          <Option key={i + 1} value={i + 1}>{`${i + 1} day${i === 0 ? '' : 's'} after due date`}</Option>
+                        ))}
+                      </Select>
                     </Form.Item>
                   </Col>
                 </Row>
-              )}
-  
-              {leaseType === 'monthToMonth' && (
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
-                    <Form.Item
-                      name="monthToMonthStartDate"
-                      label="Start Date"
-                      rules={[{ required: true, message: 'Please select the start date for the month-to-month lease' }]}
-                    >
-                      <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
-  
-              {leaseType === 'fixedTerm' && (
-                <Form.Item
-                  name="rollover"
-                  valuePropName="checked"
-                  style={{ display: 'flex', alignItems: 'center', paddingTop: 16 }}
-                >
-                  <Switch style={{ marginRight: 8 }} />
-                  Rollover to 'Month to Month' at the end of the term
-                </Form.Item>
-              )}
-            </div>
-          );
-        case 3:
-          return (
-            <div className="tenant-form-content">
-                <Title level={4}>Deposit Information</Title>
-           
-              <Text style={{ textAlign: 'center', marginBottom: 24 }}>Is a deposit required?</Text>
-              <Form.Item required>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Button
-                      type={depositRequired === true ? 'primary' : 'default'}
-                      onClick={() => handleDepositSelection(true)}
-                      style={{ width: '100%', minWidth: '150px', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <IconPigMoney size={50} />
-                      Deposit
-                    </Button>
-                  </Col>
-                  <Col span={12}>
-                    <Button
-                      type={depositRequired === false ? 'primary' : 'default'}
-                      onClick={() => handleDepositSelection(false)}
-                      style={{ width: '100%', minWidth: '150px', height: 150, fontSize: 18, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <IconPigOff size={50} />
-                      No Deposit
-                    </Button>
-                  </Col>
-                </Row>
-              </Form.Item>
-  
-              {depositRequired && (
-                <>
-                  <Row gutter={16} style={{ width: '100%', maxWidth: 600, marginTop: 24 }}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="depositAmount"
-                        label="Deposit Amount"
-                        rules={[{ required: depositRequired, message: 'Please enter the deposit amount' }]}
-                      >
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="depositDueDate"
-                        label="Deposit Due Date"
-                        rules={[{ required: depositRequired, message: 'Please select the deposit due date' }]}
-                      >
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </>
-              )}
-            </div>
-          );
-        case 4:
-          return (
-            <div className="tenant-form-content">
-              <Divider orientation="center">
-                <Title level={4}>Late Fee Policy</Title>
-              </Divider>
-  
-              <Text style={{ textAlign: 'center', marginBottom: 24 }}>Are late fees applicable?</Text>
-              <Form.Item required>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Button
-                      type={lateFeesRequired === true ? 'primary' : 'default'}
-                      onClick={() => handleLateFeeSelection(true)}
-                      style={{
-                        width: '100%',
-                        minWidth: '150px',
-                        height: 150,
-                        fontSize: 18,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <IconCashBanknote size={50} />
-                      Late Fees
-                    </Button>
-                  </Col>
-                  <Col span={12}>
-                    <Button
-                      type={lateFeesRequired === false ? 'primary' : 'default'}
-                      onClick={() => handleLateFeeSelection(false)}
-                      style={{
-                        width: '100%',
-                        minWidth: '150px',
-                        height: 150,
-                        fontSize: 18,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <IconCashBanknoteOff size={50} />
-                      No Late Fees
-                    </Button>
-                  </Col>
-                </Row>
-              </Form.Item>
-  
-              {lateFeesRequired && (
-                <>
-                  <Row gutter={16} style={{ width: '100%', maxWidth: 600, marginTop: 24 }}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="lateFeeAmount"
-                        label="Late Fee Amount"
-                        rules={[{ required: lateFeesRequired, message: 'Please enter the late fee amount' }]}
-                      >
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="lateFeeStartDay"
-                        label="Late Fee Start Day"
-                        rules={[{ required: lateFeesRequired, message: 'Please select when late fees start' }]}
-                      >
-                        <Select>
-                          {[...Array(60)].map((_, i) => (
-                            <Option key={i + 1} value={i + 1}>{`${i + 1} day${i === 0 ? '' : 's'} after due date`}</Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </>
-              )}
-            </div>
-          );
-        case 5:
-          return getSummaryContent();
-        default:
-          return null;
-      }
-    };
-  
-    return (
-      <div className="tenants-container">
-        <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-          <Col span={16}>
-            <Row gutter={16}>
-              <Col>
-                <Input
-                  className="tenant-search-input"
-                  placeholder="Search tenants"
-                  value={searchText}
-                  onChange={handleSearchChange}
-                />
-              </Col>
-              <Col>
-                <Select
-                  className="tenant-dropdown-input"
-                  placeholder="Filter by status"
-                  onChange={handleFilterChange}
-                  allowClear
-                >
-                  <Option value="Current">Current</Option>
-                  <Option value="Past">Past</Option>
-                </Select>
-              </Col>
-            </Row>
-          </Col>
-          <Col span={8} style={{ textAlign: 'right' }}>
-            <Button type="default" className="new-tenant-button" onClick={handleNewTenantClick}>
-              <PlusOutlined /> New Tenant
-            </Button>
-          </Col>
-        </Row>
-  
-        <Table
+              </>
+            )}
+          </div>
+        );
+      case 5:
+        return getSummaryContent();
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="tenants-container">
+      <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+        <Col span={16}>
+          <Row gutter={16}>
+            <Col>
+              <Input
+                className="tenant-search-input"
+                placeholder="Search tenants"
+                value={searchText}
+                onChange={handleSearchChange}
+              />
+            </Col>
+            <Col>
+              <Select
+                className="tenant-dropdown-input"
+                placeholder="Filter by status"
+                onChange={handleFilterChange}
+                allowClear
+              >
+                <Option value="Current">Current</Option>
+                <Option value="Past">Past</Option>
+              </Select>
+            </Col>
+          </Row>
+        </Col>
+        <Col span={8} style={{ textAlign: 'right' }}>
+          <Button type="primary" className="new-tenant-button" onClick={handleNewTenantClick}>
+            <PlusOutlined /> New Tenant
+          </Button>
+        </Col>
+      </Row>
+
+      <Table
         columns={columns}
         dataSource={filteredTenants}
         loading={loading}
@@ -1193,45 +1167,46 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
           },
         })}
       />
-        <Drawer
-          title="New Tenant"
-          width="50%"
-          onClose={handleDrawerClose}
-          visible={drawerVisible}
-          bodyStyle={{ paddingBottom: 80 }}
-          footer={
-            <div style={{ textAlign: 'right' }}>
-              {currentStep > 0 && (
-                <Button style={{ marginRight: 8 }} onClick={prevStep}>
-                  Previous
-                </Button>
-              )}
-              {currentStep < steps.length - 1 && (
-                <Button type="primary" onClick={nextStep}>
-                  Next
-                </Button>
-              )}
-              {currentStep === steps.length - 1 && (
-                <Button type="primary" onClick={handleFormSubmit}>
-                  Submit
-                </Button>
-              )}
-            </div>
-          }
-        >
-          <Steps current={currentStep}>
-            {steps.map(item => (
-              <Step key={item.title} title={item.title} />
-            ))}
-          </Steps>
-          <Form layout="vertical" form={form} initialValues={{ rentAmount: selectedUnitRent, leaseType, unitId: selectedUnit }} onFinish={handleFormSubmit}>
-            <div className="steps-content">
-              {renderStepContent(currentStep)}
-            </div>
-          </Form>
-        </Drawer>
-  
-        <Modal
+
+      <Drawer
+        title="New Tenant"
+        width="50%"
+        onClose={handleDrawerClose}
+        visible={drawerVisible}
+        bodyStyle={{ paddingBottom: 80 }}
+        footer={
+          <div style={{ textAlign: 'right' }}>
+            {currentStep > 0 && (
+              <Button style={{ marginRight: 8 }} onClick={prevStep}>
+                Previous
+              </Button>
+            )}
+            {currentStep < steps.length - 1 && (
+              <Button type="primary" onClick={nextStep}>
+                Next
+              </Button>
+            )}
+            {currentStep === steps.length - 1 && (
+              <Button type="primary" onClick={handleFormSubmit}>
+                Submit
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <Steps current={currentStep} size="small" direction="horizontal" type="navigation" labelPlacement="vertical">
+          {steps.map(item => (
+            <Step key={item.title} title={item.title} description={item.content} />
+          ))}
+        </Steps>
+        <Form layout="vertical" form={form} initialValues={{ rentAmount: selectedUnitRent, leaseType, unitId: selectedUnit }} onFinish={handleFormSubmit}>
+          <div className="steps-content">
+            {renderStepContent(currentStep)}
+          </div>
+        </Form>
+      </Drawer>
+
+      <Modal
         title="Select Tenant"
         visible={isApplicationModalVisible}
         onOk={handleApplicationModalOk}
@@ -1247,15 +1222,14 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
             />
           </Col>
           <Col span={6} style={{ textAlign: 'right' }}>
-            <Button 
+            <Button
               className='select-tenant-reload'
-              icon={<ReloadOutlined />} 
-              onClick={handleReloadApplications}
+              icon={<ReloadOutlined />}
+              onClick={fetchApplications}
             >
               Reload
             </Button>
           </Col>
-          
         </Row>
         <Table
           columns={applicationColumns}
@@ -1281,4 +1255,3 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
 };
 
 export default PropertyInfoTenants;
-

@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Typography, Button, Modal, Input, Form, Divider, notification } from 'antd';
+import { Row, Col, Typography, Button, Input, Form, Divider, notification, Menu, Upload, Image } from 'antd';
 import { 
   IconSettings, IconPhoto, IconBuildingBank, IconHome2, IconUserCircle, 
   IconPigMoney, IconFileDollar, IconFiles, IconMailbox, IconDeviceFloppy, 
-  IconPencil 
+  IconPencil, IconUpload 
 } from '@tabler/icons-react';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import './propertyinfo_settings.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { Dragger } = Upload;
 
 interface PropertySettingsProps {
   showModal: (title: string, description: string, type?: string) => void;
@@ -19,14 +20,13 @@ interface PropertySettingsProps {
   handleResize: () => void;
   handleDelete: () => void;
   handlePhotosUpload: (file: File) => Promise<boolean>;
-  updatePropertyName: (newName: string) => void;  // Add the new prop for updating the name
+  updatePropertyName: (newName: string) => void;
 }
 
 const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ 
   showModal, handleBannerUpload, imageUrl, photos, handleResize, handleDelete, handlePhotosUpload, updatePropertyName 
 }) => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
+  const [selectedMenu, setSelectedMenu] = useState('general');
   const [propertyName, setPropertyName] = useState('');
   const [street1, setStreet1] = useState('');
   const [street2, setStreet2] = useState('');
@@ -72,10 +72,10 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
   };
 
   useEffect(() => {
-    if (isModalVisible) {
+    if (selectedMenu === 'general') {
       fetchPropertyInfo();
     }
-  }, [isModalVisible, property.key]);
+  }, [selectedMenu, property.key]);
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -109,299 +109,214 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
       placement: 'top',
     });
 
-    updatePropertyName(propertyName);  // Call the callback to update the name in PropertyInfo
-    setIsModalVisible(false);
+    updatePropertyName(propertyName);
   };
 
-  const showGeneralInfoModal = () => {
-    setModalTitle("General Information");
-    setIsModalVisible(true);
+  const handleMenuClick = ({ key }: { key: string }) => {
+    setSelectedMenu(key);
   };
 
-  const handleCancel = () => {
-    setIsModalVisible(false);
+  const renderContent = () => {
+    switch (selectedMenu) {
+      case 'general':
+        return (
+          <Form form={form} layout="vertical">
+            <Text>This information will be used in your online listings.</Text>
+            <Divider />
+            <Form.Item 
+              label={<span className="generalinfo_label">Property Name</span>} 
+              name="propertyName"
+              rules={[{ required: true, message: 'Please enter the property name' }]}
+            >
+              <Input value={propertyName} onChange={(e) => setPropertyName(e.target.value)} />
+            </Form.Item>
+            <Form.Item 
+              label={<span className="generalinfo_label">Street 1</span>} 
+              name="street1"
+              rules={[{ required: true, message: 'Please enter the street address' }]}
+            >
+              <Input value={street1} onChange={(e) => setStreet1(e.target.value)} />
+            </Form.Item>
+            <Form.Item label={<span className="generalinfo_label">Street 2</span>} name="street2">
+              <Input value={street2} onChange={(e) => setStreet2(e.target.value)} />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={6}>
+                <Form.Item 
+                  label={<span className="generalinfo_label">City</span>} 
+                  name="city"
+                  rules={[{ required: true, message: 'Please enter the city' }]}
+                >
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item 
+                  label={<span className="generalinfo_label">State</span>} 
+                  name="state"
+                  rules={[{ required: true, message: 'Please enter the state' }]}
+                >
+                  <Input value={state} onChange={(e) => setState(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item 
+                  label={<span className="generalinfo_label">Zip code</span>} 
+                  name="zip"
+                  rules={[{ required: true, message: 'Please enter the zip code' }]}
+                >
+                  <Input value={zip} onChange={(e) => setZip(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item 
+                  label={<span className="generalinfo_label">Country</span>} 
+                  name="country"
+                  rules={[{ required: true, message: 'Please enter the country' }]}
+                >
+                  <Input value={country} onChange={(e) => setCountry(e.target.value)} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label={<span className="generalinfo_label">Detailed description of this property</span>} name="propertyDescription">
+              <Input.TextArea value={propertyDescription} onChange={handleDescriptionChange} />
+            </Form.Item>
+            <div className="character-count">{characterCount}/800 characters</div>
+            <Button type="primary" onClick={handleSave}>Save</Button>
+          </Form>
+        );
+      case 'photos':
+        return (
+          <>
+            <Text>Upload and manage property photos here.</Text>
+            <Divider />
+            <Dragger 
+              customRequest={async ({ file, onSuccess, onError }) => {
+                try {
+                  await handlePhotosUpload(file as File);
+                  if (onSuccess) onSuccess("ok");
+                  notification.success({
+                    message: 'Upload Successful',
+                    description: 'The photo has been uploaded successfully.',
+                    placement: 'top',
+                  });
+                } catch (error) {
+                  if (onError) onError(error as Error);
+                  notification.error({
+                    message: 'Upload Failed',
+                    description: 'The photo upload failed. Please try again.',
+                    placement: 'top',
+                  });
+                }
+              }}
+              multiple
+              accept="image/*"
+            >
+              <p className="ant-upload-drag-icon">
+                <IconUpload size={48} />
+              </p>
+              <p className="ant-upload-text">Click or drag file to this area to upload</p>
+              <p className="ant-upload-hint">Support for a single or bulk upload.</p>
+            </Dragger>
+            <Divider />
+            <Row gutter={16}>
+              {photos.map((photo, index) => (
+                <Col key={index} span={6}>
+                  <Image src={photo} alt={`Property Photo ${index + 1}`} style={{ width: '100%' }} />
+                </Col>
+              ))}
+            </Row>
+          </>
+        );
+      case 'bank':
+        return <Text>Bank Accounts content goes here.</Text>;
+      case 'type':
+        return <Text>Property Type content goes here.</Text>;
+      case 'owners':
+        return <Text>Owners content goes here.</Text>;
+      case 'reserve':
+        return <Text>Reserve Funds content goes here.</Text>;
+      case 'lateFees':
+        return <Text>Late Fees content goes here.</Text>;
+      case 'portal':
+        return <Text>Tenant Portal content goes here.</Text>;
+      case 'notifications':
+        return <Text>Rent & Payment Notifications content goes here.</Text>;
+      case 'requests':
+        return <Text>Tenant Requests content goes here.</Text>;
+      case 'applications':
+        return <Text>Rental Applications content goes here.</Text>;
+      case 'paymentInstructions':
+        return <Text>Payment Instructions content goes here.</Text>;
+      case 'managementFees':
+        return <Text>Management Fees content goes here.</Text>;
+      case 'paymentAllocation':
+        return <Text>Payment Allocation content goes here.</Text>;
+      case 'customAllocations':
+        return <Text>Custom Allocations content goes here.</Text>;
+      default:
+        return <Text>Select an item from the menu.</Text>;
+    }
   };
+
   return (
-    <>
-      <Row gutter={16} className="settings-row">
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={showGeneralInfoModal}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconSettings className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">General Information</Title>
-                  <Text className="settings-card-description">Update your property address, name and description.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Photos", "Upload photos for this property", "photos")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconPhoto className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Photos</Title>
-                  <Text className="settings-card-description">Upload photos for this property</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Bank Accounts", "Select the property bank accounts.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconBuildingBank className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Bank Accounts</Title>
-                  <Text className="settings-card-description">Select the property bank accounts.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Property Type", "Let us know which property")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconHome2 className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Property Type</Title>
-                  <Text className="settings-card-description">Let us know which property</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Owners", "Update the owners for this property.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconUserCircle className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Owners</Title>
-                  <Text className="settings-card-description">Update the owners for this property.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Reserve Funds", "Edit the amount of reserve funds.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconPigMoney className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Reserve Funds</Title>
-                  <Text className="settings-card-description">Edit the amount of reserve funds.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Late Fees", "Set the late fees for these leases.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconFileDollar className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Late Fees</Title>
-                  <Text className="settings-card-description">Set the late fees for these leases.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Tenant Portal", "Resident portal access settings Edit the tenant portal settings.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconFiles className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Tenant Portal</Title>
-                  <Text className="settings-card-description">Resident portal access settings Edit the tenant portal settings.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Rent & Payment Notifications", "Send email and text notifications to your tenants.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconMailbox className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Rent & Payment Notifications</Title>
-                  <Text className="settings-card-description">Send email and text notifications to your tenants.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Tenant Requests", "Get notified and automatically assign new tenant requests.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconPencil className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Tenant Requests</Title>
-                  <Text className="settings-card-description">Get notified and automatically assign new tenant requests.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Rental Applications", "Edit the property rental applications")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconDeviceFloppy className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Rental Applications</Title>
-                  <Text className="settings-card-description">Edit the property rental applications</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Payment Instructions", "Specify instructions for tenants on how they should pay their rent.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconFiles className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Payment Instructions</Title>
-                  <Text className="settings-card-description">Specify instructions for tenants on how they should pay their rent.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Management Fees", "Calculate and generate bills automatically for your properties")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconFileDollar className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Management Fees</Title>
-                  <Text className="settings-card-description">Calculate and generate bills automatically for your properties</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Payment Allocation", "Edit how payments are automatically received, either by custom priority or date.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconFiles className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Payment Allocation</Title>
-                  <Text className="settings-card-description">Edit how payments are automatically received, either by custom priority or date.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-        <Col span={6} className="property-col">
-          <button className="settings-card-button" onClick={() => showModal("Custom Allocations", "Add custom allocation priorities to your lease charges and credits.")}>
-            <Card className="settings-card">
-              <div className="settings-card-content">
-                <IconPencil className="settings-card-icon" size={48} />
-                <div className="settings-card-details">
-                  <Title level={5} className="settings-card-title">Custom Allocations</Title>
-                  <Text className="settings-card-description">Add custom allocation priorities to your lease charges and credits.</Text>
-                </div>
-              </div>
-            </Card>
-          </button>
-        </Col>
-      </Row>
-
-      <Modal 
-        title={<div className="custom-modal-header"><Title level={4}>{modalTitle}</Title></div>}
-        visible={isModalVisible}
-        footer={[
-          <Button key="save" type="primary" onClick={handleSave}>Save</Button>,
-        ]}
-        className="custom-glass-modal"
-        width={800}  // Set the width of the modal
-        maskClosable={true}  // Allow closing when clicking outside
-        closable={true}      // Allow closing with the close button (X)
-        onCancel={handleCancel} // Handle the cancel button
-      >
-        <Text>This information will be used in your online listings.</Text>
-        <Divider />  
-        <Form form={form} layout="vertical">
-          <Form.Item 
-            label={<span className="generalinfo_label">Property Name</span>} 
-            name="propertyName"
-            rules={[{ required: true, message: 'Please enter the property name' }]}
-          >
-            <Input value={propertyName} onChange={(e) => setPropertyName(e.target.value)} />
-          </Form.Item>
-          <Form.Item 
-            label={<span className="generalinfo_label">Street 1</span>} 
-            name="street1"
-            rules={[{ required: true, message: 'Please enter the street address' }]}
-          >
-            <Input value={street1} onChange={(e) => setStreet1(e.target.value)} />
-          </Form.Item>
-          <Form.Item label={<span className="generalinfo_label">Street 2</span>} name="street2">
-            <Input value={street2} onChange={(e) => setStreet2(e.target.value)} />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item 
-                label={<span className="generalinfo_label">City</span>} 
-                name="city"
-                rules={[{ required: true, message: 'Please enter the city' }]}
-              >
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item 
-                label={<span className="generalinfo_label">State</span>} 
-                name="state"
-                rules={[{ required: true, message: 'Please enter the state' }]}
-              >
-                <Input value={state} onChange={(e) => setState(e.target.value)} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item 
-                label={<span className="generalinfo_label">Zip code</span>} 
-                name="zip"
-                rules={[{ required: true, message: 'Please enter the zip code' }]}
-              >
-                <Input value={zip} onChange={(e) => setZip(e.target.value)} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item 
-                label={<span className="generalinfo_label">Country</span>} 
-                name="country"
-                rules={[{ required: true, message: 'Please enter the country' }]}
-              >
-                <Input value={country} onChange={(e) => setCountry(e.target.value)} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label={<span className="generalinfo_label">Detailed description of this property</span>} name="propertyDescription">
-            <Input.TextArea value={propertyDescription} onChange={handleDescriptionChange} />
-          </Form.Item>
-          <div className="character-count">{characterCount}/800 characters</div>  
-        </Form>
-      </Modal>
-    </>
+    <Row className="settings-row">
+      <Col span={6}>
+        <Menu onClick={handleMenuClick} selectedKeys={[selectedMenu]} mode="vertical">
+          <Menu.Item key="general" icon={<IconSettings size={20} />}>
+            General Information
+          </Menu.Item>
+          <Menu.Item key="photos" icon={<IconPhoto size={20} />}>
+            Photos
+          </Menu.Item>
+          <Menu.Item key="bank" icon={<IconBuildingBank size={20} />}>
+            Bank Accounts
+          </Menu.Item>
+          <Menu.Item key="type" icon={<IconHome2 size={20} />}>
+            Property Type
+          </Menu.Item>
+          <Menu.Item key="owners" icon={<IconUserCircle size={20} />}>
+            Owners
+          </Menu.Item>
+          <Menu.Item key="reserve" icon={<IconPigMoney size={20} />}>
+            Reserve Funds
+          </Menu.Item>
+          <Menu.Item key="lateFees" icon={<IconFileDollar size={20} />}>
+            Late Fees
+          </Menu.Item>
+          <Menu.Item key="portal" icon={<IconFiles size={20} />}>
+            Tenant Portal
+          </Menu.Item>
+          <Menu.Item key="notifications" icon={<IconMailbox size={20} />}>
+            Rent & Payment Notifications
+          </Menu.Item>
+          <Menu.Item key="requests" icon={<IconPencil size={20} />}>
+            Tenant Requests
+          </Menu.Item>
+          <Menu.Item key="applications" icon={<IconDeviceFloppy size={20} />}>
+            Rental Applications
+          </Menu.Item>
+          <Menu.Item key="paymentInstructions" icon={<IconFiles size={20} />}>
+            Payment Instructions
+          </Menu.Item>
+          <Menu.Item key="managementFees" icon={<IconFileDollar size={20} />}>
+            Management Fees
+          </Menu.Item>
+          <Menu.Item key="paymentAllocation" icon={<IconFiles size={20} />}>
+            Payment Allocation
+          </Menu.Item>
+          <Menu.Item key="customAllocations" icon={<IconPencil size={20} />}>
+            Custom Allocations
+          </Menu.Item>
+        </Menu>
+      </Col>
+      <Col span={18}>
+        <div className="content-container">
+          {renderContent()}
+        </div>
+      </Col>
+    </Row>
   );
 };
 
 export default PropertyInfoSettings;
-
-
-

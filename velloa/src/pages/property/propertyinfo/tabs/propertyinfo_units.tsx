@@ -326,7 +326,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
             <Row gutter={16}>
               <Col>
                 <Input
-                  className='unit-dropdown-input'
+                  className='unit-search-input'
                   placeholder="Search units"
                   value={searchText}
                   onChange={handleSearchChange}
@@ -350,7 +350,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
             <Button 
             className='new-unit-button'
             onClick={handleNewUnitClick} 
-            type="default" 
+            type="primary" 
             icon={<PlusOutlined />}>
               New Unit
             </Button>

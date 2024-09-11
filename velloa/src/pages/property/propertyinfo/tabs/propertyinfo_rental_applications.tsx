@@ -464,10 +464,10 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
               </Row>
             </Col>
             <Col span={8} style={{ textAlign: 'right' }}>
-              <Button type="default" className="new-application-button" onClick={handleNewApplicationClick} style={{ marginRight: '8px' }}>
+              <Button type="primary" className="new-application-button" onClick={handleNewApplicationClick} style={{ marginRight: '8px' }}>
                 <PlusOutlined /> New Application
               </Button>
-              <Button type="primary" className="send-link-button" onClick={handleSendLinkClick}>
+              <Button type="default" className="send-link-button" onClick={handleSendLinkClick}>
                 <LinkOutlined /> Send Link
               </Button>
             </Col>

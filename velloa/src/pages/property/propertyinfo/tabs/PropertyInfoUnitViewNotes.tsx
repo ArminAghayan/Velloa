@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, message, Typography, Input } from 'antd';
+import { Button, message, Input } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getFirestore, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadString } from 'firebase/storage';
@@ -13,7 +13,6 @@ import BulletList from '@tiptap/extension-bullet-list';
 import ListItem from '@tiptap/extension-list-item';
 import { nanoid } from 'nanoid';
 
-const { Title } = Typography;
 
 interface PropertyData {
   id: string;

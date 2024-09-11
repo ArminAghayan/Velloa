@@ -14,6 +14,8 @@ import PropertyLeases from './tabs/propertyinfo_leases';
 import PropertyTenants from './tabs/propertyinfo_tenants';
 import PropertySettings from './tabs/propertyinfo_settings';
 import PropertyRentalApplications from './tabs/propertyinfo_rental_applications';
+import PropertyinfoNotes from './tabs/propertyinfo_notes';
+import PropertyFiles from './tabs/propertyinfo_files';
 import './propertyInfo.css';
 
 const { Title } = Typography;
@@ -349,8 +351,16 @@ const PropertyInfo: React.FC = () => {
           <TabPane tab="Rental Applications" key="6">
             <PropertyRentalApplications propertyId={property.key} />
           </TabPane>
-
-          <TabPane tab="Settings" key="7">
+          <TabPane tab="Tasks" key="7">
+            <PropertyRentalApplications propertyId={property.key} />
+          </TabPane>
+          <TabPane tab="Files" key="8">
+            <PropertyFiles propertyId={property.key} />
+          </TabPane>
+          <TabPane tab="Notes" key="9">
+            <PropertyinfoNotes propertyId={property.key} />
+          </TabPane>
+          <TabPane tab="Settings" key="10">
             <PropertySettings 
               showModal={showModal} 
               handleBannerUpload={handleBannerUpload} 

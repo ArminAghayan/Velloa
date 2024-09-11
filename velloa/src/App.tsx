@@ -19,7 +19,7 @@ import SignupPage from './pages/Auth/signup';
 import PropertyInfoUnitViewNotes from './pages/property/propertyinfo/tabs/PropertyInfoUnitViewNotes'
 import SideBarPage from './components/sidebar';
 import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
-import MaintenancePage from './pages/Tools/toolapplication/maintenance/maintenancepage';
+import MaintenancePage from './pages/maintenance/maintenancepage';
 import Logbook from './pages/Tools/toolapplication/logbook/logbook';
 import NewApplications from './pages/Tools/toolapplication/newapplications/newapplications';
 import NewTenant from './pages/Tools/toolapplication/newtenant/newtenant';
@@ -39,7 +39,7 @@ const theme = {
     colorInfo: "#28a745",
     fontSize: 14,
     sizeStep: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     wireframe: false,
     colorBgLayout: "#F3F5F8",
   },
