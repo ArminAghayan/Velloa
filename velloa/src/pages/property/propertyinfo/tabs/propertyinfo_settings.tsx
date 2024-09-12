@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Typography, Button, Input, Form, Divider, notification, Menu, Upload, Image } from 'antd';
+
+import { Row, Col, Typography, Button, Input, Form, notification, Menu, Upload, Image,Table,Space } from 'antd';
 import { 
   IconSettings, IconPhoto, IconBuildingBank, IconHome2, IconUserCircle, 
   IconPigMoney, IconFileDollar, IconFiles, IconMailbox, IconDeviceFloppy, 
-  IconPencil, IconUpload 
+  IconPencil, IconPlus, IconTrash, IconX, IconStarFilled
 } from '@tabler/icons-react';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import './propertyinfo_settings.css';
 
 const { Text } = Typography;
-const { Dragger } = Upload;
 
 interface PropertySettingsProps {
   showModal: (title: string, description: string, type?: string) => void;
@@ -39,6 +39,9 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
   const [form] = Form.useForm();
   const location = useLocation();
   const { property } = location.state as { property: { key: string } };
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
 
   const fetchPropertyInfo = async () => {
     const db = getFirestore();
@@ -85,6 +88,28 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
       form.setFieldsValue({ propertyDescription: value });
     }
   };
+  const handleImageSelection = (selectedRowKeys: React.Key[], selectedRows: any[]) => {
+    setSelectedRowKeys(selectedRowKeys);
+  };
+
+  const handleDeleteImages = () => {
+    // Implement delete functionality here
+    console.log('Delete image:', selectedImage);
+    setSelectedImage(null);
+    setSelectedRowKeys([]);
+  };
+
+  const handleCancelSelection = () => {
+    setSelectedImage(null);
+    setSelectedRowKeys([]);
+  };
+
+  const handleMarkAsHeader = () => {
+    // Implement mark as header functionality here
+    console.log('Mark as header:', selectedImage);
+    setSelectedImage(null);
+    setSelectedRowKeys([]);
+  };
 
   const handleSave = async () => {
     const db = getFirestore();
@@ -121,8 +146,6 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
       case 'general':
         return (
           <Form form={form} layout="vertical">
-            <Text>This information will be used in your online listings.</Text>
-            <Divider />
             <Form.Item 
               label={<span className="generalinfo_label">Property Name</span>} 
               name="propertyName"
@@ -185,49 +208,75 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
             <Button type="primary" onClick={handleSave}>Save</Button>
           </Form>
         );
-      case 'photos':
-        return (
-          <>
-            <Text>Upload and manage property photos here.</Text>
-            <Divider />
-            <Dragger 
-              customRequest={async ({ file, onSuccess, onError }) => {
-                try {
-                  await handlePhotosUpload(file as File);
-                  if (onSuccess) onSuccess("ok");
-                  notification.success({
-                    message: 'Upload Successful',
-                    description: 'The photo has been uploaded successfully.',
-                    placement: 'top',
-                  });
-                } catch (error) {
-                  if (onError) onError(error as Error);
-                  notification.error({
-                    message: 'Upload Failed',
-                    description: 'The photo upload failed. Please try again.',
-                    placement: 'top',
-                  });
-                }
-              }}
-              multiple
-              accept="image/*"
-            >
-              <p className="ant-upload-drag-icon">
-                <IconUpload size={48} />
-              </p>
-              <p className="ant-upload-text">Click or drag file to this area to upload</p>
-              <p className="ant-upload-hint">Support for a single or bulk upload.</p>
-            </Dragger>
-            <Divider />
-            <Row gutter={16}>
-              {photos.map((photo, index) => (
-                <Col key={index} span={6}>
-                  <Image src={photo} alt={`Property Photo ${index + 1}`} style={{ width: '100%' }} />
-                </Col>
-              ))}
-            </Row>
-          </>
-        );
+        case 'photos':
+
+      const columns = [
+        {
+          title: 'Name',
+          dataIndex: 'name',
+          key: 'name',
+        },
+        {
+          title: 'Date',
+          dataIndex: 'date',
+          key: 'date',
+        },
+        {
+          title: 'Preview',
+          dataIndex: 'preview',
+          key: 'preview',
+          render: (text: string, record: any) => (
+            <Image
+              src={record.url}
+              alt={record.name}
+              width={50}
+              height={50}
+              style={{ objectFit: 'cover' }}
+            />
+          ),
+        },
+      ];
+
+      const data = photos.map((photo, index) => ({
+        key: index,
+        name: `Photo ${index + 1}`,
+        date: new Date().toLocaleDateString(), // Replace with actual upload date
+        url: photo,
+      }));
+
+      const rowSelection = {
+        selectedRowKeys,
+        onChange: (rowSelection: React.Key[]) => {
+          setSelectedRowKeys(rowSelection);
+        },
+      };
+
+      return (
+        <div className="photo-container">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2>Photos</h2>
+          <Space>
+            {selectedRowKeys.length > 0 && (
+              <>
+                <Button icon={<IconTrash size={16} />} onClick={handleDeleteImages}>Delete</Button>
+                <Button icon={<IconX size={16} />} onClick={handleCancelSelection}>Cancel</Button>
+                {selectedRowKeys.length === 1 && (
+                  <Button icon={<IconStarFilled size={16} />} onClick={handleMarkAsHeader}>Mark as Header</Button>
+                )}
+              </>
+            )}
+            <Button type="primary" icon={<IconPlus size={16} />}>
+              Add Photo
+            </Button>
+          </Space>
+        </div>
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+        />
+      </div>
+    );
       case 'bank':
         return <Text>Bank Accounts content goes here.</Text>;
       case 'type':
@@ -261,8 +310,9 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({
 
   return (
     <Row className="settings-row">
-      <Col span={6}>
-        <Menu onClick={handleMenuClick} selectedKeys={[selectedMenu]} mode="vertical">
+      <Col span={6} className="sidebar-container">
+      <Menu onClick={handleMenuClick} selectedKeys={[selectedMenu]} mode="vertical"  className="settings-menu"
+      >
           <Menu.Item key="general" icon={<IconSettings size={20} />}>
             General Information
           </Menu.Item>
