@@ -1,15 +1,39 @@
-import { useState, useEffect } from 'react';
-import { BankOutlined, DollarOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Typography, Steps, Button, Input, Select, Tag, message, Form, Row, Col, Table } from 'antd';
+// AddNewProperty.tsx
+
+import React, { useState, useEffect } from 'react';
+import {
+  BankOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
+import {
+  Typography,
+  Steps,
+  Button,
+  Input,
+  Select,
+  Tag,
+  message,
+  Form,
+  Row,
+  Col,
+  Table,
+} from 'antd';
 import { useNavigate } from 'react-router-dom';
 import './addnewproperty.css';
 import { Link } from 'react-router-dom';
 import { IconPigMoney, IconPigOff } from '@tabler/icons-react';
-import { collection, addDoc, getDoc, doc,writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  getDoc,
+  doc,
+  writeBatch,
+} from 'firebase/firestore';
 import { auth, db } from '../../../firebase-config';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid for generating unique IDs
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Step } = Steps;
 const { Option } = Select;
 
@@ -29,18 +53,25 @@ const AddNewProperty: React.FC = () => {
   const [selectedDescription, setSelectedDescription] = useState('');
   const [country, setCountry] = useState('');
   const [state, setState] = useState('');
-  const [units, setUnits] = useState<Unit[]>([{ unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+  const [units, setUnits] = useState<Unit[]>([
+    { unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' },
+  ]);
   const [useDefaultAccount, setUseDefaultAccount] = useState(true);
   const [specificBankAccount, setSpecificBankAccount] = useState('');
   const [defaultAccount] = useState("Noam's bank");
   const [useReserveFund, setUseReserveFund] = useState(false);
   const [reserveAmount, setReserveAmount] = useState('');
   const [owners, setOwners] = useState([{ name: '', percentage: '' }]);
-  const totalPercentage = owners.reduce((sum, owner) => sum + (parseInt(owner.percentage) || 0), 0);
+  const totalPercentage = owners.reduce(
+    (sum, owner) => sum + (parseInt(owner.percentage) || 0),
+    0
+  );
   const isPercentageValid = totalPercentage <= 100;
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
+  // Helper function to capitalize strings
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   useEffect(() => {
     if (!auth.currentUser) {
@@ -62,9 +93,15 @@ const AddNewProperty: React.FC = () => {
     setSelectedDescription('');
     setCountry('');
     setState('');
-    setUnits([{ unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+    setUnits([
+      { unitId: uuidv4(), unitName: '', beds: '', baths: '', size: '', marketRent: '' },
+    ]);
     setUseDefaultAccount(true);
     setSpecificBankAccount('');
+    setUseReserveFund(false);
+    setReserveAmount('');
+    setOwners([{ name: '', percentage: '' }]);
+    form.resetFields();
   };
 
   const handleUnitChange = (index: number, field: string, value: string) => {
@@ -74,8 +111,11 @@ const AddNewProperty: React.FC = () => {
   };
 
   const addAnotherUnit = () => {
-    const newUnitId = doc(collection(db, 'temp')).id; // Generate a new Firebase UUID
-    setUnits([...units, { unitId: newUnitId, unitName: '', beds: '', baths: '', size: '', marketRent: '' }]);
+    const newUnitId = uuidv4(); // Generate a new UUID
+    setUnits([
+      ...units,
+      { unitId: newUnitId, unitName: '', beds: '', baths: '', size: '', marketRent: '' },
+    ]);
   };
 
   const removeUnit = (index: number) => {
@@ -101,12 +141,15 @@ const AddNewProperty: React.FC = () => {
     }
 
     if (current === 1) {
-      form.validateFields().then(() => {
-        setCurrent(current + 1);
-      }).catch((errorInfo) => {
-        const errorFields = errorInfo.errorFields;
-        form.setFields(errorFields);
-      });
+      form
+        .validateFields()
+        .then(() => {
+          setCurrent(current + 1);
+        })
+        .catch((errorInfo) => {
+          const errorFields = errorInfo.errorFields;
+          form.setFields(errorFields);
+        });
       return;
     }
 
@@ -121,6 +164,7 @@ const AddNewProperty: React.FC = () => {
     }
 
     if (current === 5 && !isPercentageValid) {
+      message.error('Total ownership percentage cannot exceed 100%');
       return;
     }
 
@@ -132,7 +176,8 @@ const AddNewProperty: React.FC = () => {
   };
 
   const handlePropertyTypeClick = (type: string) => {
-    setPropertyType(type === propertyType ? '' : type);
+    const capitalizedType = capitalize(type);
+    setPropertyType(capitalizedType === propertyType ? '' : capitalizedType);
     setSelectedDescription('');
   };
 
@@ -205,14 +250,14 @@ const AddNewProperty: React.FC = () => {
           zip: form.getFieldValue('zip') || '',
           country: form.getFieldValue('country') || '',
         },
-        bankAccount: useDefaultAccount ? defaultAccount : (specificBankAccount || ''),
-        reserveFund: useReserveFund ? (reserveAmount || '') : null,
+        bankAccount: useDefaultAccount ? defaultAccount : specificBankAccount || '',
+        reserveFund: useReserveFund ? reserveAmount || '' : null,
         ownership: useDefaultAccount
           ? [{ name: companyName || 'Unknown Company', percentage: '100' }]
-          : owners.map(owner => ({
-            name: owner.name || '',
-            percentage: owner.percentage || '',
-          })),
+          : owners.map((owner) => ({
+              name: owner.name || '',
+              percentage: owner.percentage || '',
+            })),
       };
 
       // Add the property document to the 'properties' collection
@@ -257,7 +302,7 @@ const AddNewProperty: React.FC = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
               <Button
-                type={propertyType === 'residential' ? 'primary' : 'default'}
+                type={propertyType === 'Residential' ? 'primary' : 'default'}
                 onClick={() => handlePropertyTypeClick('residential')}
                 style={{ marginRight: '10px', height: '60px', width: '150px' }}
                 className="property-type-button"
@@ -265,7 +310,7 @@ const AddNewProperty: React.FC = () => {
                 Residential
               </Button>
               <Button
-                type={propertyType === 'commercial' ? 'primary' : 'default'}
+                type={propertyType === 'Commercial' ? 'primary' : 'default'}
                 onClick={() => handlePropertyTypeClick('commercial')}
                 style={{ height: '60px', width: '150px' }}
                 className="property-type-button"
@@ -280,57 +325,57 @@ const AddNewProperty: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
                   <Button
-                    type={selectedDescription === 'house' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('house')}
+                    type={selectedDescription === 'House' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('House')}
                     className="property-subtype-button"
                   >
                     House
                   </Button>
                   <Button
-                    type={selectedDescription === 'apartment' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('apartment')}
+                    type={selectedDescription === 'Apartment' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Apartment')}
                     className="property-subtype-button"
                   >
                     Apartment
                   </Button>
                   <Button
-                    type={selectedDescription === 'townhouse' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('townhouse')}
+                    type={selectedDescription === 'Townhouse' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Townhouse')}
                     className="property-subtype-button"
                   >
                     Townhouse
                   </Button>
                   <Button
-                    type={selectedDescription === 'office' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('office')}
+                    type={selectedDescription === 'Office' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Office')}
                     className="property-subtype-button"
                   >
                     Office
                   </Button>
                   <Button
-                    type={selectedDescription === 'retail' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('retail')}
+                    type={selectedDescription === 'Retail' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Retail')}
                     className="property-subtype-button"
                   >
                     Retail
                   </Button>
                   <Button
-                    type={selectedDescription === 'industrial' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('industrial')}
+                    type={selectedDescription === 'Industrial' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Industrial')}
                     className="property-subtype-button"
                   >
                     Industrial
                   </Button>
                   <Button
-                    type={selectedDescription === 'storage' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('storage')}
+                    type={selectedDescription === 'Storage' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Storage')}
                     className="property-subtype-button"
                   >
                     Storage
                   </Button>
                   <Button
-                    type={selectedDescription === 'other' ? 'primary' : 'default'}
-                    onClick={() => handleDescriptionClick('other')}
+                    type={selectedDescription === 'Other' ? 'primary' : 'default'}
+                    onClick={() => handleDescriptionClick('Other')}
                     className="property-subtype-button"
                   >
                     Other
@@ -416,6 +461,9 @@ const AddNewProperty: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
+            <Button type="primary" htmlType="submit" style={{ display: 'none' }}>
+              Submit
+            </Button>
           </Form>
         );
       case 2:
@@ -426,69 +474,85 @@ const AddNewProperty: React.FC = () => {
 
             <Form form={form} onFinish={next}>
               {units.map((unit, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ marginRight: '10px' }}>{index + 1}</div>
+                <div
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '10px',
+                    flexWrap: 'wrap',
+                    width: '100%',
+                    maxWidth: '800px',
+                  }}
+                >
+                  <div style={{ marginRight: '10px', width: '30px', textAlign: 'center' }}>
+                    {index + 1}.
+                  </div>
                   <Form.Item
                     name={`unitName-${index}`}
                     rules={[{ required: true, message: 'Please enter Unit Name' }]}
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: 0, flex: 1, minWidth: '150px' }}
                   >
                     <Input
                       placeholder="Unit Name"
                       value={unit.unitName}
                       onChange={(e) => handleUnitChange(index, 'unitName', e.target.value)}
-                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                      style={{ marginRight: '10px', fontSize: '16px' }}
                     />
                   </Form.Item>
                   <Form.Item
                     name={`beds-${index}`}
                     rules={[{ required: true, message: 'Please enter Beds' }]}
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: 0, flex: 1, minWidth: '100px' }}
                   >
                     <Input
                       placeholder="Beds"
                       value={unit.beds}
                       onChange={(e) => handleUnitChange(index, 'beds', e.target.value)}
-                      style={{ width: '120px', marginRight: '10px', fontSize: '16px' }}
+                      style={{ marginRight: '10px', fontSize: '16px' }}
                     />
                   </Form.Item>
                   <Form.Item
                     name={`baths-${index}`}
                     rules={[{ required: true, message: 'Please enter Baths' }]}
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: 0, flex: 1, minWidth: '100px' }}
                   >
                     <Input
                       placeholder="Baths"
                       value={unit.baths}
                       onChange={(e) => handleUnitChange(index, 'baths', e.target.value)}
-                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                      style={{ marginRight: '10px', fontSize: '16px' }}
                     />
                   </Form.Item>
                   <Form.Item
                     name={`size-${index}`}
                     rules={[{ required: true, message: 'Please enter Size' }]}
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: 0, flex: 1, minWidth: '100px' }}
                   >
                     <Input
                       placeholder="Size"
                       value={unit.size}
                       onChange={(e) => handleUnitChange(index, 'size', e.target.value)}
-                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                      style={{ marginRight: '10px', fontSize: '16px' }}
                     />
                   </Form.Item>
                   <Form.Item
                     name={`marketRent-${index}`}
                     rules={[{ required: true, message: 'Please enter Market Rent' }]}
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: 0, flex: 1, minWidth: '100px' }}
                   >
                     <Input
                       placeholder="Market Rent"
                       value={unit.marketRent}
                       onChange={(e) => handleUnitChange(index, 'marketRent', e.target.value)}
-                      style={{ width: '200px', marginRight: '10px', fontSize: '16px' }}
+                      style={{ marginRight: '10px', fontSize: '16px' }}
                     />
                   </Form.Item>
-                  {index !== 0 && <Button danger onClick={() => removeUnit(index)}>X</Button>}
+                  {units.length > 1 && (
+                    <Button danger onClick={() => removeUnit(index)}>
+                      X
+                    </Button>
+                  )}
                 </div>
               ))}
 
@@ -522,7 +586,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <BankOutlined style={{ fontSize: '50px' }} />
                 </div>
                 <Typography.Text
@@ -549,7 +620,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <DollarOutlined style={{ fontSize: '50px' }} />
                 </div>
                 <Typography.Text
@@ -671,7 +749,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <IconPigMoney size={50} />
                 </div>
                 <Typography.Text
@@ -698,7 +783,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <IconPigOff size={50} />
                 </div>
                 <Typography.Text
@@ -762,7 +854,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <DollarOutlined style={{ fontSize: '50px' }} />
                 </div>
                 <Typography.Text
@@ -792,7 +891,14 @@ const AddNewProperty: React.FC = () => {
                   padding: '10px 10px 20px',
                 }}
               >
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
                   <DollarOutlined style={{ fontSize: '50px' }} />
                 </div>
                 <Typography.Text
@@ -852,144 +958,176 @@ const AddNewProperty: React.FC = () => {
             )}
           </div>
         );
-  case 6:
-    return (
-      <div>
-        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
-          Summary
-        </Typography.Title>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          Please review your selections and confirm to proceed.
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Property Type:</Typography.Title>
-          <Input value={propertyType} disabled />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Property Description:</Typography.Title>
-          <Input value={selectedDescription} disabled />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Address:</Typography.Title>
-          <Input
-            value={`${form.getFieldValue('street1')}, ${form.getFieldValue('street2')}\n${form.getFieldValue('city')}, ${form.getFieldValue('state')}, ${form.getFieldValue('zip')}\n${form.getFieldValue('country')}`}
-            disabled
-          />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Units:</Typography.Title>
-          <Table
-            bordered
-            dataSource={units}
-            columns={[
-              {
-                title: 'Unit',
-                render: (_, __, index) => `Unit ${index + 1}`,
-              },
-              {
-                title: 'Unit Name',
-                dataIndex: 'unitName',
-                key: 'unitName',
-              },
-              {
-                title: 'Beds',
-                dataIndex: 'beds',
-                key: 'beds',
-              },
-              {
-                title: 'Baths',
-                dataIndex: 'baths',
-                key: 'baths',
-              },
-              {
-                title: 'Size',
-                dataIndex: 'size',
-                key: 'size',
-              },
-              {
-                title: 'Market Rent',
-                dataIndex: 'marketRent',
-                key: 'marketRent',
-              },
-            ]}
-            pagination={false}
-          />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Bank Account:</Typography.Title>
-          <Input
-            value={useDefaultAccount ? `Using company default account: ${defaultAccount}` : `Specific bank account: ${specificBankAccount}`}
-            disabled
-          />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Reserve Fund:</Typography.Title>
-          <Input
-            value={useReserveFund ? `Reserve fund amount: ${reserveAmount}` : 'No reserve fund set for this property.'}
-            disabled
-          />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <Typography.Title level={4}>Ownership:</Typography.Title>
-          {useDefaultAccount ? (
-            <Input value="Full Ownership" disabled />
-          ) : (
-            <div>
-              {owners.map((owner, index) => (
-                <Input
-                  key={index}
-                  value={`Owner ${index + 1}: ${owner.name} - ${owner.percentage}%`}
-                  disabled
-                />
-              ))}
+      case 6:
+        return (
+          <div>
+            <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: '20px' }}>
+              Summary
+            </Typography.Title>
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              Please review your selections and confirm to proceed.
             </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}></div>
-      </div>
-    );  
-      
-      
-      
-          default:
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Property Type:</Typography.Title>
+              <Input value={propertyType} disabled />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Property Description:</Typography.Title>
+              <Input value={selectedDescription} disabled />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Address:</Typography.Title>
+              <Input
+                value={`${form.getFieldValue('street1')}, ${form.getFieldValue(
+                  'street2'
+                )}\n${form.getFieldValue('city')}, ${form.getFieldValue('state')}, ${form.getFieldValue(
+                  'zip'
+                )}\n${form.getFieldValue('country')}`}
+                disabled
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Units:</Typography.Title>
+              <Table
+                bordered
+                dataSource={units}
+                columns={[
+                  {
+                    title: 'Unit',
+                    render: (_, __, index) => `Unit ${index + 1}`,
+                  },
+                  {
+                    title: 'Unit Name',
+                    dataIndex: 'unitName',
+                    key: 'unitName',
+                  },
+                  {
+                    title: 'Beds',
+                    dataIndex: 'beds',
+                    key: 'beds',
+                  },
+                  {
+                    title: 'Baths',
+                    dataIndex: 'baths',
+                    key: 'baths',
+                  },
+                  {
+                    title: 'Size',
+                    dataIndex: 'size',
+                    key: 'size',
+                  },
+                  {
+                    title: 'Market Rent',
+                    dataIndex: 'marketRent',
+                    key: 'marketRent',
+                  },
+                ]}
+                pagination={false}
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Bank Account:</Typography.Title>
+              <Input
+                value={
+                  useDefaultAccount
+                    ? `Using company default account: ${defaultAccount}`
+                    : `Specific bank account: ${specificBankAccount}`
+                }
+                disabled
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Reserve Fund:</Typography.Title>
+              <Input
+                value={
+                  useReserveFund
+                    ? `Reserve fund amount: ${reserveAmount}`
+                    : 'No reserve fund set for this property.'
+                }
+                disabled
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <Typography.Title level={4}>Ownership:</Typography.Title>
+              {useDefaultAccount ? (
+                <Input value="Full Ownership" disabled />
+              ) : (
+                <div>
+                  {owners.map((owner, index) => (
+                    <Input
+                      key={index}
+                      value={`Owner ${index + 1}: ${owner.name} - ${owner.percentage}%`}
+                      disabled
+                      style={{ marginBottom: '8px' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      default:
         return null;
     }
   };
 
-
-
-
-
-
-
-
-
-  
   return (
     <div style={{ padding: '24px 36px' }}>
-      <Steps current={current} className="custom-steps"  style={{ paddingLeft: '60px',paddingRight: '60px'}}> 
+      <Steps
+        current={current}
+        className="custom-steps"
+        style={{ paddingLeft: '60px', paddingRight: '60px' }}
+      >
         {steps.map((item) => (
           <Step key={item.title} title={item.title} />
         ))}
       </Steps>
-      <div className="steps-content" style={{ marginTop: '40px',paddingLeft: '60px',paddingRight: '60px'}}>
+      <div
+        className="steps-content"
+        style={{ marginTop: '40px', paddingLeft: '60px', paddingRight: '60px' }}
+      >
         {renderStepContent()}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', paddingLeft: '60px', paddingRight: '60px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: '20px',
+          paddingLeft: '60px',
+          paddingRight: '60px',
+        }}
+      >
         <div>
-          <Button onClick={() => { resetForms(); navigate('/property'); }}>Cancel</Button>
+          <Button
+            onClick={() => {
+              resetForms();
+              navigate('/property');
+            }}
+          >
+            Cancel
+          </Button>
         </div>
         <div>
           {current > 0 && <Button onClick={prev}>Previous</Button>}
-          {current === 0 && <Button type="primary" onClick={next} disabled={!propertyType}>Next</Button>}
-          {current > 0 && current < steps.length - 1 && <Button type="primary" onClick={next}>Next</Button>}
-          {current === steps.length - 1 && <Button type="primary" onClick={handleFormSubmit}>Done</Button>}
+          {current === 0 && (
+            <Button type="primary" onClick={next} disabled={!propertyType}>
+              Next
+            </Button>
+          )}
+          {current > 0 && current < steps.length - 1 && (
+            <Button type="primary" onClick={next}>
+              Next
+            </Button>
+          )}
+          {current === steps.length - 1 && (
+            <Button type="primary" onClick={handleFormSubmit}>
+              Done
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 };
-
-
 
 export default AddNewProperty;

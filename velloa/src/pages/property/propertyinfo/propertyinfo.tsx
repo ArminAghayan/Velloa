@@ -68,6 +68,29 @@ const PropertyInfo: React.FC = () => {
     setModalVisible(true);
     fetchPropertyInfo(); // Fetch property info when opening the modal
   };
+  const handlePhotoRemove = async (photoUrl: string): Promise<boolean> => {
+    try {
+      // Remove the photo from storage
+      const imageRef = ref(storage, photoUrl);
+      await deleteObject(imageRef);
+
+      // Remove the photo URL from the Firestore document
+      const updatedPhotos = photos.filter(photo => photo !== photoUrl);
+      setPhotos(updatedPhotos);
+
+      const propertyRef = doc(db, 'properties', property.key);
+      await updateDoc(propertyRef, {
+        photos: updatedPhotos
+      });
+
+      message.success("Photo removed successfully");
+      return true;
+    } catch (error) {
+      console.error("Error removing photo: ", error);
+      message.error("Failed to remove photo. Please check your permissions.");
+      return false;
+    }
+  };
 
   const handleCancel = () => {
     setModalVisible(false);
@@ -362,14 +385,7 @@ const PropertyInfo: React.FC = () => {
           </TabPane>
           <TabPane tab="Settings" key="10">
             <PropertySettings 
-              showModal={showModal} 
-              handleBannerUpload={handleBannerUpload} 
-              imageUrl={imageUrl} 
-              photos={photos} 
-              handleResize={handleResize} 
-              handleDelete={handleDelete} 
-              handlePhotosUpload={handlePhotosUpload} 
-              updatePropertyName={updatePropertyName}  // Pass the callback to update the name
+              updatePropertyName={updatePropertyName}
             />
           </TabPane>
         </Tabs>

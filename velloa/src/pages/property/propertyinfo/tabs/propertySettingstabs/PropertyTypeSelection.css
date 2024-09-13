@@ -1,0 +1,50 @@
+/* PropertyTypeSelection.css */
+
+.property-selection {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1.25px #E6E9EC solid;
+  }
+  
+  .property-kind-selection,
+  .property-type-selection {
+    margin-bottom: 32px;
+  }
+  
+  .kind-button,
+  .type-button {
+    min-width: 120px;
+    height: 48px;
+    font-size: 16px;
+  }
+  
+  .kind-button.selected,
+  .type-button.selected {
+    font-weight: bold;
+  }
+  
+  .type-group {
+    margin-bottom: 24px;
+  }
+  
+  .mb-4 {
+    margin-bottom: 16px;
+  }
+  
+  .loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .kind-button,
+    .type-button {
+      min-width: 100px;
+      height: 44px;
+      font-size: 14px;
+    }
+  }
