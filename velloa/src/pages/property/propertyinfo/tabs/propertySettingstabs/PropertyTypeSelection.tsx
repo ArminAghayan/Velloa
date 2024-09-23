@@ -1,23 +1,21 @@
-// PropertyTypeSelection.tsx
-
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Row, Col, notification, Spin } from 'antd';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Typography, Button, Row, Col, notification, Spin, Divider } from 'antd';
+import { getFirestore, doc, setDoc, collection, query, getDocs, addDoc } from 'firebase/firestore';
 import './PropertyTypeSelection.css';
 
 const { Title, Text } = Typography;
 
 interface PropertyTypeSelectionProps {
-  propertyKey: string;
+  propertyId: string;
 }
 
-const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyKey }) => {
+const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyId }) => {
   const [propertyKind, setPropertyKind] = useState<string | null>(null);
   const [propertyType, setPropertyType] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [settingsDocId, setSettingsDocId] = useState<string | null>(null);
 
-  // Define property types based on the selected property kind
   const propertyTypesByKind: { [key: string]: string[] } = {
     Residential: ['House', 'Apartment', 'Townhouse', 'Other'],
     Commercial: ['Office', 'Retail', 'Industrial', 'Storage', 'Other'],
@@ -25,21 +23,20 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
     Land: ['Agricultural', 'Residential Land', 'Commercial Land', 'Other'],
   };
 
-  // Fetch property kind and type from Firestore
   const fetchPropertyTypeInfo = async () => {
     const db = getFirestore();
-    const docRef = doc(db, 'properties', propertyKey);
+    const propertySettingsRef = collection(doc(db, 'properties', propertyId), 'propertySettings');
     try {
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+      const querySnapshot = await getDocs(query(propertySettingsRef));
+      if (!querySnapshot.empty) {
+        const settingsDoc = querySnapshot.docs[0];
+        setSettingsDocId(settingsDoc.id);
+        const data = settingsDoc.data();
         const fetchedKind = data.propertyKind || null;
         const fetchedType = data.propertyType || null;
-
-        // Ensure that the fetched kind exists in propertyTypesByKind
-        if (fetchedKind && propertyTypesByKind[fetchedKind]) {
+        
+        if (fetchedKind && Object.keys(propertyTypesByKind).includes(fetchedKind)) {
           setPropertyKind(fetchedKind);
-          // Ensure that the fetched type exists within the fetched kind
           if (fetchedType && propertyTypesByKind[fetchedKind].includes(fetchedType)) {
             setPropertyType(fetchedType);
           } else {
@@ -50,7 +47,7 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
           setPropertyType(null);
         }
       } else {
-        console.warn('No such document!');
+        console.warn('No propertySettings document found!');
       }
     } catch (error) {
       console.error('Error fetching property data:', error);
@@ -66,8 +63,7 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
 
   useEffect(() => {
     fetchPropertyTypeInfo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyKey]);
+  }, [propertyId]);
 
   const handleSave = async () => {
     if (!propertyKind || !propertyType) {
@@ -78,15 +74,23 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
       });
       return;
     }
-
+  
     setSaving(true);
     const db = getFirestore();
-    const docRef = doc(db, 'properties', propertyKey);
+    const propertySettingsRef = collection(doc(db, 'properties', propertyId), 'propertySettings');
     try {
-      await updateDoc(docRef, {
-        propertyKind,
-        propertyType,
-      });
+      if (settingsDocId) {
+        await setDoc(doc(propertySettingsRef, settingsDocId), {
+          propertyKind,
+          propertyType,
+        }, { merge: true });
+      } else {
+        const newDocRef = await addDoc(propertySettingsRef, {
+          propertyKind,
+          propertyType,
+        });
+        setSettingsDocId(newDocRef.id);
+      }
       notification.success({
         message: 'Property Type Updated',
         description: 'The property type has been successfully updated.',
@@ -104,18 +108,13 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
     }
   };
 
-  // Handle property kind selection
   const handleKindSelect = (kind: string) => {
     if (kind !== propertyKind) {
       setPropertyKind(kind);
-      // Reset propertyType if it doesn't belong to the newly selected kind
-      if (!propertyTypesByKind[kind].includes(propertyType || '')) {
-        setPropertyType(null);
-      }
+      setPropertyType(null);
     }
   };
 
-  // Handle property type selection
   const handleTypeSelect = (type: string) => {
     setPropertyType(type);
   };
@@ -130,11 +129,11 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
 
   return (
     <div className="property-selection">
-   <Title level={4} className="main-title">Property Type</Title>
-
-      {/* Property Kind Selection */}
+      <Title style={{ color: '#4CAF50' }}level={2} className="main-title">Property Type</Title>
+      <Divider />
+      
       <div className="property-kind-selection">
-        <Title level={5}>Which kind of property do you manage?</Title>
+        <Title  level={5}>Which kind of property do you manage?</Title>
         <Row gutter={[16, 16]} className="mb-4">
           {Object.keys(propertyTypesByKind).map((kind) => (
             <Col key={kind}>
@@ -151,7 +150,8 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
         </Row>
       </div>
 
-      {/* Property Type Selection */}
+      <Divider />
+
       <div className="property-type-selection">
         <Title level={5}>Which type best describes your property?</Title>
         {propertyKind ? (
@@ -178,7 +178,6 @@ const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyK
         )}
       </div>
 
-      {/* Save Button */}
       <Button
         type="primary"
         onClick={handleSave}

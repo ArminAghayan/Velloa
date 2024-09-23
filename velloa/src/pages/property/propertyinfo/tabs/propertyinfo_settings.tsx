@@ -14,7 +14,7 @@ import './propertyinfo_settings.css';
 import PropertyTypeSelection from './propertySettingstabs/PropertyTypeSelection';
 import PhotosComponent from './propertySettingstabs/PropertyPhotosComponent';
 import GeneralInfoForm from './propertySettingstabs/PropertyGeneralInfoForm'; // Import the new component
-
+import LateFees from './propertySettingstabs/propertyLateFees';
 const { Text } = Typography;
 
 interface PropertySettingsProps {
@@ -42,16 +42,16 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ updatePropertyN
       case 'photos':
         return <PhotosComponent propertyKey={property.key} />;
       case 'type':
-        return <PropertyTypeSelection propertyKey={property.key} />;
-      case 'bank':
+        return <PropertyTypeSelection propertyId={property.key} />;
+        case 'bank':
         return <Text>Bank Accounts content goes here.</Text>;
       case 'owners':
         return <Text>Owners content goes here.</Text>;
       case 'reserve':
         return <Text>Reserve Funds content goes here.</Text>;
       case 'lateFees':
-        return <Text>Late Fees content goes here.</Text>;
-      case 'portal':
+        return <LateFees />;
+        case 'portal':
         return <Text>Tenant Portal content goes here.</Text>;
       case 'notifications':
         return <Text>Rent & Payment Notifications content goes here.</Text>;

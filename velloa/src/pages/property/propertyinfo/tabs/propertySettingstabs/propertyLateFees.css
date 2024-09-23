@@ -1,0 +1,98 @@
+/* Parent Container */
+.late-fees-box {
+  background-color: #ffffff; /* White background */
+  padding: 24px;
+  border-radius: 12px; /* Rounded corners */
+  border: 1.25px #E6E9EC solid; /* Light gray border */
+  display: flex;
+  flex-direction: column;
+  height: 67vh; /* Set fixed height as per original code */
+  box-sizing: border-box; /* Include padding and border in height calculations */
+  overflow: hidden; /* Hide overflow to manage scrolling within inner containers */
+}
+
+/* Header Section */
+.header-section {
+  /* Styles for the header */
+  flex: none; /* Prevent the header from shrinking or growing */
+  margin-bottom: 16px; /* Reduced margin for better spacing */
+}
+
+.toggle-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Main Content Section */
+.main-content {
+  flex: 1; /* Allow main content to grow and fill available space */
+  display: flex; /* Arrange children side by side */
+  overflow: hidden; /* Prevent overflow, handled by child elements */
+}
+
+/* Left Column: Scrollable */
+.left-column {
+  flex: 2; /* Takes up twice the space of the right column */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding-right: 16px; /* Space for scrollbar */
+}
+
+/* Customize scrollbar appearance for the left column */
+.left-column::-webkit-scrollbar {
+  width: 8px;
+}
+
+.left-column::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.left-column::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Right Column: Fixed */
+.right-column {
+  flex: 1; /* Takes up half the space of the left column */
+  overflow: hidden; /* Prevent scrolling */
+  margin-left: 24px; /* Space between columns */
+}
+
+/* Additional Layout Styles */
+.switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.simulation-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.simulation-row.subtotal {
+  margin-top: 8px;
+}
+
+/* Fee Structure Setup Specific Styling */
+.fee-structure-setup {
+  display: flex;
+  flex-direction: column;
+}
+
+.fee-structure-setup .ant-typography {
+  margin-bottom: 8px; /* Space between text and button */
+}
+
+/* Custom Button Styling */
+.fixed-width-button {
+  width: 150px; /* Fixed width */
+  background-color: #4CAF50; /* Green background */
+  border-color: #4CAF50;     /* Green border */
+}
+
+/* Optional: Ensure Buttons with Icons Align Properly */
+.fixed-width-button .anticon {
+  margin-right: 8px; /* Space between icon and text */
+}

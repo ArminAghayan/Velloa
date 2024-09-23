@@ -10,7 +10,6 @@ import Propertypage from './pages/property/property';
 import Resourcespage from './pages/Resources/resources';
 import Leasingpage from './pages/leasing/leasingPage';
 import Peoplepage from './pages/people/peoplePage';
-import Taskpage from './pages/task/taskPage';
 import Accountingpage from './pages/Accounting/accounting';
 import Analyticsspage from './pages/Analytics/analytics';
 import ProtectedRoute from './pages/Auth/PrivateRoute';
@@ -32,6 +31,7 @@ import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/propertyinf
 import { fetchUserDetails } from './components/redux/authSlice';
 import { AppDispatch } from './components/redux/store';
 import { auth } from './firebase-config';
+import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
 
 const theme = {
   token: {
@@ -44,6 +44,7 @@ const theme = {
     colorBgLayout: "#F3F5F8",
   },
   components: {
+   
     Menu: {
       darkItemBg: "#188034", // colorPrimaryActive
       darkSubMenuItemBg: "#188034", // colorPrimaryActive
@@ -76,6 +77,9 @@ const theme = {
       lineWidth: 2,
       lineWidthBold: 2,
       colorBorderSecondary: "rgb(230, 233, 236)",
+    },
+    Input: {
+      borderRadius: 12,
     },
   },
 };
@@ -110,11 +114,11 @@ const App: React.FC = () => {
                 <Route path="resources" element={<Resourcespage />} />
                 <Route path="leasing" element={<Leasingpage />} />
                 <Route path="people" element={<Peoplepage />} />
-                <Route path="tasks" element={<Taskpage />} />
                 <Route path="accounting" element={<Accountingpage />} />
                 <Route path="analytics" element={<Analyticsspage />} />
                 <Route path="messages" element={<MessagesPage />} />
                 <Route path="maintenance" element={<MaintenancePage />} />
+                <Route path="maintenance/:taskId" element={<TaskDetailsPage />} />
                 <Route path="logbook" element={<Logbook />} />
                 <Route path="applications" element={<NewApplications />} />
                 <Route path="new-tenant" element={<NewTenant />} />

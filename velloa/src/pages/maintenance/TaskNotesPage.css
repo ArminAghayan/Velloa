@@ -1,0 +1,35 @@
+.task-notes-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 20px; /* Add this line to create space from the menu */
+}
+
+.new-note-card,
+.notes-table-card {
+  padding: 20px; /* Add padding to the cards */
+}
+
+.new-note-card .ant-card-body,
+.notes-table-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.add-note-button {
+  align-self: flex-end;
+}
+
+.ant-table-wrapper {
+  margin-top: 16px;
+}
+
+/* Ensure the card title (Add a New Note) has appropriate spacing */
+.new-note-card .ant-card-head {
+  padding-bottom: 0;
+}
+
+.new-note-card .ant-card-head-title {
+  padding-bottom: 16px;
+}

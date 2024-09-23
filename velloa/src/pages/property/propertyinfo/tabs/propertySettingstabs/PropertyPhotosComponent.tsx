@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Button, Image, Table, Space, Tag, Modal, Progress, notification, Upload
+  Button, Image, Table, Space, Tag, Modal, Progress, notification, Upload, Divider,Typography
 } from 'antd';
 import { InboxOutlined, DeleteOutlined } from '@ant-design/icons';
 import { 
@@ -11,6 +11,7 @@ import { getStorage, ref, deleteObject, uploadBytes, getDownloadURL } from 'fire
 import { v4 as uuidv4 } from 'uuid';
 
 const { Dragger } = Upload;
+const { Title, Text, Link } = Typography;
 
 interface Photo {
   id: string;
@@ -281,8 +282,8 @@ const PhotosComponent: React.FC<PhotosComponentProps> = ({ propertyKey }) => {
   return (
     <div className="photo-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2>Photos</h2>
-        <Space>
+      <Title style={{ color: '#4CAF50' }}level={2} className="main-title">Property Type</Title>
+              <Space>
           {selectedRowKeys.length > 0 && (
             <>
               <Button icon={<IconTrash size={16} />} onClick={handleDeleteImages}>Delete</Button>

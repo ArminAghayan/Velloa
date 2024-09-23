@@ -1,10 +1,11 @@
 // propertySettingstabs/GeneralInfoForm.tsx
 
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Row, Col, Typography, notification } from 'antd';
+import { Form, Input, Button, Row, Col, Typography, notification,Divider } from 'antd';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import './PropertyGeneralInfoForm.css'
-const { Text } = Typography;
+
+const { Title, Text } = Typography;
 
 interface GeneralInfoFormProps {
   propertyKey: string;
@@ -112,7 +113,8 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
 
   return (
     <div className="general-container">
-
+    <Title level={2} style={{ color: '#4CAF50' }}>General Info</Title>
+    <Divider/>
     <Form form={form} layout="vertical">
       <Form.Item 
         label={<span className="generalinfo_label">Property Name</span>} 
