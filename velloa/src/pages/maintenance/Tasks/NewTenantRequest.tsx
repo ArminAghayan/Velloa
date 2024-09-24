@@ -32,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { db,auth } from '../../../firebase-config'; // Ensure this path is correct
 import './NewTenantRequest.css'
+import { customAlphabet } from 'nanoid';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -82,6 +83,8 @@ interface TenantRequestFormValues {
     name: string;
   }
   
+  const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
+
   const NewTenantRequest: React.FC<NewTenantRequestProps> = ({ visible, onClose, companyId }) => {
     const [form] = Form.useForm<TenantRequestFormValues>();
     const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -214,6 +217,8 @@ interface TenantRequestFormValues {
               }))
             : [];
     
+          const taskRefId = generateTaskRefId();
+
           const tenantRequestRef = collection(db, 'maintenance');
           await addDoc(tenantRequestRef, {
             ...cleanedValues,
@@ -229,6 +234,7 @@ interface TenantRequestFormValues {
             tenantLastName: selectedTenant.lastName,
             tenantUnit: selectedTenant.unit,
             status: cleanedValues.status || 'Not Started',
+            taskRefId,
           });
     
           message.success('Tenant request created successfully');

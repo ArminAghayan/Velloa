@@ -32,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../firebase-config'; // Ensure this path is correct
 import './NewTaskDrawer.css';
+import { customAlphabet } from 'nanoid';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -68,6 +69,9 @@ interface Property {
   id: string;
   name: string;
 }
+
+// Add this function outside of the component
+const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
 const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
   visible,
@@ -222,6 +226,8 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
           }))
         : [];
 
+      const taskRefId = generateTaskRefId();
+
       const maintenanceRef = doc(collection(db, 'maintenance'));
       await setDoc(maintenanceRef, {
         ...values,
@@ -235,6 +241,7 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
         assignees: assigneeDetails,
         relatedToName: propertyName,
         taskType: 'Task',
+        taskRefId, // Add this line
       });
       message.success('Maintenance task created successfully');
       form.resetFields();

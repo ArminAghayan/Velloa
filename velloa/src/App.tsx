@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { ConfigProvider } from 'antd';
 import { Provider } from 'react-redux';
@@ -15,7 +15,7 @@ import Analyticsspage from './pages/Analytics/analytics';
 import ProtectedRoute from './pages/Auth/PrivateRoute';
 import LoginPage from './pages/Auth/loginpage';
 import SignupPage from './pages/Auth/signup';
-import PropertyInfoUnitViewNotes from './pages/property/propertyinfo/tabs/PropertyInfoUnitViewNotes'
+import PropertyInfoUnitViewNotes from './pages/property/propertyinfo/tabs/PropertyInfoUnitViewNotes';
 import SideBarPage from './components/sidebar';
 import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
 import MaintenancePage from './pages/maintenance/maintenancepage';
@@ -32,6 +32,7 @@ import { fetchUserDetails } from './components/redux/authSlice';
 import { AppDispatch } from './components/redux/store';
 import { auth } from './firebase-config';
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
+import { AnimatePresence, motion } from 'framer-motion'; // Import framer-motion
 
 const theme = {
   token: {
@@ -44,18 +45,17 @@ const theme = {
     colorBgLayout: "#F3F5F8",
   },
   components: {
-   
     Menu: {
-      darkItemBg: "#188034", // colorPrimaryActive
-      darkSubMenuItemBg: "#188034", // colorPrimaryActive
-      darkPopupBg: "#FFFFFF", // Keeping white as it was
-      ItemBg: "#188034", // colorPrimaryActive
-      SubMenuItemBg: "#188034", // colorPrimaryActive
-      PopupBg: "#d8e6d9", // colorPrimaryBg
+      darkItemBg: "#188034",
+      darkSubMenuItemBg: "#188034",
+      darkPopupBg: "#FFFFFF",
+      ItemBg: "#188034",
+      SubMenuItemBg: "#188034",
+      PopupBg: "#d8e6d9",
     },
     Layout: {
-      headerBg: "#d8e6d9", // colorPrimaryBg
-      siderBg: "#188034", // colorPrimaryActive
+      headerBg: "#d8e6d9",
+      siderBg: "#188034",
     },    
     Button: {
       dangerShadow: "",
@@ -70,8 +70,7 @@ const theme = {
     Table: {
       borderColor: "rgb(230, 233, 236)",
       lineWidth: 1.25,
-        headerBg: "rgb(255, 255, 255)",
-      
+      headerBg: "rgb(255, 255, 255)",
     },
     Tabs: {
       lineWidth: 2,
@@ -82,6 +81,83 @@ const theme = {
       borderRadius: 12,
     },
   },
+};
+
+// Define animation variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    x: "100vw", // Start off-screen to the right
+  },
+  in: {
+    opacity: 1,
+    x: 0, // Slide to original position
+  },
+  out: {
+    opacity: 0,
+    x: "-100vw", // Slide off-screen to the left
+  },
+};
+
+
+const pageTransition = {
+  type: "tween",
+  ease: "anticipate",
+  duration: 0.5,
+};
+
+// Create a wrapper component for animated pages
+const AnimatedPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <motion.div
+    initial="initial"
+    animate="in"
+    exit="out"
+    variants={pageVariants}
+    transition={pageTransition}
+  >
+    {children}
+  </motion.div>
+);
+
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={<AnimatedPage><LoginPage /></AnimatedPage>} />
+        <Route path="/signup" element={<AnimatedPage><SignupPage /></AnimatedPage>} />
+        <Route path="/forgot-password" element={<AnimatedPage><ForgotPassword /></AnimatedPage>} />
+
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<SideBarPage />}>
+            {/* Nested routes are automatically protected and included in the sidebar */}
+            <Route index element={<AnimatedPage><HomePage /></AnimatedPage>} />
+            <Route path="home" element={<AnimatedPage><HomePage /></AnimatedPage>} />
+            <Route path="tools" element={<AnimatedPage><Toolspage /></AnimatedPage>} />
+            <Route path="property" element={<AnimatedPage><Propertypage /></AnimatedPage>} />
+            <Route path="resources" element={<AnimatedPage><Resourcespage /></AnimatedPage>} />
+            <Route path="leasing" element={<AnimatedPage><Leasingpage /></AnimatedPage>} />
+            <Route path="people" element={<AnimatedPage><Peoplepage /></AnimatedPage>} />
+            <Route path="accounting" element={<AnimatedPage><Accountingpage /></AnimatedPage>} />
+            <Route path="analytics" element={<AnimatedPage><Analyticsspage /></AnimatedPage>} />
+            <Route path="messages" element={<AnimatedPage><MessagesPage /></AnimatedPage>} />
+            <Route path="maintenance" element={<AnimatedPage><MaintenancePage /></AnimatedPage>} />
+            <Route path="maintenance/:taskId" element={<AnimatedPage><TaskDetailsPage /></AnimatedPage>} />
+            <Route path="logbook" element={<AnimatedPage><Logbook /></AnimatedPage>} />
+            <Route path="applications" element={<AnimatedPage><NewApplications /></AnimatedPage>} />
+            <Route path="new-tenant" element={<AnimatedPage><NewTenant /></AnimatedPage>} />
+            <Route path="/unitinfo" element={<AnimatedPage><UnitInfoPage /></AnimatedPage>} />
+            <Route path="/applicationviewer" element={<AnimatedPage><Applicationviewer /></AnimatedPage>} />
+            <Route path="/addnewproperty" element={<AnimatedPage><AddNewProperty /></AnimatedPage>} />
+            <Route path="/propertyinfo/" element={<AnimatedPage><PropertyInfo /></AnimatedPage>} />
+            <Route path="propertyinfo/:propertyId/unit/:unitName" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
+          </Route>
+        </Route>
+      </Routes>
+    </AnimatePresence>
+  );
 };
 
 const App: React.FC = () => {
@@ -98,38 +174,7 @@ const App: React.FC = () => {
     <ConfigProvider theme={theme}>
       <Provider store={store}>
         <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<SideBarPage />}>
-                {/* Nested routes are automatically protected and included in the sidebar */}
-                <Route index element={<HomePage />} />
-                <Route path="home" element={<HomePage />} />
-                <Route path="tools" element={<Toolspage />} />
-                <Route path="property" element={<Propertypage />} />
-                <Route path="resources" element={<Resourcespage />} />
-                <Route path="leasing" element={<Leasingpage />} />
-                <Route path="people" element={<Peoplepage />} />
-                <Route path="accounting" element={<Accountingpage />} />
-                <Route path="analytics" element={<Analyticsspage />} />
-                <Route path="messages" element={<MessagesPage />} />
-                <Route path="maintenance" element={<MaintenancePage />} />
-                <Route path="maintenance/:taskId" element={<TaskDetailsPage />} />
-                <Route path="logbook" element={<Logbook />} />
-                <Route path="applications" element={<NewApplications />} />
-                <Route path="new-tenant" element={<NewTenant />} />
-                <Route path="/unitinfo" element={<UnitInfoPage />} />
-                <Route path="/applicationviewer" element={<Applicationviewer />} />
-                <Route path="/addnewproperty" element={<AddNewProperty />} />
-                <Route path="/propertyinfo/" element={<PropertyInfo />} />
-                <Route path="propertyinfo/:propertyId/unit/:unitName" element={<PropertyInfoUnitView />} />
-              </Route>
-            </Route>
-          </Routes>
+          <AnimatedRoutes />
         </Router>
       </Provider>
     </ConfigProvider>

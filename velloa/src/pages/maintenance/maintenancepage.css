@@ -7,3 +7,31 @@
 height: 36px;
 font-weight: 500;
 }
+
+
+.maintenance-table {
+    box-shadow: none;
+}
+
+.maintenance-table .ant-table {
+    
+    border-bottom: none;
+}
+
+.maintenance-table .table-row {
+    transition: all 0.3s ease-in-out;
+}
+
+.maintenance-table .table-row.selected {
+    transform: translateX(-100%);
+    background-color: #f0f0f0;
+}
+
+.maintenance-table .ant-table-tbody > tr.ant-table-row:hover > td {
+    background-color: transparent;
+}
+
+.maintenance-table .ant-table-tbody > tr.selected > td {
+    background-color: #f0f0f0;
+}
+

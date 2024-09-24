@@ -1,14 +1,46 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Input, Button, Select, Row, Col, Modal, Form, Upload, message, Progress, Popconfirm } from 'antd';
-import { PlusOutlined, UploadOutlined, DeleteOutlined, CloseOutlined } from '@ant-design/icons';
-import { db, storage } from '../../firebase-config';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  Table,
+  Input,
+  Button,
+  Select,
+  Row,
+  Col,
+  Modal,
+  Form,
+  Upload,
+  message,
+  Progress,
+  Popconfirm,
+} from 'antd';
+import {
+  PlusOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  CloseOutlined,
+} from '@ant-design/icons';
+import { db, storage, auth } from '../../firebase-config';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  getDoc,
+} from 'firebase/firestore';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import { v4 as uuidv4 } from 'uuid';
 import './TaskFilesPage.css';
 
-const { Search } = Input;
 const { Option } = Select;
 
 interface TaskFile {
@@ -22,7 +54,7 @@ interface TaskFile {
 }
 
 interface TaskFilesPageProps {
-  taskId?: string;  // Make taskId optional
+  taskId?: string;
 }
 
 const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
@@ -37,14 +69,42 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
   const [previewFile, setPreviewFile] = useState<TaskFile | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (user) {
+        fetchUserName(user.uid);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const fetchUserName = async (uid: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const fullName = `${userData.firstName} ${userData.lastName}`;
+        setUserName(fullName);
+      }
+    } catch (error) {
+      console.error('Error fetching user name:', error);
+      message.error('Failed to fetch user information.');
+    }
+  };
 
   const fetchFiles = useCallback(async () => {
     if (!taskId) {
       setLoading(false);
-      return;  // Exit early if taskId is not available
+      return;
     }
     setLoading(true);
-    const filesRef = collection(db, 'tasks', taskId, 'files');
+    const filesRef = collection(db, 'maintenance', taskId, 'files');
     try {
       const filesSnapshot = await getDocs(filesRef);
       const fetchedFiles: TaskFile[] = await Promise.all(
@@ -54,7 +114,7 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
             const freshUrl = await getDownloadURL(ref(storage, data.fileUrl));
             return { ...data, fileId: doc.id, fileUrl: freshUrl };
           } catch (error) {
-            console.error("Error refreshing download URL: ", error);
+            console.error('Error refreshing download URL: ', error);
             return { ...data, fileId: doc.id };
           }
         })
@@ -62,16 +122,18 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
       setFiles(fetchedFiles);
       setFilteredFiles(fetchedFiles);
     } catch (error) {
-      console.error("Error fetching files: ", error);
-      message.error("Failed to fetch files. Please check your permissions.");
+      console.error('Error fetching files: ', error);
+      message.error('Failed to fetch files. Please check your permissions.');
     } finally {
       setLoading(false);
     }
   }, [taskId]);
 
   useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles]);
+    if (currentUser) {
+      fetchFiles();
+    }
+  }, [fetchFiles, currentUser]);
 
   const handleFileChange = (info: any) => {
     const { fileList } = info;
@@ -120,23 +182,32 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
     if (!taskId) return;
     try {
       for (const key of selectedRowKeys) {
-        const fileToDelete = files.find(file => file.fileId === key);
+        const fileToDelete = files.find((file) => file.fileId === key);
         if (fileToDelete) {
-          // Fix: Use doc() correctly
-          const fileDocRef = doc(db, 'tasks', taskId, 'files', fileToDelete.fileId);
+          const fileDocRef = doc(
+            db,
+            'maintenance',
+            taskId,
+            'files',
+            fileToDelete.fileId
+          );
           await deleteDoc(fileDocRef);
           const storageRef = ref(storage, fileToDelete.fileUrl);
           await deleteObject(storageRef);
         }
       }
-      
-      setFiles(prevFiles => prevFiles.filter(file => !selectedRowKeys.includes(file.fileId)));
-      setFilteredFiles(prevFiltered => prevFiltered.filter(file => !selectedRowKeys.includes(file.fileId)));
+
+      setFiles((prevFiles) =>
+        prevFiles.filter((file) => !selectedRowKeys.includes(file.fileId))
+      );
+      setFilteredFiles((prevFiltered) =>
+        prevFiltered.filter((file) => !selectedRowKeys.includes(file.fileId))
+      );
       setSelectedRowKeys([]);
-      
+
       message.success('Selected files deleted successfully');
     } catch (error) {
-      console.error("Error deleting files: ", error);
+      console.error('Error deleting files: ', error);
       message.error('Failed to delete selected files');
     }
   };
@@ -148,16 +219,22 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
   const columns = [
     { title: 'File Name', dataIndex: 'fileName', key: 'fileName' },
     { title: 'File Type', dataIndex: 'fileType', key: 'fileType' },
-    { 
-      title: 'Upload Date', 
-      dataIndex: 'uploadDate', 
-      key: 'uploadDate', 
+    {
+      title: 'Upload Date',
+      dataIndex: 'uploadDate',
+      key: 'uploadDate',
       render: (text: string) => new Date(text).toLocaleDateString(),
-      sorter: (a: TaskFile, b: TaskFile) => new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime(),
+      sorter: (a: TaskFile, b: TaskFile) =>
+        new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime(),
       sortDirections: ['descend', 'ascend'] as ['descend', 'ascend'],
     },
-    { title: 'Size', dataIndex: 'size', key: 'size', render: (size: number) => `${size} KB` },
-    { title: 'Uploaded By', dataIndex: 'uploadedBy', key: 'uploadedBy' }
+    {
+      title: 'Size',
+      dataIndex: 'size',
+      key: 'size',
+      render: (size: number) => `${size} KB`,
+    },
+    { title: 'Uploaded By', dataIndex: 'uploadedBy', key: 'uploadedBy' },
   ];
 
   const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
@@ -170,7 +247,10 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
   };
 
   const handleFormSubmit = async (values: any) => {
-    if (!taskId) return;
+    if (!taskId || !currentUser) {
+      message.error('Missing required information. Please try again.');
+      return;
+    }
     try {
       if (!values.file || values.file.length === 0) {
         throw new Error('No file selected');
@@ -184,89 +264,109 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
 
       const fileType = file.type || 'Unknown/Unsupported';
       const fileName = values.fileName || file.name;
-      const storageRef = ref(storage, `tasks/${taskId}/files/${uuidv4()}-${fileName}`);
-      
+      const storageRef = ref(
+        storage,
+        `maintenance/${taskId}/files/${uuidv4()}-${fileName}`
+      );
+
       const uploadTask = uploadBytesResumable(storageRef, file);
 
-      uploadTask.on('state_changed', 
+      uploadTask.on(
+        'state_changed',
         (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setUploadProgress(progress);
-        }, 
+        },
         (error) => {
-          console.error("Upload error: ", error);
+          console.error('Upload error: ', error);
           message.error(`Upload failed: ${error.message}`);
-        }, 
+        },
         async () => {
           const fileUrl = await getDownloadURL(uploadTask.snapshot.ref);
           const newFile: TaskFile = {
-            fileId: uploadTask.snapshot.metadata.fullPath,
+            fileId: uuidv4(),
             fileName: fileName,
             fileType: fileType,
             uploadDate: new Date().toISOString(),
             size: Math.round((file.size / 1024) * 100) / 100,
-            uploadedBy: 'Current User',
-            fileUrl: fileUrl
+            uploadedBy: userName || currentUser.email || 'Unknown User',
+            fileUrl: fileUrl,
           };
 
-          // Fix: Use collection() correctly
-          const filesRef = collection(db, 'tasks', taskId, 'files');
+          const filesRef = collection(db, 'maintenance', taskId, 'files');
           await addDoc(filesRef, newFile);
 
-          setFiles(prevFiles => [...prevFiles, newFile]);
-          setFilteredFiles(prevFiltered => [...prevFiltered, newFile]);
+          setFiles((prevFiles) => [...prevFiles, newFile]);
+          setFilteredFiles((prevFiltered) => [...prevFiltered, newFile]);
           message.success('File added successfully');
           setUploadProgress(0);
           handleUploadModalClose();
         }
       );
     } catch (error: any) {
-      console.error("Error adding file: ", error);
+      console.error('Error adding file: ', error);
       message.error(`Failed to add file: ${error.message}`);
     }
   };
 
   useEffect(() => {
     const lowercasedSearch = searchText.toLowerCase();
-    const filtered = files.filter(file => {
+    const filtered = files.filter((file) => {
       const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
       let typeMatch = true;
-      
+
       if (filterType !== '' && file.fileType) {
         const lowerCaseFileType = file.fileType.toLowerCase();
         switch (filterType.toLowerCase()) {
           case 'document':
-            typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
+            typeMatch = ['pdf', 'doc', 'docx', 'txt'].some((ext) =>
+              lowerCaseFileType.includes(ext)
+            );
             break;
           case 'image':
-            typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp','webp','mp4'].some(ext => lowerCaseFileType.includes(ext));
+            typeMatch = [
+              'jpg',
+              'jpeg',
+              'png',
+              'gif',
+              'bmp',
+              'webp',
+              'mp4',
+            ].some((ext) => lowerCaseFileType.includes(ext));
             break;
           case 'spreadsheet':
-            typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
+            typeMatch = ['xls', 'xlsx', 'csv'].some((ext) =>
+              lowerCaseFileType.includes(ext)
+            );
             break;
           default:
             typeMatch = true;
         }
       }
-      
+
       return fileNameMatch && typeMatch;
     });
     setFilteredFiles(filtered);
   }, [files, searchText, filterType]);
 
-  // Add a check at the beginning of the return statement
   if (!taskId) {
     return <div>No task ID provided</div>;
   }
 
   return (
     <div className="task-files-page">
-      <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+      <Row
+        gutter={16}
+        justify="space-between"
+        align="middle"
+        style={{ marginBottom: '16px' }}
+      >
         <Col span={16}>
           <Row gutter={16}>
             <Col>
               <Input
-                className='file-search-input'
+                className="file-search-input"
                 placeholder="Search files"
                 value={searchText}
                 onChange={handleSearchChange}
@@ -274,7 +374,7 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
             </Col>
             <Col>
               <Select
-                className='file-dropdown-input'
+                className="file-dropdown-input"
                 placeholder="Filter by type"
                 onChange={handleFilterChange}
                 allowClear
@@ -287,7 +387,15 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
             </Col>
           </Row>
         </Col>
-        <Col span={8} style={{ textAlign: 'right' }}>
+        <Col
+          span={8}
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           {selectedRowKeys.length > 0 && (
             <>
               <Popconfirm
@@ -297,30 +405,31 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
                 cancelText="No"
               >
                 <Button
-                  className='delete-files-button'
+                  className="delete-files-button"
                   type="primary"
                   danger
                   icon={<DeleteOutlined />}
-                  style={{ marginRight: '8px' }}
+                  style={{ marginRight: '8px', marginBottom: '8px' }}
                 >
                   Delete Selected
                 </Button>
               </Popconfirm>
               <Button
-                className='cancel-selection-button'
+                className="cancel-selection-button"
                 onClick={handleCancelSelection}
                 icon={<CloseOutlined />}
-                style={{ marginRight: '8px' }}
+                style={{ marginRight: '8px', marginBottom: '8px' }}
               >
                 Cancel Selection
               </Button>
             </>
           )}
           <Button
-            className='new-file-button'
+            className="new-file-button"
             onClick={handleNewFileClick}
             type="default"
             icon={<PlusOutlined />}
+            style={{ marginBottom: '8px' }}
           >
             New File
           </Button>
@@ -332,6 +441,7 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
         dataSource={filteredFiles}
         loading={loading}
         rowKey="fileId"
+        className="tasks-files-table"
         onRow={(record) => ({
           onClick: () => handleRowClick(record),
         })}
@@ -351,11 +461,7 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
           </Button>,
         ]}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFormSubmit}
-        >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Form.Item
             name="fileName"
             label="File Name"
@@ -370,13 +476,17 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
             getValueFromEvent={(e) => e && e.fileList}
             rules={[{ required: true, message: 'Please upload a file' }]}
           >
-            <Upload.Dragger 
-              beforeUpload={() => false} 
+            <Upload.Dragger
+              beforeUpload={() => false}
               onChange={handleFileChange}
               className="full-width-upload"
             >
-              <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-              <p className="ant-upload-text">Click or drag file to this area to upload</p>
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined />
+              </p>
+              <p className="ant-upload-text">
+                Click or drag file to this area to upload
+              </p>
             </Upload.Dragger>
           </Form.Item>
           {uploadProgress > 0 && uploadProgress < 100 && (
@@ -401,17 +511,17 @@ const TaskFilesPage: React.FC<TaskFilesPageProps> = ({ taskId }) => {
               header: {
                 disableHeader: false,
                 disableFileName: false,
-                retainURLParams: false
+                retainURLParams: false,
               },
-              csvDelimiter: ",",
+              csvDelimiter: ',',
               pdfZoom: {
                 defaultZoom: 1.1,
                 zoomJump: 0.2,
               },
               pdfVerticalScrollByDefault: true,
               loadingRenderer: {
-                showLoadingTimeout: 1000
-              }
+                showLoadingTimeout: 1000,
+              },
             }}
             style={{ height: '100%', width: '100%' }}
           />

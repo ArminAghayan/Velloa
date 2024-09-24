@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Table, Space, Input, Skeleton, Button, message, Dropdown, Menu, Tag,Tooltip, } from 'antd';
-import { RightOutlined, ReloadOutlined, UserOutlined, FileTextOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined,ToolOutlined } from '@ant-design/icons';
+import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined,ToolOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
@@ -15,6 +15,7 @@ const { Title, Text } = Typography;
 
 export interface MaintenanceData {
   key: string;
+  taskRefId: string;
   subject: string;
   assignees: { uid: string; name: string }[];
   dueDate: string;
@@ -29,18 +30,11 @@ export interface MaintenanceData {
   approvedByOwner?: boolean;
   permissionToEnter?: boolean;
   entryNotes?: string;
-  partsAndLabor?: Array<{
-    key: string;
-    quantity: number;
-    account: string;
-    description: string;
-    price: string;
-    total: string;
-  }>;
+
 }
 
-const 
-MaintenancePage: React.FC = () => {
+
+const MaintenancePage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -137,6 +131,7 @@ MaintenancePage: React.FC = () => {
         return {
           key: doc.id,
           subject: data.subject || '',
+          taskRefId: data.taskRefId || '',
           assignees: Array.isArray(data.assignees) 
             ? data.assignees.map((assignee: any) => ({
                 uid: assignee.uid || '',
@@ -210,6 +205,7 @@ MaintenancePage: React.FC = () => {
   const createSkeletonData = (count: number): MaintenanceData[] => {
     return Array.from({ length: count }, (_, index) => ({
       key: `skeleton-${index}`,
+      taskRefId: '',
       subject: '',
       assignees: [],
       dueDate: '',
@@ -251,10 +247,22 @@ MaintenancePage: React.FC = () => {
             })}
           </div>
           <Space direction="vertical" size={0} style={{ flex: 1 }}>
-            <Space>
-              <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.taskType}</Text>
-              {getPriorityTag(record.priority)}
-            </Space>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <Space>
+                <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.taskType}</Text>
+                {getPriorityTag(record.priority)}
+              </Space>
+              <div style={{
+                backgroundColor: '#F0F2F5',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#666',
+                marginLeft: '20px'
+              }}>
+                #{record.taskRefId}
+              </div>
+            </div>
             <Tooltip title={text}>
               <Text>{truncateText(text, 30)}</Text>
             </Tooltip>
@@ -328,7 +336,8 @@ MaintenancePage: React.FC = () => {
   const filteredTasks = maintenanceTasks.filter((task) =>
     task.subject.toLowerCase().includes(searchText.toLowerCase()) ||
     task.relatedToName.toLowerCase().includes(searchText.toLowerCase()) ||
-    task.assignees.some(assignee => assignee.name.toLowerCase().includes(searchText.toLowerCase()))
+    task.assignees.some(assignee => assignee.name.toLowerCase().includes(searchText.toLowerCase())) ||
+    task.taskRefId.toLowerCase().includes(searchText.toLowerCase())
   );
 
   const handleTaskClick = (task: MaintenanceData) => {
@@ -377,7 +386,7 @@ MaintenancePage: React.FC = () => {
       <div className="property-page-container">
         <div className="search-and-add">
           <Input
-            placeholder="Search tasks"
+            placeholder="Search Person or Task ID..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="search-input"
@@ -405,7 +414,7 @@ MaintenancePage: React.FC = () => {
             onClick: () => handleTaskClick(record),
             style: { cursor: 'pointer' },
           })}
-          className="custom-table"
+          className="maintenance-table"
         />
       </div>
       <NewTaskDrawer

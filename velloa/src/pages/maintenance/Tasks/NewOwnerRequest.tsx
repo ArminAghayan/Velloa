@@ -32,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../../firebase-config'; // Ensure this path is correct
 import './NewOwnerRequest.css'
+import { customAlphabet } from 'nanoid';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -73,6 +74,8 @@ interface Property {
   id: string;
   name: string;
 }
+
+const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
 const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, companyId }) => {
   const [form] = Form.useForm<OwnerRequestFormValues>();
@@ -189,6 +192,8 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
           }))
         : [];
 
+      const taskRefId = generateTaskRefId();
+
       const ownerRequestRef = collection(db, 'ownerRequests');
       await addDoc(ownerRequestRef, {
         ...cleanedValues,
@@ -198,6 +203,7 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
         assignees: assigneeDetails,
         attachments,
         status: cleanedValues.status || 'Not Started',
+        taskRefId,
       });
 
       message.success('Owner request created successfully');

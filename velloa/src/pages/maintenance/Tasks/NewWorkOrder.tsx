@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../firebase-config'; // Ensure this path is correct
 import './NewWorkOrder.css';
+import { customAlphabet } from 'nanoid';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -88,6 +89,8 @@ interface Property {
   id: string;
   name: string;
 }
+
+const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
 const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId }) => {
   const [form] = Form.useForm<WorkOrderFormValues>();
@@ -216,31 +219,30 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         propertyName = propertyData?.propertyName || 'Unknown Property';
       }
 
-      const attachments = cleanedValues.attachments
-        ? cleanedValues.attachments.map((file) => ({
-            name: file.name,
-            url: file.url || '',
-          }))
-        : [];
-
-      console.log('About to write to Firestore...');
+      const taskRefId = generateTaskRefId();
 
       // Use addDoc to add a new document to the 'maintenance' collection
       const maintenanceRef = collection(db, 'maintenance');
-      await addDoc(maintenanceRef, {
+      const newWorkOrderRef = await addDoc(maintenanceRef, {
         ...cleanedValues,
         companyId,
         createdAt: Timestamp.now(),
         dueDate: dueDateTimestamp,
         startDate: startDateTimestamp,
         endDate: endDateTimestamp,
-        attachments,
         assignees: assigneeDetails,
         relatedToName: propertyName,
-        lineItems: showPartsAndLabor ? lineItems : [],
         taskType: 'Work Order',
-
+        taskRefId,
       });
+
+      // If parts and labor are included, save them in a subcollection
+      if (showPartsAndLabor && lineItems.length > 0) {
+        const partsAndLaborRef = collection(newWorkOrderRef, 'partsandlabor');
+        for (const item of lineItems) {
+          await addDoc(partsAndLaborRef, item);
+        }
+      }
 
       console.log('Successfully wrote to Firestore');
       message.success('Work order created successfully');
@@ -250,6 +252,7 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
       onClose();
     } catch (error) {
       console.error('Error saving work order:', error);
+      message.error('Failed to create work order. Please try again.');
     }
   };
 
