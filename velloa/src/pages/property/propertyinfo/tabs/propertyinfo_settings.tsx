@@ -9,7 +9,6 @@ import {
   IconPigMoney, IconFileDollar, IconFiles, IconMailbox, IconDeviceFloppy, 
   IconPencil, IconPlus, IconTrash, IconX, IconStarFilled
 } from '@tabler/icons-react';
-import { useLocation } from 'react-router-dom';
 import './propertyinfo_settings.css';
 import PropertyTypeSelection from './propertySettingstabs/PropertyTypeSelection';
 import PhotosComponent from './propertySettingstabs/PropertyPhotosComponent';
@@ -17,14 +16,23 @@ import GeneralInfoForm from './propertySettingstabs/PropertyGeneralInfoForm'; //
 import LateFees from './propertySettingstabs/propertyLateFees';
 const { Text } = Typography;
 
+interface Property {
+  key: string;
+  propertyName: string;
+  propertyType: string;
+  numberOfUnits: number;
+  status: string;
+  photos?: string[];
+  // Add other relevant fields as needed
+}
+
 interface PropertySettingsProps {
+  property: Property;
   updatePropertyName: (newName: string) => void;
 }
 
-const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ updatePropertyName }) => {
+const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updatePropertyName }) => {
   const [selectedMenu, setSelectedMenu] = useState('general');
-  const location = useLocation();
-  const { property } = location.state as { property: { key: string } };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     setSelectedMenu(key);
@@ -43,7 +51,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ updatePropertyN
         return <PhotosComponent propertyKey={property.key} />;
       case 'type':
         return <PropertyTypeSelection propertyId={property.key} />;
-        case 'bank':
+      case 'bank':
         return <Text>Bank Accounts content goes here.</Text>;
       case 'owners':
         return <Text>Owners content goes here.</Text>;
@@ -51,7 +59,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ updatePropertyN
         return <Text>Reserve Funds content goes here.</Text>;
       case 'lateFees':
         return <LateFees />;
-        case 'portal':
+      case 'portal':
         return <Text>Tenant Portal content goes here.</Text>;
       case 'notifications':
         return <Text>Rent & Payment Notifications content goes here.</Text>;

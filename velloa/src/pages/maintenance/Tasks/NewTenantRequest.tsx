@@ -235,6 +235,8 @@ interface TenantRequestFormValues {
             tenantUnit: selectedTenant.unit,
             status: cleanedValues.status || 'Not Started',
             taskRefId,
+            permitEntering: cleanedValues.permitEntering || false,
+            approvedByOwner: false, // Set initial value to false
           });
     
           message.success('Tenant request created successfully');

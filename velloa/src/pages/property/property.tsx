@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Table, Space, Input, Skeleton, Button, message, Tooltip } from 'antd';
+import { Typography, Table, Space, Input, Skeleton, Button, message } from 'antd';
 import { RightOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
@@ -148,7 +148,7 @@ const PropertyPage: React.FC = () => {
   );
 
   const handlePropertyClick = (property: PropertyData) => {
-    navigate('/propertyinfo/', { state: { property } });
+    navigate(`/property/${property.key}`); // Updated navigation
   };
 
   return (
@@ -165,11 +165,11 @@ const PropertyPage: React.FC = () => {
             className="search-input"
           />
           <Space>
-              <Button
-                icon={<ReloadOutlined spin={isRefreshing} />}
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              />
+            <Button
+              icon={<ReloadOutlined spin={isRefreshing} />}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            />
             <Button type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
               Add Property
             </Button>
@@ -181,7 +181,7 @@ const PropertyPage: React.FC = () => {
           dataSource={loading ? createSkeletonData(10) : filteredProperties}
           pagination={{ pageSize: 10 }}
           onRow={(record: PropertyData) => ({
-            onClick: () => handlePropertyClick(record),
+            onClick: () => handlePropertyClick(record), // Updated click handler
             style: { cursor: 'pointer' },
           })}
           className="custom-table"

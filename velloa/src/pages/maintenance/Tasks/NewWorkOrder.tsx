@@ -50,7 +50,7 @@ interface NewWorkOrderProps {
 interface WorkOrderFormValues {
   vendor: string;
   subject: string;
-  workDescription?: string;
+  description?: string;
   workOrderType: 'oneTime' | 'recurring';
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   startDate?: Date;
@@ -232,8 +232,12 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         endDate: endDateTimestamp,
         assignees: assigneeDetails,
         relatedToName: propertyName,
+        priority: cleanedValues.priority,
+        relatedTo: cleanedValues.relatedProperty,
         taskType: 'Work Order',
         taskRefId,
+        permitEntering: cleanedValues.permitEntering || false,
+        approvedByOwner: cleanedValues.approvedByOwner || false,
       });
 
       // If parts and labor are included, save them in a subcollection
@@ -407,7 +411,7 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
           <Input />
         </Form.Item>
 
-        <Form.Item name="workDescription" label="Work Description">
+        <Form.Item name="description" label="description">
           <TextArea rows={4} maxLength={10000} showCount />
         </Form.Item>
         <Divider />

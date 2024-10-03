@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, Card, Row, Col, Skeleton, message, Button } from 'antd';
+import { Typography, Card, Row, Col, Skeleton, message } from 'antd';
 import { db } from '../../../../firebase-config';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { IconUserCircle, IconBuildingEstate, IconKey, IconCircleDashedCheck } from '@tabler/icons-react';
-
+import './propertyinfo_overview.css';
 const { Title, Text } = Typography;
 
 interface Owner {

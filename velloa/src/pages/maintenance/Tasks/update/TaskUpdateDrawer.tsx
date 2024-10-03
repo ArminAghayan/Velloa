@@ -18,7 +18,7 @@ import {
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { db, storage } from '../../../firebase-config';
+import { db, storage } from '../../../../firebase-config';
 import {
   collection,
   getDocs,
@@ -28,6 +28,9 @@ import {
   Timestamp,
   DocumentData,
   QueryDocumentSnapshot,
+  doc,
+  updateDoc,
+  getDoc,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { UploadFile, UploadChangeParam, RcFile } from 'antd/es/upload/interface';
@@ -47,6 +50,7 @@ interface TaskUpdateDrawerProps {
   taskData: MaintenanceData | null;
   companyId: string;
   onUpdateSuccess: () => void;
+  onTaskCompleted: () => void; // New prop to handle task completion
 }
 
 interface Assignee {
@@ -59,6 +63,7 @@ interface MaintenanceData {
   assignees?: { uid: string }[];
   priority: string;
   dueDate?: Timestamp | string;
+  notifyAssignees?: boolean;
   // Add other fields as necessary
 }
 
@@ -68,23 +73,16 @@ interface FormValues {
   status?: string;
   priority?: string;
   assignees?: string[];
-  notifyAssignee?: boolean;
+  notifyAssignees?: boolean;
   // Add other fields as necessary
 }
 
-interface NewNote {
-  note: string;
+interface NewContent {
+  content: string;
   createdAt: Timestamp;
-  createdBy: {
-    uid: string;
-    name: string;
-  };
+  createdByUID: string;
+  createdBy: string;
   attachments?: Attachment[];
-  status?: string;
-  priority?: string;
-  dueDate?: Timestamp | null;
-  assignees?: string[];
-  notifyAssignee?: boolean;
 }
 
 interface Attachment {
@@ -99,6 +97,7 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
   taskData,
   companyId,
   onUpdateSuccess,
+  onTaskCompleted, // Include the new prop
 }) => {
   const [form] = Form.useForm<FormValues>();
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -180,6 +179,7 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
       assignees: data.assignees?.map((assignee) => assignee.uid) || [],
       priority: data.priority || '',
       dueDate: dueDateDayjs,
+      notifyAssignees: data.notifyAssignees || false,
     };
 
     form.setFieldsValue(formValues);
@@ -249,6 +249,17 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
         return;
       }
 
+      // Fetch user's first and last name from Firestore
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      let createdBy = 'Unknown User';
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const firstName = userData.firstName || '';
+        const lastName = userData.lastName || '';
+        createdBy = `${firstName} ${lastName}`.trim() || 'Unknown User';
+      }
+
       // Process file attachments
       const attachments: Attachment[] = fileList
         .filter((file) => file.status === 'done' && file.url)
@@ -257,35 +268,51 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
           url: file.url as string,
         }));
 
-      const newNote: NewNote = {
-        note: values.note,
-        createdAt: Timestamp.now(),
-        createdBy: {
-          uid: currentUser.uid,
-          name: currentUser.displayName || 'Unknown User',
-        },
-        attachments: attachments.length > 0 ? attachments : undefined,
+      // Update the main maintenance document
+      const maintenanceDocRef = doc(db, 'maintenance', taskId);
+      const maintenanceUpdate = {
         status: values.status,
         priority: values.priority,
         dueDate: values.dueDate ? Timestamp.fromDate(values.dueDate.toDate()) : null,
-        assignees: values.assignees,
-        notifyAssignee: values.notifyAssignee,
+        assignees: values.assignees?.map((uid) => ({ uid })),
+        notifyAssignees: values.notifyAssignees,
+      };
+      await updateDoc(maintenanceDocRef, maintenanceUpdate);
+
+      // Create a new content entry
+      const newContent: NewContent = {
+        content: values.note,
+        createdAt: Timestamp.now(),
+        createdByUID: currentUser.uid,
+        createdBy: createdBy,
       };
 
-      const notesCollectionRef = collection(db, 'maintenance', taskId, 'notes');
-      await addDoc(notesCollectionRef, newNote);
+      // Only add attachments field if there are any
+      if (attachments.length > 0) {
+        newContent.attachments = attachments;
+      }
 
-      message.success('Note added successfully.');
+      const notesCollectionRef = collection(db, 'maintenance', taskId, 'notes');
+      await addDoc(notesCollectionRef, newContent);
+
+      // Optionally remove the success message if desired
+      // message.success('Maintenance task updated and content added successfully.');
+
       form.resetFields();
       setFileList([]);
       onClose();
       onUpdateSuccess();
+
+      // Check if the task status is 'Completed' and call onTaskCompleted
+      if (values.status === 'Completed') {
+        onTaskCompleted();
+      }
     } catch (error) {
-      console.error('Error adding note:', error);
+      console.error('Error updating maintenance task:', error);
       if (error instanceof Error) {
-        message.error(`Failed to add note: ${error.message}`);
+        message.error(`Failed to update maintenance task: ${error.message}`);
       } else {
-        message.error('Failed to add note due to an unknown error.');
+        message.error('Failed to update maintenance task due to an unknown error.');
       }
     } finally {
       setUploading(false);

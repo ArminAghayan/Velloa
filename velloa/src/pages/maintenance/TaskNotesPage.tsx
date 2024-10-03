@@ -1,3 +1,5 @@
+// TaskNotesPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   Input, 
@@ -26,7 +28,8 @@ import {
   doc, 
   getDoc, 
   updateDoc, 
-  deleteDoc 
+  deleteDoc, 
+  Timestamp 
 } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { db } from '../../firebase-config';
@@ -35,10 +38,11 @@ const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;
 const { confirm } = Modal;
 
+// Updated Note interface
 interface Note {
   id: string;
-  content?: string; // Made optional
-  createdAt?: string;
+  content?: string;
+  createdAt?: Timestamp;
   createdBy?: string;
 }
 
@@ -55,6 +59,7 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editNoteContent, setEditNoteContent] = useState('');
+  const [loading, setLoading] = useState<boolean>(false); // Added loading state
 
   useEffect(() => {
     const auth = getAuth();
@@ -73,8 +78,8 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const fullName = `${userData.firstName} ${userData.lastName}`;
-        setUserName(fullName);
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        setUserName(fullName || 'Unknown User');
       }
     } catch (error) {
       console.error('Error fetching user name:', error);
@@ -83,62 +88,68 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
   };
 
   useEffect(() => {
-    console.log('taskId:', taskId);
-    if (currentUser) {
+    if (taskId && currentUser) {
       fetchNotes();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, currentUser]);
 
   const fetchNotes = async () => {
-    console.log('Fetching notes...');
     if (!taskId) {
-      console.log('No taskId, skipping fetch');
+      message.error('No task selected.');
       return;
     }
+    setLoading(true);
     try {
       const notesRef = collection(db, 'maintenance', taskId, 'notes');
       const q = query(notesRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const fetchedNotes = querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      const fetchedNotes = querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           content: data.content || 'No content available.',
-          createdAt: data.createdAt || '',
+          createdAt: data.createdAt || Timestamp.fromDate(new Date()),
           createdBy: data.createdBy || 'Unknown',
         };
       }) as Note[];
-      console.log('Fetched notes:', fetchedNotes);
       setNotes(fetchedNotes);
     } catch (error) {
       console.error('Error fetching notes:', error);
       message.error('Failed to fetch notes. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddNote = async () => {
-    if (newNote.trim() && taskId && currentUser) {
-      try {
-        const notesRef = collection(db, 'maintenance', taskId, 'notes');
-        const newNoteObj = {
-          content: newNote,
-          createdAt: new Date().toISOString(),
-          createdBy: userName || currentUser.email || 'Unknown User',
-        };
-        await addDoc(notesRef, newNoteObj);
-        console.log('Note added successfully');
-        message.success('Note added successfully');
-        setNewNote('');
-        await fetchNotes(); // Refresh the notes list
-      } catch (error) {
-        console.error('Error adding note:', error);
-        message.error('Failed to add note. Please try again.');
-      }
-    } else if (!currentUser) {
-      message.error('You must be logged in to add a note.');
-    } else {
+    if (!newNote.trim()) {
       message.error('Note content cannot be empty.');
+      return;
+    }
+    if (!taskId) {
+      message.error('No task selected.');
+      return;
+    }
+    if (!currentUser) {
+      message.error('You must be logged in to add a note.');
+      return;
+    }
+
+    try {
+      const notesRef = collection(db, 'maintenance', taskId, 'notes');
+      const newNoteObj = {
+        content: newNote.trim(),
+        createdAt: Timestamp.now(), // Use Firestore Timestamp
+        createdBy: userName || currentUser.email || 'Unknown User',
+      };
+      await addDoc(notesRef, newNoteObj);
+      message.success('Note added successfully');
+      setNewNote('');
+      await fetchNotes(); // Refresh the notes list
+    } catch (error) {
+      console.error('Error adding note:', error);
+      message.error('Failed to add note. Please try again.');
     }
   };
 
@@ -170,12 +181,17 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
       return;
     }
 
+    if (!editNoteContent.trim()) {
+      message.error('Note content cannot be empty.');
+      return;
+    }
+
     try {
       const noteDocRef = doc(db, 'maintenance', taskId, 'notes', selectedNote.id);
       await updateDoc(noteDocRef, {
-        content: editNoteContent,
+        content: editNoteContent.trim(),
         // Optionally, you can update the 'updatedAt' field if you have one
-        // updatedAt: new Date().toISOString(),
+        // updatedAt: Timestamp.now(),
       });
       message.success('Note updated successfully');
       handleEditModalClose();
@@ -234,7 +250,8 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (text: string | undefined) => text ? new Date(text).toLocaleDateString() : 'N/A',
+      render: (timestamp: Timestamp | undefined) => 
+        timestamp ? timestamp.toDate().toLocaleDateString() : 'N/A',
     },
     {
       title: 'Created By',
@@ -319,17 +336,18 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
       </Card>
 
       {/* Notes History Table */}
-      <Card className="notes-table-card" title="Notes History" size="small" style={{ marginTop: '20px' }}>
+      <Card className="notes-table-card" title="Notes History" size="small" >
         <Table 
           columns={columns} 
           dataSource={notes} 
           rowKey="id"
-          pagination={false} 
+          pagination={{ pageSize: 10 }}
           className="notes-history-table"
           onRow={(record) => ({
             onClick: () => handleView(record),
           })}
           rowClassName="clickable-row"
+          loading={loading} // Show loading indicator
         />
       </Card>
 
@@ -350,7 +368,7 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
           <Typography>
             <Paragraph>
               <Text strong>Created At: </Text>
-              <Text>{selectedNote.createdAt ? new Date(selectedNote.createdAt).toLocaleDateString() : 'N/A'}</Text>
+              <Text>{selectedNote.createdAt ? selectedNote.createdAt.toDate().toLocaleDateString() : 'N/A'}</Text>
             </Paragraph>
             <Paragraph>
               <Text strong>Created By: </Text>
@@ -395,7 +413,7 @@ const TaskNotesPage: React.FC<TaskNotesPageProps> = ({ taskId }) => {
           <Typography>
             <Paragraph>
               <Text strong>Created At: </Text>
-              <Text>{selectedNote.createdAt ? new Date(selectedNote.createdAt).toLocaleDateString() : 'N/A'}</Text>
+              <Text>{selectedNote.createdAt ? selectedNote.createdAt.toDate().toLocaleDateString() : 'N/A'}</Text>
             </Paragraph>
             <Paragraph>
               <Text strong>Created By: </Text>

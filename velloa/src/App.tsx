@@ -125,7 +125,7 @@ const AnimatedRoutes: React.FC = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/login" element={<AnimatedPage><LoginPage /></AnimatedPage>} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<AnimatedPage><SignupPage /></AnimatedPage>} />
         <Route path="/forgot-password" element={<AnimatedPage><ForgotPassword /></AnimatedPage>} />
 
@@ -151,8 +151,10 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/unitinfo" element={<AnimatedPage><UnitInfoPage /></AnimatedPage>} />
             <Route path="/applicationviewer" element={<AnimatedPage><Applicationviewer /></AnimatedPage>} />
             <Route path="/addnewproperty" element={<AnimatedPage><AddNewProperty /></AnimatedPage>} />
-            <Route path="/propertyinfo/" element={<AnimatedPage><PropertyInfo /></AnimatedPage>} />
-            <Route path="propertyinfo/:propertyId/unit/:unitName" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
+            
+            {/* Updated PropertyInfo Route */}
+            <Route path="property/:uid" element={<AnimatedPage><PropertyInfo /></AnimatedPage>} />
+            <Route path="property/:uid/unit/:unitName" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
           </Route>
         </Route>
       </Routes>

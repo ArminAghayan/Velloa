@@ -1,0 +1,17 @@
+.post-an-update-drawer .ant-form-item-control-input-content > div {
+    width: 100%;
+    display: block;
+
+}
+
+.new-task-drawer .ant-upload.ant-upload-drag {
+  width: 100%;
+}
+
+.new-task-drawer .ant-form-item {
+  margin-bottom: 24px;
+}
+
+.new-task-drawer .ant-drawer-body {
+  padding: 24px;
+}

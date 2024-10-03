@@ -1,10 +1,11 @@
+// MaintenancePage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Table, Space, Input, Skeleton, Button, message, Dropdown, Menu, Tag,Tooltip, } from 'antd';
-import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined,ToolOutlined } from '@ant-design/icons';
+import { Typography, Table, Space, Input, Skeleton, Button, message, Dropdown, Menu, Tag, Tooltip } from 'antd';
+import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, ToolOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import './maintenancepage.css';
 import NewTaskDrawer from './Tasks/NewTaskDrawer';
 import NewWorkOrder from './Tasks/NewWorkOrder';
@@ -30,9 +31,13 @@ export interface MaintenanceData {
   approvedByOwner?: boolean;
   permissionToEnter?: boolean;
   entryNotes?: string;
-
+  companyId: string;
 }
 
+interface Assignee {
+  uid: string;
+  name: string;
+}
 
 const MaintenancePage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
@@ -45,6 +50,11 @@ const MaintenancePage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  
+  // New State Variables for Assignees
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [loadingAssignees, setLoadingAssignees] = useState<boolean>(false);
+  const [taskTypeFilter, setTaskTypeFilter] = useState<string>('All');
 
   const getStatusTag = (status: string) => {
     const trimmedStatus = status.trim().toLowerCase();
@@ -118,6 +128,47 @@ const MaintenancePage: React.FC = () => {
     }
   }, []);
 
+  const fetchAssignees = async () => {
+    if (!companyId) return;
+    
+    setLoadingAssignees(true);
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('companyuid', '==', companyId)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+
+      if (usersSnapshot.empty) {
+        message.warning('No users found for this company.');
+        setAssignees([]);
+        return;
+      }
+
+      const assigneeData: Assignee[] = usersSnapshot.docs.map(
+        (doc: QueryDocumentSnapshot<DocumentData>) => {
+          const userData = doc.data();
+          const name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown User';
+          return {
+            uid: doc.id,
+            name,
+          };
+        }
+      );
+
+      setAssignees(assigneeData);
+    } catch (error) {
+      console.error('Error fetching assignees:', error);
+      if (error instanceof Error) {
+        message.error(`Failed to fetch assignees: ${error.message}`);
+      } else {
+        message.error('Failed to fetch assignees due to an unknown error.');
+      }
+    } finally {
+      setLoadingAssignees(false);
+    }
+  };
+
   const fetchMaintenanceTasks = useCallback(async () => {
     if (!companyId) return;
     
@@ -126,26 +177,35 @@ const MaintenancePage: React.FC = () => {
       const tasksQuery = query(collection(db, 'maintenance'), where('companyId', '==', companyId));
       const querySnapshot = await getDocs(tasksQuery);
 
+      // Create a mapping from uid to name for quick lookup
+      const assigneeMap: Record<string, string> = {};
+      assignees.forEach(assignee => {
+        assigneeMap[assignee.uid] = assignee.name;
+      });
+
       const tasksData: MaintenanceData[] = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        const taskAssignees: { uid: string; name: string }[] = Array.isArray(data.assignees) 
+          ? data.assignees.map((assignee: any) => ({
+              uid: assignee.uid || '',
+              name: assigneeMap[assignee.uid] || 'Unknown',
+            }))
+          : [];
+
         return {
           key: doc.id,
           subject: data.subject || '',
           taskRefId: data.taskRefId || '',
-          assignees: Array.isArray(data.assignees) 
-            ? data.assignees.map((assignee: any) => ({
-                uid: assignee.uid || '',
-                name: assignee.name || 'Unknown'
-              }))
-            : [],
+          assignees: taskAssignees,
           dueDate: data.dueDate instanceof Timestamp 
             ? data.dueDate.toDate().toLocaleDateString() 
             : '',
-          relatedTo: data.relatedTo || '',
+            relatedTo: data.relatedTo || '',
           relatedToName: data.relatedToName || 'Unknown',
           status: data.status || '',
           priority: data.priority || 'Low',
           taskType: data.taskType || 'Task',
+          companyId: data.companyId || '',
         };
       });
 
@@ -157,7 +217,7 @@ const MaintenancePage: React.FC = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [companyId]);
+  }, [companyId, assignees]);
 
   useEffect(() => {
     const init = async () => {
@@ -173,9 +233,15 @@ const MaintenancePage: React.FC = () => {
 
   useEffect(() => {
     if (companyId) {
+      fetchAssignees(); // Fetch assignees after setting companyId
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    if (companyId && assignees.length > 0) {
       fetchMaintenanceTasks();
     }
-  }, [fetchMaintenanceTasks, companyId]);
+  }, [fetchMaintenanceTasks, companyId, assignees]);
 
   const handleAddTaskClick = () => {
     setDrawerVisible(true);
@@ -195,13 +261,14 @@ const MaintenancePage: React.FC = () => {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setLoading(true);
-    fetchMaintenanceTasks();
+    fetchAssignees(); // Refresh assignees first
   };
+  
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return `${text.slice(0, maxLength)}...`;
   };
+  
   const createSkeletonData = (count: number): MaintenanceData[] => {
     return Array.from({ length: count }, (_, index) => ({
       key: `skeleton-${index}`,
@@ -214,63 +281,80 @@ const MaintenancePage: React.FC = () => {
       status: '',
       priority: '',
       taskType: '',
+      companyId: '',
     }));
   };
+  
   const getDayOfWeek = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
+  const handleTaskTypeFilter = (value: string) => {
+    setTaskTypeFilter(value);
+  };
+
+  const filteredTasks = maintenanceTasks.filter((task) => {
+    const matchesSearch = task.subject.toLowerCase().includes(searchText.toLowerCase()) ||
+      task.relatedToName.toLowerCase().includes(searchText.toLowerCase()) ||
+      task.assignees.some(assignee => assignee.name.toLowerCase().includes(searchText.toLowerCase())) ||
+      task.taskRefId.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchesTaskType = taskTypeFilter === 'All' || task.taskType.toLowerCase() === taskTypeFilter.toLowerCase();
+
+    return matchesSearch && matchesTaskType;
+  });
+
   const columns = [
     {
-    title: 'Task',
-    dataIndex: 'subject',
-    key: 'subject',
-    defaultSortOrder: 'ascend' as SortOrder,
-    render: (text: string, record: MaintenanceData) => (
-      loading ? (
-        <Skeleton.Input style={{ width: '100%' }} active size="small" />
-      ) : (
-        <Space align="center" style={{ width: '100%' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#d8e6d9',
-            borderRadius: '4px',
-            marginRight: '12px'
-          }}>
-            {React.cloneElement(getTaskTypeIcon(record.taskType), { 
-              style: { fontSize: '24px', color: '#168033' } 
-            })}
-          </div>
-          <Space direction="vertical" size={0} style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <Space>
-                <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.taskType}</Text>
-                {getPriorityTag(record.priority)}
-              </Space>
-              <div style={{
-                backgroundColor: '#F0F2F5',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                color: '#666',
-                marginLeft: '20px'
-              }}>
-                #{record.taskRefId}
-              </div>
+      title: 'Task',
+      dataIndex: 'subject',
+      key: 'subject',
+      defaultSortOrder: 'ascend' as SortOrder,
+      render: (text: string, record: MaintenanceData) => (
+        loading || loadingAssignees ? (
+          <Skeleton.Input style={{ width: '100%' }} active size="small" />
+        ) : (
+          <Space align="center" style={{ width: '100%' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#d8e6d9',
+              borderRadius: '4px',
+              marginRight: '12px'
+            }}>
+              {React.cloneElement(getTaskTypeIcon(record.taskType), { 
+                style: { fontSize: '24px', color: '#168033' } 
+              })}
             </div>
-            <Tooltip title={text}>
-              <Text>{truncateText(text, 30)}</Text>
-            </Tooltip>
+            <Space direction="vertical" size={0} style={{ flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <Space>
+                  <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.taskType}</Text>
+                  {getPriorityTag(record.priority)}
+                </Space>
+                <div style={{
+                  backgroundColor: '#f0f0f0',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#666',
+                  marginLeft: '20px'
+                }}>
+                  #{record.taskRefId}
+                </div>
+              </div>
+              <Tooltip title={text}>
+                <Text>{truncateText(text, 30)}</Text>
+              </Tooltip>
+            </Space>
           </Space>
-        </Space>
-      )
-    ),
-  },
+        )
+      ),
+    },
     {
       title: 'Assigned To',
       dataIndex: 'assignees',
@@ -281,7 +365,7 @@ const MaintenancePage: React.FC = () => {
         return aNames.localeCompare(bNames);
       },
       render: (assignees: { uid: string; name: string }[]) => (
-        loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> 
+        loading || loadingAssignees ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> 
         : assignees.map(assignee => assignee.name).join(', ')
       ),
     },
@@ -295,7 +379,7 @@ const MaintenancePage: React.FC = () => {
         return a.dueDate.localeCompare(b.dueDate);
       },
       render: (text: string) => {
-        if (loading) {
+        if (loading || loadingAssignees) {
           return <Skeleton.Input style={{ width: '100px' }} active size="small" />;
         }
         if (!text) {
@@ -314,7 +398,7 @@ const MaintenancePage: React.FC = () => {
       dataIndex: 'relatedToName',
       key: 'relatedToName',
       sorter: (a: MaintenanceData, b: MaintenanceData) => a.relatedToName.localeCompare(b.relatedToName),
-      render: (text: string) => (loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
+      render: (text: string) => (loading || loadingAssignees ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
     },
     {
       title: 'Status',
@@ -322,26 +406,20 @@ const MaintenancePage: React.FC = () => {
       key: 'status',
       sorter: (a: MaintenanceData, b: MaintenanceData) => a.status.localeCompare(b.status),
       render: (status: string) => (
-        loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : getStatusTag(status)
+        loading || loadingAssignees ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : getStatusTag(status)
       ),
     },
     {
       title: '',
       align: 'center' as 'center',
       key: 'arrow',
-      render: () => (loading ? <Skeleton.Button style={{ width: '24px' }} active size="small" shape="circle" /> : <RightOutlined />),
+      render: () => (loading || loadingAssignees ? <Skeleton.Button style={{ width: '24px' }} active size="small" shape="circle" /> : <RightOutlined />),
     },
   ];
 
-  const filteredTasks = maintenanceTasks.filter((task) =>
-    task.subject.toLowerCase().includes(searchText.toLowerCase()) ||
-    task.relatedToName.toLowerCase().includes(searchText.toLowerCase()) ||
-    task.assignees.some(assignee => assignee.name.toLowerCase().includes(searchText.toLowerCase())) ||
-    task.taskRefId.toLowerCase().includes(searchText.toLowerCase())
-  );
-
   const handleTaskClick = (task: MaintenanceData) => {
-    navigate(`/maintenance/${task.key}`);
+    console.log("Navigating to task ID:", task.key); // Debugging
+    navigate(`/maintenance/${task.key}`); // Ensure lowercase 'maintenance'
   };
 
   const addTaskMenu = (
@@ -378,6 +456,12 @@ const MaintenancePage: React.FC = () => {
     </Menu>
   );
 
+  const buttonStyle = {
+    width: '140px',  // Fixed width for all buttons
+    marginRight: '8px',
+    marginBottom: '8px'  // Added for better spacing on smaller screens
+  };
+
   return (
     <div style={{ padding: '64px 36px' }}>
       <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
@@ -386,7 +470,7 @@ const MaintenancePage: React.FC = () => {
       <div className="property-page-container">
         <div className="search-and-add">
           <Input
-            placeholder="Search Person or Task ID..."
+            placeholder="Search user or task ID"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="search-input"
@@ -398,17 +482,56 @@ const MaintenancePage: React.FC = () => {
               </Button>
             </Dropdown>
             <Button
-              icon={<ReloadOutlined spin={isRefreshing} />}
+              icon={<ReloadOutlined spin={isRefreshing || loadingAssignees} />}
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing || loadingAssignees}
             />
           </Space>
+        </div>
+
+        {/* New row for task type filter buttons */}
+        <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+          <Button 
+            type={taskTypeFilter === 'All' ? 'primary' : 'default'}
+            onClick={() => handleTaskTypeFilter('All')}
+            style={buttonStyle}
+          >
+            All
+          </Button>
+          <Button 
+            type={taskTypeFilter === 'Task' ? 'primary' : 'default'}
+            onClick={() => handleTaskTypeFilter('Task')}
+            style={buttonStyle}
+          >
+            Task
+          </Button>
+          <Button 
+            type={taskTypeFilter === 'Tenant Request' ? 'primary' : 'default'}
+            onClick={() => handleTaskTypeFilter('Tenant Request')}
+            style={buttonStyle}
+          >
+            Tenant Request
+          </Button>
+          <Button 
+            type={taskTypeFilter === 'Work Order' ? 'primary' : 'default'}
+            onClick={() => handleTaskTypeFilter('Work Order')}
+            style={buttonStyle}
+          >
+            Work Order
+          </Button>
+          <Button 
+            type={taskTypeFilter === 'Owner Request' ? 'primary' : 'default'}
+            onClick={() => handleTaskTypeFilter('Owner Request')}
+            style={{...buttonStyle, marginRight: 0}}  // Remove right margin from last button
+          >
+            Owner Request
+          </Button>
         </div>
 
         <Table
           columns={columns}
           size="middle"
-          dataSource={loading ? createSkeletonData(10) : filteredTasks}
+          dataSource={(loading || loadingAssignees) ? createSkeletonData(10) : filteredTasks}
           pagination={{ pageSize: 10 }}
           onRow={(record: MaintenanceData) => ({
             onClick: () => handleTaskClick(record),
@@ -421,7 +544,7 @@ const MaintenancePage: React.FC = () => {
         visible={drawerVisible}
         onClose={() => {
           setDrawerVisible(false);
-          fetchMaintenanceTasks(); // Refresh the task list after adding a new task
+          fetchAssignees(); // Refresh assignees first
         }}
         companyId={companyId || ''}
       />
@@ -429,7 +552,7 @@ const MaintenancePage: React.FC = () => {
         visible={workOrderDrawerVisible}
         onClose={() => {
           setWorkOrderDrawerVisible(false);
-          fetchMaintenanceTasks(); // Refresh the task list after adding a new work order
+          fetchAssignees(); // Refresh assignees first
         }}
         companyId={companyId || ''}
       />
@@ -437,7 +560,7 @@ const MaintenancePage: React.FC = () => {
         visible={workNewTenantRequestVisible}
         onClose={() => {
           setNewTenantRequestDrawerVisible(false);
-          fetchMaintenanceTasks(); // Refresh the task list after adding a new work order
+          fetchAssignees(); // Refresh assignees first
         }}
         companyId={companyId || ''}
       />
@@ -445,7 +568,7 @@ const MaintenancePage: React.FC = () => {
         visible={isOwnerRequestVisible}
         onClose={() => {
           setIsOwnerRequestVisible(false);
-          fetchMaintenanceTasks(); // Refresh the task list after adding a new work order
+          fetchAssignees(); // Refresh assignees first
         }}
         companyId={companyId || ''}
       />
