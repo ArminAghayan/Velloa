@@ -14,6 +14,7 @@ import {
   Col,
   message,
   Divider,
+  Switch,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -383,8 +384,12 @@ const TaskSubTaskDrawer: React.FC<TaskSubTaskDrawerProps> = ({
           </Col>
         </Row>
 
-        <Form.Item name="notifyAssignees" valuePropName="checked">
-          <Checkbox>Notify Assignee(s)</Checkbox>
+        <Form.Item 
+          name="notifyAssignees" 
+          label="Notify Assignees" 
+          valuePropName="checked"
+        >
+          <Switch />
         </Form.Item>
 
         <Divider />

@@ -1,0 +1,118 @@
+.prospects-details-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f0f2f5;
+}
+
+.prospects-details-top-container {
+    background-color: white;
+    padding: 36px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.prospects-details-back-button {
+    margin-bottom: 40px;
+}
+
+.prospects-details-page .prospects-details-menu .ant-tabs-nav {
+    margin-bottom: 0 !important;
+}
+
+.prospects-details-page .prospects-details-menu .ant-tabs-nav-wrap {
+    padding-left: 24px;
+}
+
+.prospects-details-menu {
+    background-color: white;
+    border-bottom: 1px solid #e8e8e8;
+    /* Remove the margin-top */
+    /* margin-top: 16px; */
+}
+
+.prospects-details-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background-color: transparent;
+}
+
+/* Common class for all cards */
+.prospects-details-card {
+    margin-bottom: 10px;
+}
+
+/* Common class for all buttons */
+.prospects-details-button {
+    margin-bottom: 10px;
+}
+
+.prospects-details-info-content {
+    height: 100px; /* Adjust the height as needed */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.prospects-details-info-content .icon {
+    font-size: 24px; /* Adjust the size as needed */
+    margin-bottom: 8px; /* Space between icon and text */
+}
+
+.prospects-details-info-content .text {
+    font-size: 16px; /* Adjust the size as needed */
+    font-weight: bold;
+    margin-bottom: 4px; /* Space between text and date */
+}
+
+.prospects-details-info-content .date {
+    font-size: 14px; /* Adjust the size as needed */
+    color: #555; /* Adjust the color as needed */
+}
+
+.prospects-details-vendor-info {
+    padding: 0 24px 16px;  /* Matches the table cell padding */
+}
+
+.prospects-details-vendor-info .ant-descriptions-item {
+    padding-bottom: 8px;  /* Reduces space between vendor info items */
+}
+
+.prospects-details-vendor-info .ant-descriptions-item-label,
+.prospects-details-vendor-info .ant-descriptions-item-content {
+    line-height: 1.5;  /* Adjusts line height for better alignment */
+}
+
+/* New CSS class to increase button height */
+.prospects-details-tall-button {
+    height: 40px; /* Adjust the height as desired */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Apply the common button class */
+    margin-bottom: 20px; /* Ensures spacing below buttons */
+}
+
+.tall-button .anticon {
+    font-size: 18px; /* Adjust icon size for smaller screens */
+}
+
+/* Adds padding to the top of the Description section */
+.prospects-details-description-padding-top {
+    padding-top: 15px; /* Adjust the value as needed */
+  }
+  
+
+  .prospects-details-quick-actions-text {
+    font-weight: 500; /* Make the text bold */
+    font-size: 16px;
+}
+
+.prospects-details-quick-actions-text-container {
+    padding-bottom: 10px;
+    padding-top: 10px; /* Padding above the text */
+
+}   
+

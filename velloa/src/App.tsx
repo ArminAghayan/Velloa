@@ -28,11 +28,13 @@ import Applicationviewer from './pages/Tools/toolapplication/newapplications/app
 import AddNewProperty from './pages/applications/newproperty/addnewproperty';
 import PropertyInfo from './pages/property/propertyinfo/propertyinfo';
 import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/propertyinfo_units_view';
+import ProspectsDetailsPage from './pages/people/peopledashboard/prospectsdetails';
 import { fetchUserDetails } from './components/redux/authSlice';
 import { AppDispatch } from './components/redux/store';
 import { auth } from './firebase-config';
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
 import { AnimatePresence, motion } from 'framer-motion'; // Import framer-motion
+
 
 const theme = {
   token: {
@@ -40,7 +42,6 @@ const theme = {
     colorInfo: "#28a745",
     fontSize: 14,
     sizeStep: 4,
-    borderRadius: 12,
     wireframe: false,
     colorBgLayout: "#F3F5F8",
   },
@@ -77,9 +78,7 @@ const theme = {
       lineWidthBold: 2,
       colorBorderSecondary: "rgb(230, 233, 236)",
     },
-    Input: {
-      borderRadius: 12,
-    },
+
   },
 };
 
@@ -140,6 +139,7 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="resources" element={<AnimatedPage><Resourcespage /></AnimatedPage>} />
             <Route path="leasing" element={<AnimatedPage><Leasingpage /></AnimatedPage>} />
             <Route path="people" element={<AnimatedPage><Peoplepage /></AnimatedPage>} />
+            <Route path="people/:id" element={<AnimatedPage><ProspectsDetailsPage /></AnimatedPage>} />
             <Route path="accounting" element={<AnimatedPage><Accountingpage /></AnimatedPage>} />
             <Route path="analytics" element={<AnimatedPage><Analyticsspage /></AnimatedPage>} />
             <Route path="messages" element={<AnimatedPage><MessagesPage /></AnimatedPage>} />

@@ -5,16 +5,15 @@ import {
   Input,
   DatePicker,
   Select,
-  Checkbox,
   Upload,
   Button,
   Space,
   Typography,
-  Radio,
   message,
   Row,
   Col,
   Divider,
+  Switch,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -30,7 +29,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from 'firebase/firestore';
-import { db, auth } from '../../../firebase-config'; // Ensure this path is correct
+import { db} from '../../../firebase-config'; // Ensure this path is correct
 import './NewOwnerRequest.css'
 import { customAlphabet } from 'nanoid';
 
@@ -174,16 +173,6 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
         ? Timestamp.fromDate(new Date(cleanedValues.dueDate))
         : null;
 
-      const assigneeDetails = await Promise.all(
-        cleanedValues.assignees?.map(async (uid) => {
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          const userData = userDoc.data();
-          return {
-            uid,
-            name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
-          };
-        }) || []
-      );
 
       const attachments = cleanedValues.attachments
         ? cleanedValues.attachments.map((file) => ({
@@ -200,7 +189,7 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
         companyId,
         createdAt: Timestamp.now(),
         dueDate: dueDateTimestamp,
-        assignees: assigneeDetails,
+        assignees: values.assignees,
         attachments,
         status: cleanedValues.status || 'Not Started',
         taskRefId,
@@ -305,12 +294,12 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="dueDate" label="Due Date">
+            <Form.Item name="dueDate" label="Due Date" rules={[{ required: true, message: 'Please select a due date' }]}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="status" label="Status" initialValue="Not Started">
+            <Form.Item name="status" label="Status" initialValue="Not Started" rules={[{ required: true, message: 'Please select a status' }]}>
               <Select>
                 <Select.Option value="Not Started">Not Started</Select.Option>
                 <Select.Option value="In Progress">In Progress</Select.Option>
@@ -322,7 +311,7 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="priority" label="Priority">
+            <Form.Item name="priority" label="Priority" rules={[{ required: true, message: 'Please select a priority' }]}>
               <Select placeholder="Select priority">
                 <Select.Option value="Low">Low</Select.Option>
                 <Select.Option value="Medium">Medium</Select.Option>
@@ -350,13 +339,21 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="notifyAssignees" valuePropName="checked">
-              <Checkbox>Notify Assignee(s)</Checkbox>
+            <Form.Item
+              name="notifyAssignees"
+              label="Notify Assignee(s)"
+              valuePropName="checked"
+            >
+              <Switch />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="notifyOwner" valuePropName="checked">
-              <Checkbox>Notify Owner</Checkbox>
+            <Form.Item
+              name="notifyOwner"
+              label="Notify Owner"
+              valuePropName="checked"
+            >
+              <Switch />
             </Form.Item>
           </Col>
         </Row>
@@ -365,7 +362,7 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
 
         <Row gutter={16}>
           <Col span={24}>
-            <Form.Item name="relatedTo" label="Related To">
+            <Form.Item name="relatedTo" label="Related To" rules={[{ required: true, message: 'Please select a property' }]}>
               <Select placeholder="Select property">
                 {properties.map((property) => (
                   <Select.Option key={property.id} value={property.id}>

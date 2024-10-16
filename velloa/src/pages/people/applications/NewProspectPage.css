@@ -1,0 +1,58 @@
+/* NewProspectPage.css */
+
+/* Existing styles */
+.contactSection {
+  background: #f0f0f0;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* Updated styles for Select and Input */
+.contactSelect, .contactInput {
+  width: 100%;
+}
+
+/* Custom styles to increase Select height */
+.contactSelect {
+  height: 40px; /* Adjust this value as needed */
+  font-size: 16px; /* Optional: Adjust font size for better readability */
+}
+
+/* Adjust the internal elements of the Select */
+.contactSelect .ant-select-selector {
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  padding: 0 11px !important; /* Adjust padding as needed */
+}
+
+/* Optional: Increase the height of the arrow icon */
+.contactSelect .ant-select-arrow {
+  line-height: 40px; /* Should match the Select height */
+}
+
+/* Optional: Adjust the border-radius if necessary */
+.contactSelect .ant-select-selector {
+  border-radius: 4px; /* Ensure it matches your design */
+}
+
+/* Adjust the Input height to match the Select */
+.contactInput .ant-input {
+  height: 40px; /* Match this to Select height */
+  padding: 6px 11px; /* Adjust padding for consistency */
+  font-size: 16px; /* Optional: Adjust font size */
+}
+
+.new-prospect-drawer .ant-form-item-control-input-content > div {
+    width: 100%;
+    display: block;
+    height: 40px;
+
+}

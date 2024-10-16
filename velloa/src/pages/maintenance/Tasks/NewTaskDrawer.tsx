@@ -6,7 +6,7 @@ import {
   Radio,
   DatePicker,
   Select,
-  Checkbox,
+  Switch, // Import Switch
   Upload,
   Button,
   Space,
@@ -202,18 +202,6 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
         ? Timestamp.fromDate(new Date(values.dueDate))
         : null;
 
-      // Fetch full names of assignees
-      const assigneeDetails = await Promise.all(
-        values.assignees?.map(async (uid) => {
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          const userData = userDoc.data();
-          return {
-            uid,
-            name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
-          };
-        }) || []
-      );
-
       // Fetch property name
       const propertyDoc = await getDoc(doc(db, 'properties', values.relatedTo));
       const propertyData = propertyDoc.data();
@@ -238,7 +226,7 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
         dueDate: dueDateTimestamp,
         attachments,
         notifyAssignees: values.notifyAssignees || false,
-        assignees: assigneeDetails,
+        assignees: values.assignees,
         relatedToName: propertyName,
         taskType: 'Task',
         taskRefId, // Add this line
@@ -438,8 +426,12 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
           </Col>
         </Row>
 
-        <Form.Item name="notifyAssignees" valuePropName="checked">
-          <Checkbox>Notify Assignee(s)</Checkbox>
+        <Form.Item
+          name="notifyAssignees"
+          label="Notify Assignee(s)" // Added label
+          valuePropName="checked"
+        >
+          <Switch /> {/* Replaced Checkbox with Switch */}
         </Form.Item>
 
         <Divider />

@@ -38,6 +38,7 @@
     "@udecode/plate-paragraph": "^34.0.0",
     "@udecode/plate-ui": "^34.0.2",
     "antd": "^5.18.3",
+    "antd-phone-input": "^0.3.10",
     "axios": "^1.7.3",
     "daisyui": "^4.12.10",
     "express": "^4.19.2",

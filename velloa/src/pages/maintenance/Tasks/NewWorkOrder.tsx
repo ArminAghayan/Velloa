@@ -6,7 +6,6 @@ import {
   Radio,
   DatePicker,
   Select,
-  Checkbox,
   Upload,
   Button,
   Space,
@@ -50,7 +49,7 @@ interface NewWorkOrderProps {
 interface WorkOrderFormValues {
   vendor: string;
   subject: string;
-  description?: string;
+  description: string; // Changed from optional to required
   workOrderType: 'oneTime' | 'recurring';
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   startDate?: Date;
@@ -65,11 +64,9 @@ interface WorkOrderFormValues {
   approvedByOwner: boolean;
   relatedTo: string;
   partsAndLabor: boolean;
-  relatedProperty?: string;
   attachments?: UploadFile[];
   lineItems: LineItem[];
-  [key: string]: any;  // Add this line
-
+  [key: string]: any; // Add this line
 }
 
 interface LineItem {
@@ -199,18 +196,6 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         ? Timestamp.fromDate(new Date(cleanedValues.endDate))
         : null;
 
-      // Fetch full names of assignees
-      const assigneeDetails = await Promise.all(
-        cleanedValues.assignees?.map(async (uid) => {
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          const userData = userDoc.data();
-          return {
-            uid,
-            name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
-          };
-        }) || []
-      );
-
       // Fetch property name
       let propertyName = 'Unknown Property';
       if (cleanedValues.relatedProperty) {
@@ -230,7 +215,7 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         dueDate: dueDateTimestamp,
         startDate: startDateTimestamp,
         endDate: endDateTimestamp,
-        assignees: assigneeDetails,
+        assignees: values.assignees,
         relatedToName: propertyName,
         priority: cleanedValues.priority,
         relatedTo: cleanedValues.relatedProperty,
@@ -382,7 +367,7 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         <div style={{ textAlign: 'right' }}>
           <Space>
             <Button onClick={onClose}>Cancel</Button>
-            <Button onClick={() => form.submit()} type="primary" >
+            <Button onClick={() => form.submit()} type="primary">
               Save
             </Button>
           </Space>
@@ -393,7 +378,13 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         form={form}
         layout="vertical"
         onFinish={onFinish}
-        initialValues={{ notifyAssignees: false, workOrderType: 'oneTime', repeatForever: false, partsAndLabor: false }}
+        initialValues={{
+          notifyAssignees: false,
+          workOrderType: 'oneTime',
+          repeatForever: false,
+          partsAndLabor: false,
+          priority: 'Low', // Set default priority to 'Low'
+        }}
       >
         <Title level={4}>General</Title>
 
@@ -411,13 +402,17 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
           <Input />
         </Form.Item>
 
-        <Form.Item name="description" label="description">
+        <Form.Item
+          name="description"
+          label="Description"
+          rules={[{ required: true, message: 'Please enter a description' }]} // Made required
+        >
           <TextArea rows={4} maxLength={10000} showCount />
         </Form.Item>
         <Divider />
         <Title level={4}>Work Order Type</Title>
 
-        <Form.Item name="workOrderType" >
+        <Form.Item name="workOrderType">
           <Radio.Group>
             <Radio value="oneTime">One Time Work Order</Radio>
             <Radio value="recurring">Recurring Work Order</Radio>
@@ -477,14 +472,22 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
                 )}
               </>
             ) : (
-              <Form.Item name="dueDate" label="Due Date">
+              <Form.Item
+                name="dueDate"
+                label="Due Date"
+                rules={[{ required: true, message: 'Please select a due date' }]} // Optional: make Due Date required when not recurring
+              >
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             )
         }
         </Form.Item>
 
-        <Form.Item name="status" label="Status">
+        <Form.Item
+          name="status"
+          label="Status"
+          rules={[{ required: true, message: 'Please select a status' }]} // Made required
+        >
           <Select defaultValue="Not Started">
             <Select.Option value="Not Started">Not Started</Select.Option>
             <Select.Option value="In Progress">In Progress</Select.Option>
@@ -492,7 +495,11 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
           </Select>
         </Form.Item>
 
-        <Form.Item name="priority" label="Priority">
+        <Form.Item
+          name="priority"
+          label="Priority"
+          rules={[{ required: true, message: 'Please select a priority' }]} // Optional: ensuring priority is selected
+        >
           <Select placeholder="Select priority">
             <Select.Option value="Low">Low</Select.Option>
             <Select.Option value="Medium">Medium</Select.Option>
@@ -500,7 +507,11 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
           </Select>
         </Form.Item>
 
-        <Form.Item name="assignees" label="Assignees">
+        <Form.Item
+          name="assignees"
+          label="Assignees"
+          rules={[{ required: true, message: 'Please select at least one assignee' }]} // Optional: enforce at least one assignee
+        >
           <Select
             placeholder="Select assignees"
             mode="multiple"
@@ -516,26 +527,43 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         </Form.Item>
 
         <Form.Item name="notifyAssignees" valuePropName="checked">
-          <Checkbox>Notify Assignee(s)</Checkbox>
+          <Space>
+            <Switch />
+            <span>Notify Assignee(s)</span>
+          </Space>
         </Form.Item>
         <Divider />
 
 
         <Title level={4}>Property</Title>
-        <Form.Item name="permitEntering" valuePropName="checked">
-          <Switch />
-          <span style={{ marginLeft: '8px' }}>
-          Access to property          </span>
+        <Form.Item
+          name="permitEntering"
+          valuePropName="checked"
+        >
+          <Space>
+            <Switch />
+            <span>Access to property</span>
+          </Space>
         </Form.Item>
 
-        <Form.Item name="approvedByOwner" valuePropName="checked">
-          <Switch />
-          <span style={{ marginLeft: '8px' }}>Approved By Owner</span>
+        <Form.Item
+          name="approvedByOwner"
+          valuePropName="checked"
+        >
+          <Space>
+            <Switch />
+            <span>Approved By Owner</span>
+          </Space>
         </Form.Item>
 
-        <Form.Item name="partsAndLabor" valuePropName="checked">
-          <Switch onChange={handlePartsAndLaborChange} />
-          <span style={{ marginLeft: '8px' }}>Parts and Labor</span>
+        <Form.Item
+          name="partsAndLabor"
+          valuePropName="checked"
+        >
+          <Space>
+            <Switch onChange={handlePartsAndLaborChange} />
+            <span>Parts and Labor</span>
+          </Space>
         </Form.Item>
         <Space />
 
@@ -566,7 +594,11 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         <Divider />
 
         <Title level={4}>Related To</Title>
-        <Form.Item name="relatedProperty" label="Property">
+        <Form.Item
+          name="relatedProperty"
+          label="Property"
+          rules={[{ required: true, message: 'Please select a property' }]} // Made required
+        >
           <Select
             placeholder="Select a property"
             loading={loadingProperties}

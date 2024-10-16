@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, } from 'react-router-dom';
-import { Layout, Menu, Dropdown, Avatar, Badge, Tooltip } from 'antd';
+import { Layout, Menu, Dropdown, Avatar, Badge } from 'antd';
 import {
   HomeIcon,
   BuildingOffice2Icon,
@@ -34,7 +34,7 @@ const Sidebar: React.FC = () => {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   // State for notification count
-  const [notificationCount, setNotificationCount] = useState(3); // Example count
+  const [notificationCount, setNotificationCount] = useState(0); // Example count
 
   const handleLogout = () => {
     dispatch(logout());
@@ -63,6 +63,19 @@ const Sidebar: React.FC = () => {
       
     </Menu>
   );
+
+  // Function to determine the selected key based on the current path
+  const getSelectedKey = (pathname: string) => {
+    if (pathname.startsWith('/home')) return '1';
+    if (pathname.startsWith('/property')) return '2';
+    if (pathname.startsWith('/leasing')) return '3';
+    if (pathname.startsWith('/people')) return '4';
+    if (pathname.startsWith('/maintenance')) return '5';
+    if (pathname.startsWith('/tools')) return '6';
+    if (pathname.startsWith('/accounting')) return '7';
+    if (pathname.startsWith('/analytics')) return '8';
+    return '1'; // Default to home if no match
+  };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -94,7 +107,11 @@ const Sidebar: React.FC = () => {
             style={{ maxWidth: '100%', maxHeight: '36px' }}
           />
         </div>
-        <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
+        <Menu 
+          theme="dark" 
+          mode="inline" 
+          selectedKeys={[getSelectedKey(location.pathname)]}
+        >
           <Menu.Item key="1" icon={<HomeIcon className="custom-icon" />}>
             <Link to="/home">Home</Link>
           </Menu.Item>

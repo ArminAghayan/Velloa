@@ -1,0 +1,25 @@
+.new-label {
+    display: inline-flex;
+    align-items: center;
+    background-color: #FFF3E0;
+    color: #FF9800;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+  
+  .new-label::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #FF9800;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+
+.compact-rows .ant-table-tbody > tr > td {
+  padding: 4px 16px;
+}
+

@@ -18,7 +18,6 @@ import {
   Modal,
   Input,
   InputNumber,
-  Tag,
   message,
 } from 'antd';
 import {
@@ -48,6 +47,8 @@ import {
   updateDoc,
   deleteDoc,
   writeBatch,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
 import TaskUpdateDrawer from './Tasks/update/TaskUpdateDrawer';
 import { AnimatePresence } from 'framer-motion';
@@ -59,6 +60,11 @@ import TaskEditDrawer from './Tasks/update/TaskEditDrawer';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
+interface Assignee {
+  uid: string;
+  name: string;
+}
+
 interface PartsAndLabor {
   id: string;
   description: string;
@@ -68,11 +74,12 @@ interface PartsAndLabor {
   account?: string;
 }
 
+// **Updated Interface: Including 'name' in assignees**
 export interface MaintenanceData {
   key: string;
   taskRefId: string;
   subject: string;
-  assignees: { uid: string; name: string }[];
+  assignees: { uid: string; name: string }[]; // Added 'name'
   dueDate: string;
   relatedTo: string;
   relatedToName: string;
@@ -88,7 +95,7 @@ export interface MaintenanceData {
   companyId: string;
   decision?: string;
   subjectVendor?: string;
-}
+};
 
 const getStatusIcon = (status: string | undefined) => {
   if (!status) return <EditOutlined />; // Default icon if status is undefined
@@ -138,7 +145,9 @@ const TaskDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [task, setTask] = useState<MaintenanceData | null>(null);
   const [partsAndLabor, setPartsAndLabor] = useState<PartsAndLabor[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAssignees, setLoadingAssignees] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [updateDrawerVisible, setUpdateDrawerVisible] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -149,8 +158,6 @@ const TaskDetailsPage: React.FC = () => {
   const [isEditingPartsLabor, setIsEditingPartsLabor] = useState(false);
   const [editablePartsLabor, setEditablePartsLabor] = useState<PartsAndLabor[]>([]);
 
-  const [partsLoading, setPartsLoading] = useState<boolean>(false);
-
   const truncateString = (str: string, num: number) => {
     if (str.length <= num) {
       return str;
@@ -158,6 +165,57 @@ const TaskDetailsPage: React.FC = () => {
     return str.slice(0, num) + '...';
   };
 
+  /**
+   * **fetchAssignees Function**
+   * Fetches all assignees associated with the current company.
+   */
+  const fetchAssignees = useCallback(async (): Promise<Assignee[]> => {
+    if (!companyId) return [];
+
+    setLoadingAssignees(true);
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('companyuid', '==', companyId)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+
+      if (usersSnapshot.empty) {
+        message.warning('No users found for this company.');
+        setAssignees([]);
+        return [];
+      }
+
+      const assigneeData: Assignee[] = usersSnapshot.docs.map(
+        (doc: QueryDocumentSnapshot<DocumentData>) => {
+          const userData = doc.data();
+          const name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown User';
+          return {
+            uid: doc.id,
+            name,
+          };
+        }
+      );
+
+      setAssignees(assigneeData);
+      return assigneeData;
+    } catch (error) {
+      console.error('Error fetching assignees:', error);
+      if (error instanceof Error) {
+        message.error(`Failed to fetch assignees: ${error.message}`);
+      } else {
+        message.error('Failed to fetch assignees due to an unknown error.');
+      }
+      return [];
+    } finally {
+      setLoadingAssignees(false);
+    }
+  }, [companyId]);
+
+  /**
+   * **fetchCompanyId Function**
+   * Fetches the company ID based on the authenticated user.
+   */
   const fetchCompanyId = useCallback(async () => {
     if (!auth.currentUser) {
       console.error('No authenticated user');
@@ -186,12 +244,17 @@ const TaskDetailsPage: React.FC = () => {
       if (fetchedCompanyId) {
         setCompanyId(fetchedCompanyId);
       } else {
-        // Optionally handle the error
+        message.error('Failed to fetch company information.');
+        // Optionally, navigate away or handle the error appropriately
       }
     };
     init();
   }, [fetchCompanyId]);
 
+  /**
+   * **fetchPartsAndLabor Function**
+   * Fetches parts and labor data associated with the task.
+   */
   const fetchPartsAndLabor = useCallback(async () => {
     if (!taskId || !companyId) {
       console.log('Missing taskId or companyId:', { taskId, companyId });
@@ -199,7 +262,7 @@ const TaskDetailsPage: React.FC = () => {
     }
 
     try {
-      setPartsLoading(true);
+      setLoading(true);
       console.log('Fetching parts and labor for taskId:', taskId);
 
       const partsAndLaborCollectionRef = collection(db, 'maintenance', taskId, 'partsandlabor');
@@ -215,11 +278,16 @@ const TaskDetailsPage: React.FC = () => {
       setPartsAndLabor(partsAndLaborData);
     } catch (error) {
       console.error('Error fetching parts and labor:', error);
+      message.error('Failed to fetch parts and labor data.');
     } finally {
-      setPartsLoading(false);
+      setLoading(false);
     }
   }, [taskId, companyId]);
 
+  /**
+   * **fetchTaskDetails Function**
+   * Fetches the task details and maps the assignees with their names.
+   */
   const fetchTaskDetails = useCallback(async () => {
     if (!taskId || !companyId) {
       console.log('Missing taskId or companyId:', { taskId, companyId });
@@ -252,13 +320,19 @@ const TaskDetailsPage: React.FC = () => {
 
       const taskData = taskDocSnap.data() as MaintenanceData;
 
-      // Directly use assignees from taskData
-      const assignees = taskData.assignees || [];
+      // **Fetch all assignees for the company**
+      const allAssignees = await fetchAssignees();
+
+      // **Map task assignees with fetched assignees to include names**
+      const taskAssignees: Assignee[] = taskData.assignees.map(assigneeId => {
+        const assignee = allAssignees.find(a => a.uid === assigneeId.uid);
+        return assignee ? assignee : { uid: assigneeId.uid, name: 'Unknown User' };
+      });
 
       const fullTaskData = {
         ...taskData,
         key: taskDocSnap.id,
-        assignees: assignees
+        assignees: taskAssignees,
       };
 
       setTask(fullTaskData);
@@ -273,19 +347,21 @@ const TaskDetailsPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching task details:', error);
       if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        message.error(`Failed to fetch task details: ${error.message}`);
+      } else {
+        message.error('Failed to fetch task details due to an unknown error.');
       }
-      // Optionally, set an error state or show an error message to the user
-      // setError(error.message);
+      // Optionally, set an error state or handle the error appropriately
     } finally {
       setLoading(false);
     }
-  }, [taskId, companyId, fetchPartsAndLabor]);
+  }, [taskId, companyId, fetchPartsAndLabor, fetchAssignees]);
 
   useEffect(() => {
-    fetchTaskDetails();
-  }, [fetchTaskDetails]);
+    if (companyId) {
+      fetchTaskDetails();
+    }
+  }, [fetchTaskDetails, companyId]);
 
   useEffect(() => {
     if (isEditingPartsLabor) {
@@ -304,29 +380,26 @@ const TaskDetailsPage: React.FC = () => {
   const handleSavePartsLabor = async () => {
     if (!taskId || !companyId) {
       console.error('Task ID or Company ID is missing.');
+      message.error('Cannot save parts and labor without Task ID and Company ID.');
       return;
     }
 
     try {
-      setPartsLoading(true);
+      setLoading(true);
       const partsAndLaborRef = collection(db, 'maintenance', taskId, 'partsandlabor');
 
-      // Batch operation for deleting and adding
-      const existingDocs = await getDocs(partsAndLaborRef);
+      // Batch operation for updating parts and labor
       const batch = writeBatch(db);
-      existingDocs.forEach(docSnap => {
-        batch.delete(doc(db, 'maintenance', taskId, 'partsandlabor', docSnap.id));
-      });
-
       editablePartsLabor.forEach(item => {
-        const newDocRef = doc(partsAndLaborRef);
-        batch.set(newDocRef, {
+        // Determine if it's a new item or existing
+        const docRef = item.id.startsWith('temp-') ? doc(collection(db, 'maintenance', taskId, 'partsandlabor')) : doc(partsAndLaborRef, item.id);
+        batch.set(docRef, {
           description: item.description,
           account: item.account || '',
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           total: item.quantity * item.unitPrice,
-        });
+        }, { merge: true });
       });
 
       await batch.commit();
@@ -337,9 +410,13 @@ const TaskDetailsPage: React.FC = () => {
       await fetchPartsAndLabor();
     } catch (error) {
       console.error('Error updating parts and labor:', error);
-      message.error('Failed to update parts and labor');
+      if (error instanceof Error) {
+        message.error(`Failed to update parts and labor: ${error.message}`);
+      } else {
+        message.error('Failed to update parts and labor due to an unknown error.');
+      }
     } finally {
-      setPartsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -367,6 +444,7 @@ const TaskDetailsPage: React.FC = () => {
   const completeTask = async () => {
     if (!taskId || !companyId) {
       console.error('Task or Company ID is missing.');
+      message.error('Cannot complete task without Task ID and Company ID.');
       return;
     }
 
@@ -376,8 +454,14 @@ const TaskDetailsPage: React.FC = () => {
       await updateDoc(taskDocRef, { status: 'Completed' });
 
       setShowCompletionScreen(true);
+      message.success('Task marked as completed.');
     } catch (error) {
       console.error('Error completing task:', error);
+      if (error instanceof Error) {
+        message.error(`Failed to complete task: ${error.message}`);
+      } else {
+        message.error('Failed to complete task due to an unknown error.');
+      }
     } finally {
       setLoading(false);
     }
@@ -393,6 +477,7 @@ const TaskDetailsPage: React.FC = () => {
       onOk: async () => {
         if (!taskId) {
           console.error('Task ID is missing.');
+          message.error('Cannot delete task without Task ID.');
           return;
         }
 
@@ -401,9 +486,15 @@ const TaskDetailsPage: React.FC = () => {
           const taskDocRef = doc(db, 'maintenance', taskId);
           await deleteDoc(taskDocRef);
 
+          message.success('Task deleted successfully.');
           navigate('/maintenance');
         } catch (error) {
           console.error('Error deleting task:', error);
+          if (error instanceof Error) {
+            message.error(`Failed to delete task: ${error.message}`);
+          } else {
+            message.error('Failed to delete task due to an unknown error.');
+          }
         } finally {
           setLoading(false);
         }
@@ -427,9 +518,55 @@ const TaskDetailsPage: React.FC = () => {
     setUpdateDrawerVisible(false);
   };
 
-  const handleUpdateSuccess = () => {
-    // Optional: Refresh task details or other actions upon successful update
-  };
+  /**
+   * **handleUpdateSuccess Function**
+   * Refetches task details after an update to ensure assignees' names are up-to-date.
+   */
+  const handleUpdateSuccess = useCallback(async () => {
+    if (!taskId || !companyId) {
+      console.error('Task ID or Company ID is missing.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const taskDocRef = doc(db, 'maintenance', taskId);
+      const taskDocSnap = await getDoc(taskDocRef);
+
+      if (!taskDocSnap.exists()) {
+        throw new Error('Task document does not exist');
+      }
+
+      const taskData = taskDocSnap.data() as MaintenanceData;
+
+      // Fetch all assignees for the company
+      const allAssignees = await fetchAssignees();
+
+      // Map task assignees with fetched assignees to include names
+      const taskAssignees: Assignee[] = taskData.assignees.map(assigneeId => {
+        const assignee = allAssignees.find(a => a.uid === assigneeId.uid);
+        return assignee ? assignee : { uid: assigneeId.uid, name: 'Unknown User' };
+      });
+
+      const updatedTaskData = {
+        ...taskData,
+        key: taskDocSnap.id,
+        assignees: taskAssignees,
+      };
+
+      setTask(updatedTaskData);
+      console.log('Task data updated successfully:', updatedTaskData);
+    } catch (error) {
+      console.error('Error updating task details:', error);
+      if (error instanceof Error) {
+        message.error(`Failed to update task details: ${error.message}`);
+      } else {
+        message.error('Failed to update task details due to an unknown error.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [taskId, companyId, fetchAssignees]);
 
   const handleTaskCompleted = () => {
     console.log('Task completed');
@@ -487,17 +624,20 @@ const TaskDetailsPage: React.FC = () => {
             console.log('User is a member of the company');
           } else {
             console.error('User is not a member of the company');
+            message.error('You do not have permission to view this task.');
+            navigate('/maintenance'); // Redirecting the user if they don't have permissions
           }
         }
       } catch (error) {
         console.error('Error checking user permissions:', error);
+        message.error('An error occurred while verifying permissions.');
       }
     };
 
     checkUserPermissions();
-  }, [companyId]);
+  }, [companyId, navigate]);
 
-  if (loading) {
+  if (loading || loadingAssignees) {
     return <Skeleton active />;
   }
 
@@ -542,13 +682,19 @@ const TaskDetailsPage: React.FC = () => {
                 <Title level={2} style={{ marginBottom: '5px' }}>
                   {truncateString(task.subject, 40)}
                 </Title>
+                {task.taskType && (
+                  <Text type="secondary" style={{ fontSize: '16px', marginBottom: '5px',marginLeft: '3px',color: '#666' }}>
+                    {task.taskType || 'No task type specified'}
+                </Text>
+                )}
                 {task.relatedToName && task.relatedTo && (
                   <Link to={`/property/${task.relatedTo}`}>
-                    <Title level={5} type="secondary" style={{ marginBottom: '5px', cursor: 'pointer' }}>
+                    <Title level={5} type="secondary" style={{cursor: 'pointer',marginLeft: '3px', color: '#28A745' }}>
                       {task.relatedToName}
                     </Title>
                   </Link>
                 )}
+                
                 <Space>
                   <div
                     style={{
@@ -558,6 +704,7 @@ const TaskDetailsPage: React.FC = () => {
                       fontSize: '14px',
                       color: '#666',
                       display: 'inline-block',
+                      marginLeft: '3px'
                     }}
                   >
                     #{task.taskRefId}
@@ -575,7 +722,7 @@ const TaskDetailsPage: React.FC = () => {
       </div>
 
       <div className="task-details-menu">
-        <Tabs defaultActiveKey="overview" onChange={key => setActiveTab(key)}>
+        <Tabs activeKey={activeTab} onChange={key => setActiveTab(key)}>
           <TabPane tab="Overview" key="overview" />
           <TabPane tab="Subtasks" key="subtasks" />
           <TabPane tab="Notes" key="notes" />
@@ -683,19 +830,19 @@ const TaskDetailsPage: React.FC = () => {
                     <Col span={6}>
                       <Text strong>Vendor:</Text>
                       <br />
-                      <Text>{task.vendor || 'N/A'}</Text>
+                      <Text>{task.vendor || 'No vendor assigned'}</Text>
                     </Col>
                     <Col span={6}>
                       <Text strong>Assignees:</Text>
                       <br />
                       {task.assignees && task.assignees.length > 0 ? (
                         task.assignees.map((assignee) => (
-                          <Tag key={assignee.uid} color="blue">
-                            {assignee.name}
-                          </Tag>
+                          <Text key={assignee.uid}>
+                            {assignee.name} {/* Displaying Assignee Name */}
+                          </Text>
                         ))
                       ) : (
-                        <Text>N/A</Text>
+                        <Text>No assignees assigned</Text>
                       )}
                     </Col>
                     <Col span={6}>
@@ -726,10 +873,10 @@ const TaskDetailsPage: React.FC = () => {
                     </Button>
                   ) : (
                     <Space>
-                      <Button type="primary" onClick={handleSavePartsLabor} disabled={partsLoading}>
+                      <Button type="primary" onClick={handleSavePartsLabor} disabled={loading}>
                         Save
                       </Button>
-                      <Button onClick={handleCancelPartsLabor} disabled={partsLoading}>
+                      <Button onClick={handleCancelPartsLabor} disabled={loading}>
                         Cancel
                       </Button>
                     </Space>
@@ -737,7 +884,7 @@ const TaskDetailsPage: React.FC = () => {
                 </div>
               }
             >
-              <Skeleton loading={partsLoading}>
+              <Skeleton loading={loading}>
                 <Table
                   columns={[
                     {
@@ -860,7 +1007,7 @@ const TaskDetailsPage: React.FC = () => {
                           ]);
                         }}
                         icon={<PlusOutlined />}
-                        disabled={partsLoading}
+                        disabled={loading}
                       >
                         Add Parts/Labor
                       </Button>
@@ -888,8 +1035,12 @@ const TaskDetailsPage: React.FC = () => {
         {activeTab === 'subtasks' && taskId && companyId && (
           <TaskSubtasksPage taskId={taskId} companyId={companyId} />
         )}
-        {activeTab === 'notes' && <TaskNotesPage taskId={taskId} />}
-        {activeTab === 'files' && <TaskFilesPage taskId={taskId} />}
+        {activeTab === 'notes' && taskId && (
+          <TaskNotesPage taskId={taskId} />
+        )}
+        {activeTab === 'files' && taskId && (
+          <TaskFilesPage taskId={taskId} />
+        )}
       </div>
 
       {companyId && task && (

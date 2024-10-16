@@ -626,35 +626,6 @@ const TaskSubWorkOrderDrawer: React.FC<TaskSubWorkOrderDrawerProps> = ({
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
-              name="status"
-              label="Status"
-              rules={[{ required: true, message: 'Please select a status' }]}
-            >
-              <Select>
-                <Select.Option value="Not Started">Not Started</Select.Option>
-                <Select.Option value="In Progress">In Progress</Select.Option>
-                <Select.Option value="Complete">Complete</Select.Option>
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="priority"
-              label="Priority"
-              rules={[{ required: true, message: 'Please select a priority' }]}
-            >
-              <Select>
-                <Select.Option value="Low">Low</Select.Option>
-                <Select.Option value="Medium">Medium</Select.Option>
-                <Select.Option value="High">High</Select.Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={12}>
             <Form.Item name="notifyAssignees" label="Notify Assignees" valuePropName="checked">
               <Switch />
             </Form.Item>

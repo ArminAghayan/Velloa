@@ -1,5 +1,4 @@
 // TaskUpdateDrawer.tsx
-
 import React, { useEffect, useState } from 'react';
 import {
   Drawer,
@@ -7,7 +6,6 @@ import {
   Input,
   DatePicker,
   Select,
-  Checkbox,
   Upload,
   Button,
   message,
@@ -15,6 +13,7 @@ import {
   Row,
   Col,
   Typography,
+  Switch,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -268,17 +267,6 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
           url: file.url as string,
         }));
 
-      // Update the main maintenance document
-      const maintenanceDocRef = doc(db, 'maintenance', taskId);
-      const maintenanceUpdate = {
-        status: values.status,
-        priority: values.priority,
-        dueDate: values.dueDate ? Timestamp.fromDate(values.dueDate.toDate()) : null,
-        assignees: values.assignees?.map((uid) => ({ uid })),
-        notifyAssignees: values.notifyAssignees,
-      };
-      await updateDoc(maintenanceDocRef, maintenanceUpdate);
-
       // Create a new content entry
       const newContent: NewContent = {
         content: values.note,
@@ -295,8 +283,28 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
       const notesCollectionRef = collection(db, 'maintenance', taskId, 'notes');
       await addDoc(notesCollectionRef, newContent);
 
-      // Optionally remove the success message if desired
-      // message.success('Maintenance task updated and content added successfully.');
+      // Update the main maintenance document
+      const maintenanceDocRef = doc(db, 'maintenance', taskId);
+      const maintenanceUpdate: Partial<MaintenanceData> = {};
+
+      if (values.status !== taskData?.status) {
+        maintenanceUpdate.status = values.status;
+      }
+
+      if (values.dueDate?.toDate().getTime() !== taskData?.dueDate) {
+        maintenanceUpdate.dueDate = values.dueDate 
+          ? Timestamp.fromDate(values.dueDate.toDate()) 
+          : undefined;
+      }
+
+      // Add priority update
+      if (values.priority !== taskData?.priority) {
+        maintenanceUpdate.priority = values.priority;
+      }
+
+      if (Object.keys(maintenanceUpdate).length > 0) {
+        await updateDoc(maintenanceDocRef, maintenanceUpdate);
+      }
 
       form.resetFields();
       setFileList([]);
@@ -401,7 +409,7 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
               rules={[{ required: true, message: 'Please select a status.' }]}
             >
               <Select placeholder="Select status" aria-label="Status Selector">
-                <Option value="Received">Received</Option>
+                <Option value="Not Started">Not Started</Option>
                 <Option value="In Progress">In Progress</Option>
                 <Option value="Completed">Completed</Option>
               </Select>
@@ -447,9 +455,13 @@ const TaskUpdateDrawer: React.FC<TaskUpdateDrawerProps> = ({
           </Select>
         </Form.Item>
 
-        {/* Notify Assignee Checkbox */}
-        <Form.Item name="notifyAssignee" valuePropName="checked">
-          <Checkbox aria-label="Notify Assignee(s)">Notify Assignee(s)</Checkbox>
+        {/* Notify Assignee Switch */}
+        <Form.Item
+          name="notifyAssignees"
+          label="Notify Assignee(s)"
+          valuePropName="checked"
+        >
+          <Switch aria-label="Notify Assignee(s)" />
         </Form.Item>
 
         <Divider />
