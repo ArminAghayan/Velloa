@@ -228,6 +228,7 @@ const NewTaskDrawer: React.FC<NewTaskDrawerProps> = ({
         notifyAssignees: values.notifyAssignees || false,
         assignees: values.assignees,
         relatedToName: propertyName,
+        description: values.description || '', // This can now be an empty string if not provided
         taskType: 'Task',
         taskRefId, // Add this line
       });

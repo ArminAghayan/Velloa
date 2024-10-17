@@ -139,7 +139,7 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="resources" element={<AnimatedPage><Resourcespage /></AnimatedPage>} />
             <Route path="leasing" element={<AnimatedPage><Leasingpage /></AnimatedPage>} />
             <Route path="people" element={<AnimatedPage><Peoplepage /></AnimatedPage>} />
-            <Route path="people/:id" element={<AnimatedPage><ProspectsDetailsPage /></AnimatedPage>} />
+            <Route path="people/:peopleId" element={<AnimatedPage><ProspectsDetailsPage /></AnimatedPage>} />
             <Route path="accounting" element={<AnimatedPage><Accountingpage /></AnimatedPage>} />
             <Route path="analytics" element={<AnimatedPage><Analyticsspage /></AnimatedPage>} />
             <Route path="messages" element={<AnimatedPage><MessagesPage /></AnimatedPage>} />

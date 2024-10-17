@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Table, Input, Skeleton, Button, message, Dropdown, Menu, Col, Row, Tooltip, Steps } from 'antd';
-import { RightOutlined, UserOutlined, FileTextOutlined, DownOutlined, ReloadOutlined, ClockCircleOutlined, MailOutlined, PhoneOutlined, MoreOutlined } from '@ant-design/icons';
+import { Typography, Table, Input, Skeleton, Button, message, Dropdown, Menu, Col, Row, Tooltip, Steps, Modal } from 'antd';
+import { RightOutlined, UserOutlined, FileTextOutlined, DownOutlined, ReloadOutlined, ClockCircleOutlined, MailTwoTone, PhoneTwoTone, MoreOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import NewProspectPage from './applications/NewProspectPage';
 import './peoplePage.css';
 const { Title, Text } = Typography;
@@ -21,13 +21,13 @@ interface PeopleData {
   avatar: string;
   avatarUrl: string;
   moveInDate: string;
-  assignee: string | string[];
+  assignees: Array<{ uid: string }>; // Changed from 'assignee' to 'assignees'
   applicationStatus: string;
 }
 
-// Add a new interface for the intermediate data structure
 interface IntermediatePeopleData extends Omit<PeopleData, 'properties'> {
   propertyIds: string[];
+  assignees: Array<{ uid: string }>; // Changed from 'assignee' to 'assignees'
 }
 
 
@@ -43,6 +43,7 @@ const PeoplePage: React.FC = () => {
   const [peopleData, setPeopleData] = useState<PeopleData[]>([]);
   const [filteredPeopleData, setFilteredPeopleData] = useState<PeopleData[]>([]);
   const [assignees, setAssignees] = useState<{ [key: string]: string }>({});
+  const [userDetails, setUserDetails] = useState<{ [key: string]: { firstName: string; lastName: string } }>({});
 
   // Add this new function to format phone numbers
   const formatPhoneNumber = (phoneNumber: string) => {
@@ -116,7 +117,7 @@ const PeoplePage: React.FC = () => {
           moveInDate: data.moveInDate instanceof Timestamp 
             ? data.moveInDate.toDate().toLocaleDateString() 
             : data.moveInDate || '',
-          assignee: data.assignee || '',
+          assignees: data.assignees || [],
           applicationStatus: data.applicationStatus ? data.applicationStatus.toLowerCase() : 'start', // Normalize to lowercase
         };
       });
@@ -170,17 +171,30 @@ const PeoplePage: React.FC = () => {
       // Fetch all property names concurrently
       await Promise.all(propertyNamePromises);
 
-      // Map property names to people data
+          // Map property names to people data
       const enrichedPeopleData: PeopleData[] = peopleList.map(person => ({
         ...person,
-        properties: person.propertyIds.map(id => ({
-          id,
-          name: propertyNameCache[id] || 'Unknown Property',
+        properties: person.propertyIds.map(propertyId => ({
+          id: propertyId,
+          name: propertyNameCache[propertyId] || 'Unknown Property',
         })),
       }));
 
-      console.log("Processed people data with property names:", enrichedPeopleData);
       setPeopleData(enrichedPeopleData);
+      // Fetch user details for assignees
+      const userIds = Array.from(new Set(peopleList.flatMap(person => person.assignees.map(a => a.uid))));
+      const userDetailsPromises = userIds.map(async (uid) => {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          return { [uid]: { firstName: userData.firstName || '', lastName: userData.lastName || '' } };
+        }
+        return { [uid]: { firstName: '', lastName: '' } };
+      });
+
+      const userDetailsArray = await Promise.all(userDetailsPromises);
+      const userDetailsMap = Object.assign({}, ...userDetailsArray);
+      setUserDetails(userDetailsMap);
 
       // Fetch assignees after setting people data
       await fetchAssignees();
@@ -318,7 +332,7 @@ const PeoplePage: React.FC = () => {
       avatar: '',
       avatarUrl: '',
       moveInDate: '',
-      assignee: '',
+      assignees: [],
       applicationStatus: '',
     }));
   };
@@ -390,7 +404,7 @@ const PeoplePage: React.FC = () => {
        
         return { 
           ...personData, 
-          key: personDoc.id, 
+          key: personId, 
           properties: fetchedProperties, 
           assignees,
           emails: personData.emails || [],
@@ -420,6 +434,86 @@ const PeoplePage: React.FC = () => {
       message.error("Failed to fetch person details. Please try again.");
     }
   };
+
+  const handleView = (record: PeopleData) => {
+    navigate(`/people/${record.key}`);
+  };
+
+  const handleEdit = (record: PeopleData) => {
+    // Implement edit functionality
+    // This could open a modal or navigate to an edit page
+    console.log('Edit', record);
+  };
+
+  const handleDelete = async (record: PeopleData) => {
+    Modal.confirm({
+      title: 'Are you sure you want to delete this person?',
+      content: 'This action cannot be undone and will also delete all associated maintenance tasks.',
+      onOk: async () => {
+        try {
+          if (!auth.currentUser) {
+            throw new Error("No authenticated user");
+          }
+
+          // Fetch the person document to get the companyId
+          const personDoc = await getDoc(doc(db, 'people', record.key));
+          if (!personDoc.exists()) {
+            throw new Error('Person document not found');
+          }
+          const personData = personDoc.data();
+          const companyId = personData.companyId;
+
+          // Check if the current user is a member of the company
+          const companyDoc = await getDoc(doc(db, 'companies', companyId));
+          if (!companyDoc.exists()) {
+            throw new Error('Company document not found');
+          }
+          const companyData = companyDoc.data();
+          if (!companyData.members || !(auth.currentUser.uid in companyData.members)) {
+            throw new Error('User is not a member of the company');
+          }
+
+          // Delete the person document
+          await deleteDoc(doc(db, 'people', record.key));
+
+          // Delete associated maintenance tasks
+          const maintenanceQuery = query(
+            collection(db, 'maintenance'),
+            where('companyId', '==', companyId)
+          );
+          const maintenanceSnapshot = await getDocs(maintenanceQuery);
+          
+          const deletePromises = maintenanceSnapshot.docs.map(async (doc) => {
+            const maintenanceData = doc.data();
+            if (maintenanceData.relatedTo && maintenanceData.relatedTo.includes(record.key)) {
+              return deleteDoc(doc.ref);
+            }
+            return Promise.resolve(); // Do nothing if not related
+          });
+
+          await Promise.all(deletePromises);
+
+          message.success('Person and associated maintenance tasks deleted successfully');
+          fetchPeopleData(); // Refresh the people data
+        } catch (error) {
+          console.error('Error deleting person and maintenance tasks:', error);
+          if (error instanceof Error) {
+            message.error(`Failed to delete person and maintenance tasks: ${error.message}`);
+          } else {
+            message.error('Failed to delete person and maintenance tasks');
+          }
+        }
+      },
+    });
+  };
+
+  const actionMenu = (record: PeopleData) => (
+    <Menu onClick={(e) => e.domEvent.stopPropagation()}>
+      <Menu.Item key="view" onClick={() => handleView(record)}>View</Menu.Item>
+      <Menu.Item key="edit" onClick={() => handleEdit(record)}>Edit</Menu.Item>
+      <Menu.Item key="delete" onClick={() => handleDelete(record)}>Delete</Menu.Item>
+    </Menu>
+  );
 
   // Define table columns
   const allColumns = [
@@ -464,7 +558,7 @@ const PeoplePage: React.FC = () => {
         <span>
           {record.emails.length > 0 && (
             <div>
-              <MailOutlined style={{ marginRight: '8px', color: '#188034' }} />
+              <MailTwoTone style={{ marginRight: '8px', color: '#188034' }} />
               <Text>{record.emails[0]}</Text>
               {record.emails.length > 1 && (
                 <Tooltip title={
@@ -474,16 +568,16 @@ const PeoplePage: React.FC = () => {
                     ))}
                   </div>
                 }>
-                  <span style={{ marginLeft: '8px', color: '#1F2121' }}>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
                     +{record.emails.length - 1}
                   </span>
                 </Tooltip>
               )}
             </div>
           )}
-          {record.phones.length > 0 && (
+          {record.phones.length > 0 ? (
             <div>
-              <PhoneOutlined style={{ marginRight: '8px', color: '#5890E2' }} />
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#5890E2' }} />
               <Text>{formatPhoneNumber(record.phones[0])}</Text>
               {record.phones.length > 1 && (
                 <Tooltip title={
@@ -493,11 +587,16 @@ const PeoplePage: React.FC = () => {
                     ))}
                   </div>
                 }>
-                  <span style={{ marginLeft: '8px', color: '#1F2121' }}>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
                     +{record.phones.length - 1}
                   </span>
                 </Tooltip>
               )}
+            </div>
+          ) : (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#bfbfbf' }} />
+              <Text type="secondary">No phone number</Text>
             </div>
           )}
         </span>
@@ -522,7 +621,7 @@ const PeoplePage: React.FC = () => {
                   ))}
                 </div>
               }>
-                <span style={{ marginLeft: '8px', color: '#188034' }}>
+                <span style={{ marginLeft: '8px', color: '#1677FE' }}>
                   +{record.properties.length - 1}
                 </span>
               </Tooltip>
@@ -545,9 +644,19 @@ const PeoplePage: React.FC = () => {
     },
     {
       title: '',
-      align: 'center' as 'center',
-      key: 'arrow',
-      render: () => (loading ? <Skeleton.Button style={{ width: '24px' }} active size="small" shape="circle" /> : <RightOutlined />),
+      key: 'actions',
+      render: (_: any, record: PeopleData) => (
+        <Dropdown 
+          overlay={actionMenu(record)} 
+          trigger={['click']}
+        >
+          <Button 
+            type="link" 
+            icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} 
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        </Dropdown>
+      ),
     },
   ];
 
@@ -584,8 +693,19 @@ const PeoplePage: React.FC = () => {
     },
     {
       title: '',
-      key: 'arrow',
-      render: () => <RightOutlined />,
+      key: 'actions',
+      render: (_: any, record: PeopleData) => (
+        <Dropdown 
+          overlay={actionMenu(record)} 
+          trigger={['click']}
+        >
+          <Button 
+            type="link" 
+            icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} 
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        </Dropdown>
+      ),
     },
   ];
 
@@ -648,7 +768,7 @@ const PeoplePage: React.FC = () => {
         <span>
           {record.emails.length > 0 && (
             <div>
-              <MailOutlined style={{ marginRight: '8px', color: '#188034' }} />
+              <MailTwoTone style={{ marginRight: '8px', color: '#188034' }} />
               <Text>{record.emails[0]}</Text>
               {record.emails.length > 1 && (
                 <Tooltip title={
@@ -658,16 +778,16 @@ const PeoplePage: React.FC = () => {
                     ))}
                   </div>
                 }>
-                  <span style={{ marginLeft: '8px', color: '#1F2121' }}>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
                     +{record.emails.length - 1}
                   </span>
                 </Tooltip>
               )}
             </div>
           )}
-          {record.phones.length > 0 && (
+          {record.phones.length > 0 ? (
             <div>
-              <PhoneOutlined style={{ marginRight: '8px', color: '#5890E2' }} />
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#5890E2' }} />
               <Text>{formatPhoneNumber(record.phones[0])}</Text>
               {record.phones.length > 1 && (
                 <Tooltip title={
@@ -677,11 +797,16 @@ const PeoplePage: React.FC = () => {
                     ))}
                   </div>
                 }>
-                  <span style={{ marginLeft: '8px', color: '#1F2121' }}>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
                     +{record.phones.length - 1}
                   </span>
                 </Tooltip>
               )}
+            </div>
+          ) : (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#bfbfbf' }} />
+              <Text type="secondary">No phone number</Text>
             </div>
           )}
         </span>
@@ -689,18 +814,18 @@ const PeoplePage: React.FC = () => {
     },
     {
       title: 'Assigned To',
-      dataIndex: 'assignee',
-      key: 'assignee',
-      render: (assigneeIds: string | string[]) => {
+      dataIndex: 'assignees',
+      key: 'assignees',
+      render: (assignees: Array<{ uid: string }>) => {
         if (loading) {
           return <Skeleton.Input style={{ width: '100px' }} active size="small" />;
         }
 
-        const assigneeList = Array.isArray(assigneeIds) ? assigneeIds : [assigneeIds];
-        const primaryAssignee = assigneeList[0];
+        const assigneeList = assignees || [];
+        const firstAssignee = assigneeList[0];
         const additionalAssignees = assigneeList.slice(1);
 
-        const assigneeName = primaryAssignee ? (assignees[primaryAssignee] || 'Unknown') : 'Unassigned';
+        const primaryAssignee = firstAssignee && userDetails[firstAssignee.uid];
         const iconColor = primaryAssignee ? '#188034' : '#bfbfbf';
         const textColor = primaryAssignee ? 'inherit' : 'secondary';
         
@@ -718,7 +843,12 @@ const PeoplePage: React.FC = () => {
             }}>
               <UserOutlined style={{ fontSize: '18px', color: iconColor }} />
             </span>
-            <Text type={textColor as any} strong style={{ textAlign: 'center' }}>{assigneeName}</Text>
+            <Text type={textColor as any} strong style={{ textAlign: 'center' }}>
+              {primaryAssignee 
+                ? `${primaryAssignee.firstName} ${primaryAssignee.lastName}`
+                : 'Unassigned'
+              }
+            </Text>
             {additionalAssignees.length > 0 && (
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 +{additionalAssignees.length}
@@ -730,9 +860,14 @@ const PeoplePage: React.FC = () => {
         if (additionalAssignees.length > 0) {
           const tooltipContent = (
             <div>
-              {assigneeList.map((id) => (
-                <div key={id}>{assignees[id] || 'Unknown'}</div>
-              ))}
+              {assigneeList.map((assignee) => {
+                const user = userDetails[assignee.uid];
+                return (
+                  <div key={assignee.uid}>
+                    {user ? `${user.firstName} ${user.lastName}` : 'Unknown User'}
+                  </div>
+                );
+              })}
             </div>
           );
 
@@ -782,16 +917,18 @@ const PeoplePage: React.FC = () => {
     {
       title: '',
       key: 'actions',
-      render: () => (
-        <Dropdown overlay={actionMenu} trigger={['click']}>
-        <Button type="link" icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} />
+      render: (_: any, record: PeopleData) => (
+        <Dropdown 
+          overlay={actionMenu(record)} 
+          trigger={['click']}
+        >
+          <Button 
+            type="link" 
+            icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} 
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
         </Dropdown>
       ),
-    },
-    {
-      title: '',
-      key: 'arrow',
-      render: () => <RightOutlined />,
     },
   ];
 
@@ -824,8 +961,19 @@ const PeoplePage: React.FC = () => {
     },
     {
       title: '',
-      key: 'arrow',
-      render: () => <RightOutlined />,
+      key: 'actions',
+      render: (_: any, record: PeopleData) => (
+        <Dropdown 
+          overlay={actionMenu(record)} 
+          trigger={['click']}
+        >
+          <Button 
+            type="link" 
+            icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} 
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        </Dropdown>
+      ),
     },
   ];
 
@@ -860,8 +1008,19 @@ const PeoplePage: React.FC = () => {
     },
     {
       title: '',
-      key: 'arrow',
-      render: () => <RightOutlined />,
+      key: 'actions',
+      render: (_: any, record: PeopleData) => (
+        <Dropdown 
+          overlay={actionMenu(record)} 
+          trigger={['click']}
+        >
+          <Button 
+            type="link" 
+            icon={<MoreOutlined style={{ fontSize: '24px', fontWeight: 'bold' }} />} 
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        </Dropdown>
+      ),
     },
   ];
 
@@ -919,15 +1078,6 @@ const PeoplePage: React.FC = () => {
       >
         New Vendors
       </Menu.Item>
-    </Menu>
-  );
-
-  // Add this new constant for the action menu
-  const actionMenu = (
-    <Menu>
-      <Menu.Item key="moreInfo">View</Menu.Item>
-      <Menu.Item key="edit">Edit</Menu.Item>
-      <Menu.Item key="delete">Delete</Menu.Item>
     </Menu>
   );
 

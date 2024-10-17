@@ -95,6 +95,7 @@ export interface MaintenanceData {
   companyId: string;
   decision?: string;
   subjectVendor?: string;
+  subTaskType?: string;
 };
 
 const getStatusIcon = (status: string | undefined) => {
@@ -683,18 +684,35 @@ const TaskDetailsPage: React.FC = () => {
                   {truncateString(task.subject, 40)}
                 </Title>
                 {task.taskType && (
-                  <Text type="secondary" style={{ fontSize: '16px', marginBottom: '5px',marginLeft: '3px',color: '#666' }}>
+                  <Text
+                    type="secondary"
+                    style={{
+                      fontSize: '16px',
+                      marginBottom: '5px',
+                      marginLeft: '3px',
+                      color: '#666',
+                    }}
+                  >
                     {task.taskType || 'No task type specified'}
-                </Text>
+                  </Text>
                 )}
                 {task.relatedToName && task.relatedTo && (
-                  <Link to={`/property/${task.relatedTo}`}>
-                    <Title level={5} type="secondary" style={{cursor: 'pointer',marginLeft: '3px', color: '#28A745' }}>
+                  <Link
+                    to={`/${task.subTaskType === 'People' ? 'people' : 'property'}/${task.relatedTo}`}
+                  >
+                    <Title
+                      level={5}
+                      type="secondary"
+                      style={{
+                        cursor: 'pointer',
+                        marginLeft: '3px',
+                        color: '#28A745',
+                      }}
+                    >
                       {task.relatedToName}
                     </Title>
                   </Link>
                 )}
-                
                 <Space>
                   <div
                     style={{
@@ -704,7 +722,7 @@ const TaskDetailsPage: React.FC = () => {
                       fontSize: '14px',
                       color: '#666',
                       display: 'inline-block',
-                      marginLeft: '3px'
+                      marginLeft: '3px',
                     }}
                   >
                     #{task.taskRefId}
@@ -714,7 +732,9 @@ const TaskDetailsPage: React.FC = () => {
             </Col>
             <Col>
               <Space>
-                <div style={getPriorityStyle(task.priority)}>Priority: {task.priority}</div>
+                <div style={getPriorityStyle(task.priority)}>
+                  Priority: {task.priority}
+                </div>
               </Space>
             </Col>
           </Row>

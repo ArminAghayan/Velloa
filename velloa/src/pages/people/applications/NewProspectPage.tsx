@@ -101,6 +101,7 @@ const NewProspectPage: React.FC<NewProspectPageProps> = ({
   const [prospectId, setProspectId] = useState<string | null>(null); // New state for document ID
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false); // State for avatar upload
   const [avatarFile, setAvatarFile] = useState<UploadFile | null>(null);
+  const [showSecondaryAddress, setShowSecondaryAddress] = useState(false);
 
   const storage = getStorage();
   const { Step } = Steps;
@@ -856,125 +857,157 @@ useEffect(() => {
           name="address_info"
           style={{ marginTop: 24 }}
         >
-          <Form.List name="addresses" initialValue={[{
-            street: '',
-            city: '',
-            state: '',
-            postalCode: '',
-            country: '',
-            isPrimary: true, // Mark the first address as primary
-          }]}>
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }, index) => (
-                  <div
-                    key={key}
+          <Card title="Primary Address" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  name={['addresses', 0, 'street']}
+                  label="Street Address"
+                  rules={[{ required: true, message: 'Please enter the street address' }]}
+                >
+                  <Input placeholder="Enter street address" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name={['addresses', 0, 'city']}
+                  label="City"
+                  rules={[{ required: true, message: 'Please enter the city' }]}
+                >
+                  <Input placeholder="Enter city" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name={['addresses', 0, 'state']}
+                  label="State/Province"
+                  rules={[{ required: true, message: 'Please enter the state or province' }]}
+                >
+                  <Input placeholder="Enter state or province" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name={['addresses', 0, 'postalCode']}
+                  label="Postal Code"
+                  rules={[{ required: true, message: 'Please enter the postal code' }]}
+                >
+                  <Input placeholder="Enter postal code" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name={['addresses', 0, 'country']}
+                  label="Country"
+                  rules={[{ required: true, message: 'Please select the country' }]}
+                >
+                  <Select
+                    placeholder="Select country"
                     style={{
-                      marginBottom: 24,
-                      border: '1px solid #d9d9d9',
-                      padding: 16,
-                      borderRadius: 8,
+                      height: '40px',
+                      fontSize: '14px',
+                    }}
+                    dropdownStyle={{
+                      maxHeight: 400,
+                      overflow: 'auto',
+                      fontSize: '14px',
                     }}
                   >
-                    <Row justify="space-between" align="middle">
-                      <Title level={5}>{index === 0 ? 'Primary Address' : `Address ${index + 1}`}</Title>
-                      {index !== 0 && (
-                        <MinusCircleOutlined onClick={() => remove(name)} style={{ color: 'red' }} />
-                      )}
-                    </Row>
-                    <Row gutter={16}>
-                      <Col span={24}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'street']}
-                          label="Street Address"
-                          rules={[{ required: true, message: 'Please enter the street address' }]}
-                        >
-                          <Input placeholder="Enter street address" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'city']}
-                          label="City"
-                          rules={[{ required: true, message: 'Please enter the city' }]}
-                        >
-                          <Input placeholder="Enter city" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'state']}
-                          label="State/Province"
-                          rules={[{ required: true, message: 'Please enter the state or province' }]}
-                        >
-                          <Input placeholder="Enter state or province" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'postalCode']}
-                          label="Postal Code"
-                          rules={[{ required: true, message: 'Please enter the postal code' }]}
-                        >
-                          <Input placeholder="Enter postal code" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'country']}
-                          label="Country"
-                          rules={[{ required: true, message: 'Please select the country' }]}
-                        >
-                          <Select
-                            placeholder="Select country"
-                            style={{
-                              height: '40px',
-                              fontSize: '14px',
-                            }}
-                            dropdownStyle={{
-                              maxHeight: 400,
-                              overflow: 'auto',
-                              fontSize: '14px',
-                            }}
-                          >
-                            <Option value="us">United States</Option>
-                            <Option value="ca">Canada</Option>
-                            {/* Add more countries as needed */}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-                ))}
-                <Form.Item>
-                  <Button
-                    type="dashed"
-                    onClick={() => add({
-                      street: '',
-                      city: '',
-                      state: '',
-                      postalCode: '',
-                      country: '',
-                      isPrimary: false,
-                    })}
-                    block
-                    icon={<PlusOutlined />}
-                  >
-                    Add Address
-                  </Button>
+                    <Option value="us">United States</Option>
+                    <Option value="ca">Canada</Option>
+                    {/* Add more countries as needed */}
+                  </Select>
                 </Form.Item>
-              </>
-            )}
-          </Form.List>
+              </Col>
+            </Row>
+          </Card>
+
+          <Form.Item
+            label="Add Secondary Address"
+            name="hasSecondaryAddress"
+            valuePropName="checked"
+          >
+            <Switch
+              onChange={(checked) => setShowSecondaryAddress(checked)}
+              checkedChildren="Yes"
+              unCheckedChildren="No"
+            />
+          </Form.Item>
+
+          {showSecondaryAddress && (
+            <Card title="Secondary Address" style={{ marginTop: 16 }}>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item
+                    name={['addresses', 1, 'street']}
+                    label="Street Address"
+                    rules={[{ required: true, message: 'Please enter the street address' }]}
+                  >
+                    <Input placeholder="Enter street address" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['addresses', 1, 'city']}
+                    label="City"
+                    rules={[{ required: true, message: 'Please enter the city' }]}
+                  >
+                    <Input placeholder="Enter city" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name={['addresses', 1, 'state']}
+                    label="State/Province"
+                    rules={[{ required: true, message: 'Please enter the state or province' }]}
+                  >
+                    <Input placeholder="Enter state or province" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['addresses', 1, 'postalCode']}
+                    label="Postal Code"
+                    rules={[{ required: true, message: 'Please enter the postal code' }]}
+                  >
+                    <Input placeholder="Enter postal code" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name={['addresses', 1, 'country']}
+                    label="Country"
+                    rules={[{ required: true, message: 'Please select the country' }]}
+                  >
+                    <Select
+                      placeholder="Select country"
+                      style={{
+                        height: '40px',
+                        fontSize: '14px',
+                      }}
+                      dropdownStyle={{
+                        maxHeight: 400,
+                        overflow: 'auto',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <Option value="us">United States</Option>
+                      <Option value="ca">Canada</Option>
+                      {/* Add more countries as needed */}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Card>
+          )}
         </Form>
       ),
       icon: <HomeOutlined />,
