@@ -13,6 +13,7 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   UserIcon,
+  QuestionMarkCircleIcon,
   InboxIcon,
   EnvelopeIcon // Import the mailbox icon
 } from '@heroicons/react/24/outline';
@@ -53,8 +54,15 @@ const Sidebar: React.FC = () => {
       <Menu.Item key="logout" icon={<ArrowLeftOnRectangleIcon className="dropdownsideIcon" />} onClick={handleLogout}>
         Logout
       </Menu.Item>
+  
       <Menu.Item key="settings" icon={<Cog6ToothIcon className="dropdownsideIcon" />} onClick={showSettings}>
         Settings
+      </Menu.Item>
+      <Menu.Item key="help" icon={<QuestionMarkCircleIcon className="dropdownsideIcon" />}>
+        Help
+      </Menu.Item>
+      <Menu.Item key="forms" icon={<DocumentTextIcon className="dropdownsideIcon" />}>
+        Forms
       </Menu.Item>
        <Menu.Item key="inbox" icon={<InboxIcon className="dropdownsideIcon" />}>
         Inbox

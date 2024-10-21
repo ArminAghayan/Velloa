@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Tabs, Card, Row, Col, Space, Dropdown, Menu, message, Tooltip, Modal } from 'antd';
-import { LeftOutlined, MoreOutlined, CheckCircleOutlined, SearchOutlined, UserOutlined, DollarOutlined, CalendarOutlined, FlagOutlined, CreditCardOutlined, MailTwoTone, PhoneTwoTone, EnvironmentTwoTone, HomeTwoTone, FileTextOutlined, PlusOutlined, ProfileOutlined, SendOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { LeftOutlined, MoreOutlined, CheckCircleOutlined, SearchOutlined, UserOutlined, DollarOutlined, CalendarOutlined, FlagOutlined, CreditCardOutlined, MailTwoTone, PhoneTwoTone, EnvironmentTwoTone, HomeTwoTone, FileTextOutlined, PlusOutlined, ProfileOutlined, EditOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../../firebase-config';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, deleteDoc } from 'firebase/firestore'; // Added doc and getDoc
@@ -9,6 +9,7 @@ import NewTaskDrawer from '../../maintenance/Tasks/PeopleTaskDrawer';
 import TasksTab from './ProspectsDetailsTasks';
 import ProspectsDetailsNotes from './ProspectsDetailsNotes';
 import ProspectsFilesPage from './ProspectsFilesPage';
+import ProspectsDetailsRentalApplication from './ProspectsDetailsRentalApplication';
 import EditPersonDrawer from './EditPersonDrawer'; // You'll need to create this component
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -106,43 +107,6 @@ const ProspectsDetailsPage: React.FC = () => {
     }
     return str.slice(0, num) + '...';
   };
-  const handleDelete = async () => {
-    Modal.confirm({
-      title: 'Are you sure you want to delete this person?',
-      content: 'This action cannot be undone. All associated data will be deleted.',
-      onOk: async () => {
-        try {
-          if (!peopleId || !companyId) {
-            throw new Error("Missing person ID or company ID");
-          }
-
-          // Delete the person document
-          await deleteDoc(doc(db, 'people', peopleId));
-
-          message.success('Person deleted successfully');
-          navigate('/people'); // Navigate back to the people list
-        } catch (error) {
-          console.error('Error deleting person:', error);
-          message.error('Failed to delete person');
-        }
-      },
-    });
-  };
-
-  const handleEdit = () => {
-    setEditDrawerVisible(true);
-  };
-
-  const menu = (
-    <Menu>
-      <Menu.Item key="1" onClick={handleEdit} icon={<EditOutlined />}>
-        Edit
-      </Menu.Item>
-      <Menu.Item key="2" onClick={handleDelete} icon={<DeleteOutlined />} danger>
-        Delete
-      </Menu.Item>
-    </Menu>
-  );
 
   const fetchCompanyId = useCallback(async () => {
     if (!auth.currentUser) {
@@ -283,6 +247,80 @@ const ProspectsDetailsPage: React.FC = () => {
 
   const fullName = getFullName(personDetails);
 
+  const handleEdit = () => {
+    setEditDrawerVisible(true);
+  };
+
+  const handleDelete = async () => {
+    if (!peopleId || !companyId) {
+      message.error("Unable to delete: Missing person or company information.");
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Are you sure you want to delete this person?',
+      content: 'This action cannot be undone and will also delete all associated maintenance tasks.',
+      onOk: async () => {
+        try {
+          if (!auth.currentUser) {
+            throw new Error("No authenticated user");
+          }
+
+          // Check if the current user is a member of the company
+          const companyDoc = await getDoc(doc(db, 'companies', companyId));
+          if (!companyDoc.exists()) {
+            throw new Error('Company document not found');
+          }
+          const companyData = companyDoc.data();
+          if (!companyData.members || !(auth.currentUser.uid in companyData.members)) {
+            throw new Error('User is not a member of the company');
+          }
+
+          // Delete the person document
+          await deleteDoc(doc(db, 'people', peopleId));
+
+          // Delete associated maintenance tasks
+          const maintenanceQuery = query(
+            collection(db, 'maintenance'),
+            where('companyId', '==', companyId)
+          );
+          const maintenanceSnapshot = await getDocs(maintenanceQuery);
+          
+          const deletePromises = maintenanceSnapshot.docs.map(async (doc) => {
+            const maintenanceData = doc.data();
+            if (maintenanceData.relatedTo && maintenanceData.relatedTo.includes(peopleId)) {
+              return deleteDoc(doc.ref);
+            }
+            return Promise.resolve(); // Do nothing if not related
+          });
+
+          await Promise.all(deletePromises);
+
+          message.success('Person and associated maintenance tasks deleted successfully');
+          navigate('/people'); // Navigate back to the people list
+        } catch (error) {
+          console.error('Error deleting person and maintenance tasks:', error);
+          if (error instanceof Error) {
+            message.error(`Failed to delete person and maintenance tasks: ${error.message}`);
+          } else {
+            message.error('Failed to delete person and maintenance tasks');
+          }
+        }
+      },
+    });
+  };
+
+  const menu = (
+    <Menu style={{ width: '150px' }}>
+      <Menu.Item  key="1" onClick={handleEdit} icon={<EditOutlined />}>
+        Edit
+      </Menu.Item>
+      <Menu.Item  key="2" onClick={handleDelete} icon={<DeleteOutlined />} danger>
+        Delete
+      </Menu.Item>
+    </Menu>
+  );
+
   const iconStyle = {
     fontSize: '32px',
   };
@@ -309,12 +347,22 @@ const ProspectsDetailsPage: React.FC = () => {
     return phoneNumber;
   };
 
-  const getStatusIcon = (status: string | null) => {
-    if (!status) return <CheckCircleOutlined />;
-    const lowerStatus = status.toLowerCase();
-    if (lowerStatus === 'sent') return <SendOutlined style={{ color: '#438BFF' }} />;
-    if (lowerStatus === 'review') return <CheckCircleOutlined style={{ color: '#188034' }} />;
-    return <CheckCircleOutlined />;
+  const handleViewRentalApplication = () => {
+    setActiveTab('rental-application');
+  };
+
+  const getStatusIcon = (status: string | null | undefined) => {
+    switch (status?.toLowerCase()) {
+      case 'sent':
+        return <MailTwoTone twoToneColor="#FFA907" />; // Orange color
+      case 'review':
+        return <CheckCircleOutlined style={{ color: '#52c41a' }} />; // Green color
+      case null:
+      case undefined:
+        return <QuestionCircleOutlined style={{ color: '#bfbfbf' }} />; // Grey color for null or undefined
+      default:
+        return <CheckCircleOutlined style={{ color: '#52c41a' }} />; // Default to green checkmark
+    }
   };
 
   return (
@@ -387,6 +435,7 @@ const ProspectsDetailsPage: React.FC = () => {
                     icon={<FileTextOutlined />}
                     block
                     className="prospects-details-tall-button"
+                    onClick={handleViewRentalApplication}
                   >
                     View Rental Application
                   </Button>
@@ -419,12 +468,12 @@ const ProspectsDetailsPage: React.FC = () => {
               <Col span={8}>
                 <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <Space direction="vertical" align="center" size="small">
-                    <div style={{ ...iconStyle, color: '#52c41a' }}>
+                    <div style={{ ...iconStyle }}>
                       {getStatusIcon(personDetails.applicationStatus)}
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <strong>Status</strong>
-                      <div>{personDetails.applicationStatus ? personDetails.applicationStatus : 'No Status'}</div>
+                      <div>{personDetails.applicationStatus || 'No Status'}</div>
                     </div>
                   </Space>
                 </Card>
@@ -443,10 +492,10 @@ const ProspectsDetailsPage: React.FC = () => {
                             <span>${personDetails.maxRent.toLocaleString()} Max Rent,</span>
                           )}
                           {personDetails.minBedrooms && (
-                            <span>{personDetails.minBedrooms} bd</span>
+                            <span>{personDetails.minBedrooms}bd</span>
                           )}
                           {personDetails.minBathrooms && (
-                            <span>{personDetails.minBathrooms} ba</span>
+                            <span>{personDetails.minBathrooms}ba</span>
                           )}
                         </div>
                       ) : (
@@ -543,7 +592,7 @@ const ProspectsDetailsPage: React.FC = () => {
             </Row>
             <Row gutter={[16, 16]}>
               <Col span={12}>
-                <Card size="small" title="Contact Info" style={{ height: '100%' }}>
+                <Card title="Contact Info" style={{ height: '100%' }}>
                   <Space direction="vertical">
                     <Space>
                       <MailTwoTone/>
@@ -586,7 +635,6 @@ const ProspectsDetailsPage: React.FC = () => {
               <Col span={12}>
                 <Card 
                   title="Address" 
-                  size="small"
                   style={{ height: '100%' }}
                   extra={<Button style={{ color: '#188034' }} icon={<PlusOutlined />} type="link">Add New</Button>}
                 >
@@ -610,7 +658,7 @@ const ProspectsDetailsPage: React.FC = () => {
                 </Card>
               </Col>
               <Col span={12}>
-                <Card size="small" title="Interests" style={{ height: '100%' }}>
+                <Card title="Interests" style={{ height: '100%' }}>
                   <Space direction="vertical">
                     {personDetails.properties && personDetails.properties.length > 0 ? (
                       personDetails.properties.map((property) => {
@@ -649,8 +697,8 @@ const ProspectsDetailsPage: React.FC = () => {
             </Row>
           </>
         )}
-        {activeTab === 'rental-application' && (
-          <div>Rental Application Content</div>
+        {activeTab === 'rental-application' && peopleId && companyId && (
+          <ProspectsDetailsRentalApplication personId={peopleId || ''} companyId={companyId || ''} />
         )}
         {activeTab === 'tasks' && peopleId && companyId && (
           <TasksTab personId={peopleId} companyId={companyId} />
@@ -673,10 +721,13 @@ const ProspectsDetailsPage: React.FC = () => {
           <EditPersonDrawer
             visible={editDrawerVisible}
             onClose={() => setEditDrawerVisible(false)}
-            personDetails={personDetails}
             companyId={companyId}
             personId={peopleId}
-            onUpdate={(updatedDetails) => setPersonDetails(updatedDetails)}
+            onUpdate={(updatedDetails: PersonDetails) => setPersonDetails(updatedDetails)}
+            onSubmitSuccess={() => {
+              setEditDrawerVisible(false);
+              message.success('Person updated successfully');
+            }}
           />
         </>
       )}
