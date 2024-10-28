@@ -52,7 +52,7 @@ const ApplicationLinkSettings: React.FC = () => {
     fetchCompanyDetails();
   }, []);
 
-  const applicationLink = `https://${companyName.toLowerCase().replace(/\s+/g, '')}.app.doorloop.com/tenant-portal/rental-applications/listing?companyId=${companyuid}&source=CompanyLink`;
+  const applicationLink = `https://${companyName.toLowerCase().replace(/\s+/g, '')}.localhost:3000/tenant-portal/rental-applications/listing?companyId=${companyuid}&source=CompanyLink`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(applicationLink)
