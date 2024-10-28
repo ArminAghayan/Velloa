@@ -13,7 +13,18 @@
 }
 
 .search-input {
-  margin-right: 16px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.new-file-button {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.file-dropdown-input {
+  height: 40px;
+  border-radius: 6px;
 }
 
 .filter-select {

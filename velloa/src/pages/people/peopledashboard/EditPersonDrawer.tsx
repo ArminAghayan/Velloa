@@ -40,7 +40,6 @@ import {
   doc,
   getDoc,
   updateDoc,
-  collectionGroup,
 } from 'firebase/firestore';
 import {
   getStorage,
@@ -50,7 +49,8 @@ import {
 } from 'firebase/storage';
 import { db, auth } from '../../../firebase-config'; // Adjust the import path as needed
 import { UploadFile } from 'antd/lib/upload/interface';
-import moment from 'moment';
+import dayjs from 'dayjs'; // Add this import
+// import moment from 'moment';
 
 
 const { Option } = Select;
@@ -85,6 +85,12 @@ interface PropertyRow {
   unitName?: string;
 }
 
+// Add this function at the top of your file, outside of any component
+const isValidYear = (year: number): boolean => {
+  const currentYear = dayjs().year();
+  return year >= 1900 && year <= currentYear + 1;
+};
+
 const EditPersonDrawer: React.FC<EditPersonDrawerProps> = ({
   visible,
   onClose,
@@ -102,7 +108,7 @@ const EditPersonDrawer: React.FC<EditPersonDrawerProps> = ({
   const [units, setUnits] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingAssignees, setLoadingAssignees] = useState<boolean>(false);
   const [loadingProperties, setLoadingProperties] = useState<boolean>(false);
-  const [loadingAllUnits, setLoadingAllUnits] = useState<boolean>(false);
+  const [loadingAllUnits] = useState<boolean>(false);
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [prospectId, setProspectId] = useState<string | null>(null); // New state for document ID
@@ -110,6 +116,7 @@ const EditPersonDrawer: React.FC<EditPersonDrawerProps> = ({
   const [avatarFile, setAvatarFile] = useState<UploadFile | null>(null);
   const [showSecondaryAddress, setShowSecondaryAddress] = useState(false);
   const [allUnits, setAllUnits] = useState<{ [propertyId: string]: Array<{ id: string; name: string }> }>({});
+  const [isLoading, setIsLoading] = useState(true);
 
   const storage = getStorage();
   const { Step } = Steps;
@@ -139,8 +146,14 @@ const EditPersonDrawer: React.FC<EditPersonDrawerProps> = ({
 
   useEffect(() => {
     if (visible && companyId) {
-      fetchAssignees();
-      fetchProperties();
+      setIsLoading(true);
+      Promise.all([
+        fetchAssignees(),
+        fetchProperties(),
+        // Add any other initial data fetching functions here
+      ]).finally(() => {
+        setIsLoading(false);
+      });
     }
   }, [visible, companyId]);
 
@@ -207,7 +220,7 @@ const fetchPersonData = async () => {
         minBedrooms: personData.minBedrooms,
         minBathrooms: personData.minBathrooms,
         maxRent: personData.maxRent,
-        moveInDate: personData.moveInDate ? moment(personData.moveInDate.toDate()) : undefined,
+        moveInDate: personData.moveInDate ? dayjs(personData.moveInDate.toDate()) : undefined,
         properties: propertiesWithNames.map((prop) => ({
           property: prop.property,
           unit: prop.unit,
@@ -216,7 +229,10 @@ const fetchPersonData = async () => {
         })),
         pets: personData.pets || [{}],
         vehicles: personData.vehicles || [{}],
-        dependents: personData.dependents || [{}],
+        dependents: personData.dependents?.map((dependent: any) => ({
+          ...dependent,
+          dateOfBirth: dependent.dateOfBirth ? dayjs(dependent.dateOfBirth.toDate()) : null
+        })) || [],
       });
 
       // Update propertyRows state with propertyName and unitName
@@ -579,6 +595,24 @@ useEffect(() => {
       cleanedData.leadStatus = "new";
     }
   
+    // Convert dayjs objects to Date objects
+    if (cleanedData.moveInDate && dayjs(cleanedData.moveInDate).isValid()) {
+      cleanedData.moveInDate = dayjs(cleanedData.moveInDate).toDate();
+    } else {
+      delete cleanedData.moveInDate;
+    }
+  
+    if (cleanedData.dependents) {
+      cleanedData.dependents = cleanedData.dependents.map((dependent: any) => {
+        if (dependent.dateOfBirth && dayjs(dependent.dateOfBirth).isValid()) {
+          dependent.dateOfBirth = dayjs(dependent.dateOfBirth).toDate();
+        } else {
+          delete dependent.dateOfBirth;
+        }
+        return dependent;
+      });
+    }
+  
     return cleanedData;
   };
 
@@ -596,18 +630,18 @@ useEffect(() => {
       formData = cleanFormData(formData);
   
       // Convert Moment objects to Date objects
-      if (formData.moveInDate) {
-        formData.moveInDate = formData.moveInDate.toDate();
-      }
-  
-      if (formData.dependents) {
-        formData.dependents = formData.dependents.map((dependent: any) => {
-          if (dependent.dateOfBirth) {
-            dependent.dateOfBirth = dependent.dateOfBirth.toDate();
-          }
-          return dependent;
-        });
-      }
+   if (formData.moveInDate) {
+     formData.moveInDate = formData.moveInDate.toDate();
+   }
+
+   if (formData.dependents) {
+     formData.dependents = formData.dependents.map((dependent: any) => {
+       if (dependent.dateOfBirth) {
+         dependent.dateOfBirth = dependent.dateOfBirth.toDate();
+       }
+       return dependent;
+     });
+   }
   
       // Create assignees array with objects containing uid
       const assignees = formData.assignees && Array.isArray(formData.assignees)
@@ -670,15 +704,33 @@ useEffect(() => {
       await form.validateFields(fieldsToValidate);
 
       // Additional validation for the contact info step
-      if (currentStep === 1) { // Assuming contact info is step 1
+      if (currentStep === 1) {
         const formValues = form.getFieldsValue();
         const emails = formValues.emails || [];
         const hasValidEmail = emails.some((email: { address?: string }) => email && email.address);
 
         if (!hasValidEmail) {
-            throw new Error('Please provide at least one email address.');
-          }
+          throw new Error('Please provide at least one email address.');
         }
+      }
+
+      // Add custom validation for date fields
+      if (currentStep === 3) {
+        const formValues = form.getFieldsValue();
+        if (formValues.moveInDate && !dayjs(formValues.moveInDate).isValid()) {
+          throw new Error('Please enter a valid move-in date.');
+        }
+      }
+
+      if (currentStep === 6) {
+        const formValues = form.getFieldsValue();
+        const dependents = formValues.dependents || [];
+        dependents.forEach((dependent: any, index: number) => {
+          if (dependent.dateOfBirth && !dayjs(dependent.dateOfBirth).isValid()) {
+            throw new Error(`Please enter a valid date of birth for dependent ${index + 1}.`);
+          }
+        });
+      }
 
       setCurrentStep(currentStep + 1);
     } catch (error) {
@@ -1376,7 +1428,6 @@ useEffect(() => {
           layout="vertical"
           name="vehicles_info"
           style={{ marginTop: 24 }}
-          initialValues={{ vehicles: [{}] }} // Initialize with one empty vehicle
         >
           <Form.List name="vehicles" initialValue={[{}]}>
           {(fields, { add, remove }) => (
@@ -1456,6 +1507,9 @@ useEffect(() => {
                                 ) {
                                   return Promise.reject('Please enter year');
                                 }
+                                if (value && !isValidYear(value)) {
+                                  return Promise.reject('Please enter a valid year between 1900 and next year');
+                                }
                                 return Promise.resolve();
                               },
                             }),
@@ -1468,7 +1522,12 @@ useEffect(() => {
                             }}
                             placeholder="Enter year"
                             min={1900}
-                            max={new Date().getFullYear() + 1}
+                            max={dayjs().year() + 1}
+                            parser={(value) => {
+                              const parsed = parseInt(value || '', 10);
+                              return isNaN(parsed) ? 0 : parsed;
+                            }}
+                            formatter={(value) => (value !== 0 ? `${value}` : '')}
                           />
                         </Form.Item>
                       </Col>
@@ -1591,188 +1650,166 @@ useEffect(() => {
         >
           <Form.List name="dependents" initialValue={[{}]}>
           {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }, index) => (
-                  <div
-                    key={key}
-                    style={{
-                      marginBottom: 24,
-                      border: '1px solid #d9d9d9',
-                      padding: 16,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Row gutter={16}>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'firstName']}
-                          label="First Name"
-                          rules={[
-                            ({ getFieldValue }) => ({
-                              validator(_, value) {
-                                const dependents = getFieldValue('dependents');
-                                const currentDependent = dependents[index];
-                                if (
-                                  Object.values(currentDependent).some((val) => val) &&
-                                  !value
-                                ) {
-                                  return Promise.reject('Please enter first name');
-                                }
-                                return Promise.resolve();
-                              },
-                            }),
-                          ]}
-                        >
-                          <Input placeholder="Enter first name" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'lastName']}
-                          label="Last Name"
-                          rules={[
-                            ({ getFieldValue }) => ({
-                              validator(_, value) {
-                                const dependents = getFieldValue('dependents');
-                                const currentDependent = dependents[index];
-                                if (
-                                  Object.values(currentDependent).some((val) => val) &&
-                                  !value
-                                ) {
-                                  return Promise.reject('Please enter last name');
-                                }
-                                return Promise.resolve();
-                              },
-                            }),
-                          ]}
-                        >
-                          <Input placeholder="Enter last name" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'relationship']}
-                          label="Relationship"
-                          rules={[
-                            ({ getFieldValue }) => ({
-                              validator(_, value) {
-                                const dependents = getFieldValue('dependents');
-                                const currentDependent = dependents[index];
-                                if (
-                                  Object.values(currentDependent).some((val) => val) &&
-                                  !value
-                                ) {
-                                  return Promise.reject('Please select relationship');
-                                }
-                                return Promise.resolve();
-                              },
-                            }),
-                          ]}
-                        >
-                          <Select placeholder="Select relationship">
-                            <Option value="child">Child</Option>
-                            <Option value="spouse">Spouse</Option>
-                            <Option value="parent">Parent</Option>
-                            <Option value="sibling">Sibling</Option>
-                            <Option value="other">Other</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={16}>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'dateOfBirth']}
-                          label="Date of Birth"
-                          rules={[
-                            ({ getFieldValue }) => ({
-                              validator(_, value) {
-                                const dependents = getFieldValue('dependents');
-                                const currentDependent = dependents[index];
-                                if (
-                                  Object.values(currentDependent).some((val) => val) &&
-                                  !value
-                                ) {
-                                  return Promise.reject('Please select date of birth');
-                                }
-                                return Promise.resolve();
-                              },
-                            }),
-                          ]}
-                        >
-                          <DatePicker
-                            style={{ width: '100%', padding: '8px 10px' }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'gender']}
-                          label="Gender"
-                          rules={[
-                            ({ getFieldValue }) => ({
-                              validator(_, value) {
-                                const dependents = getFieldValue('dependents');
-                                const currentDependent = dependents[index];
-                                if (
-                                  Object.values(currentDependent).some((val) => val) &&
-                                  !value
-                                ) {
-                                  return Promise.reject('Please select gender');
-                                }
-                                return Promise.resolve();
-                              },
-                            }),
-                          ]}
-                        >
-                          <Select placeholder="Select gender">
-                            <Option value="male">Male</Option>
-                            <Option value="female">Female</Option>
-                            <Option value="other">Other</Option>
-                            <Option value="preferNotToSay">
-                              Prefer not to say
-                            </Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'ssn']}
-                          label="SSN (Optional)"
-                        >
-                          <Input placeholder="Enter SSN" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    {index > 0 && (
-                      <Button
-                        type="link"
-                        onClick={() => remove(name)}
-                        icon={<MinusCircleOutlined />}
+            <>
+              {fields.map(({ key, name, ...restField }, index) => (
+                <div key={key} style={{ /* ... existing styles ... */ }}>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'firstName']}
+                        label="First Name"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const dependents = getFieldValue('dependents');
+                              const currentDependent = dependents[index];
+                              if (
+                                Object.values(currentDependent).some((val) => val) &&
+                                !value
+                              ) {
+                                return Promise.reject('Please enter first name');
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
                       >
-                        Remove Dependent
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Form.Item>
-                  <Button
-                    type="dashed"
-                    onClick={() => add()}
-                    block
-                    icon={<PlusOutlined />}
-                  >
-                    Add Dependent
-                  </Button>
-                </Form.Item>
-              </>
-            )}
+                        <Input placeholder="Enter first name" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'lastName']}
+                        label="Last Name"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const dependents = getFieldValue('dependents');
+                              const currentDependent = dependents[index];
+                              if (
+                                Object.values(currentDependent).some((val) => val) &&
+                                !value
+                              ) {
+                                return Promise.reject('Please enter last name');
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <Input placeholder="Enter last name" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'relationship']}
+                        label="Relationship"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const dependents = getFieldValue('dependents');
+                              const currentDependent = dependents[index];
+                              if (
+                                Object.values(currentDependent).some((val) => val) &&
+                                !value
+                              ) {
+                                return Promise.reject('Please select relationship');
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <Select placeholder="Select relationship">
+                          <Option value="child">Child</Option>
+                          <Option value="spouse">Spouse</Option>
+                          <Option value="parent">Parent</Option>
+                          <Option value="sibling">Sibling</Option>
+                          <Option value="other">Other</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'dateOfBirth']}
+                        label="Date of Birth"
+                      >
+                        <DatePicker
+                          style={{ width: '100%', padding: '8px 10px' }}
+                          format="YYYY-MM-DD"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'gender']}
+                        label="Gender"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              const dependents = getFieldValue('dependents');
+                              const currentDependent = dependents[index];
+                              if (
+                                Object.values(currentDependent).some((val) => val) &&
+                                !value
+                              ) {
+                                return Promise.reject('Please select gender');
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <Select placeholder="Select gender">
+                          <Option value="male">Male</Option>
+                          <Option value="female">Female</Option>
+                          <Option value="other">Other</Option>
+                          <Option value="preferNotToSay">
+                            Prefer not to say
+                          </Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'ssn']}
+                        label="SSN (Optional)"
+                      >
+                        <Input placeholder="Enter SSN" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  {index > 0 && (
+                    <Button
+                      type="link"
+                      onClick={() => remove(name)}
+                      icon={<MinusCircleOutlined />}
+                    >
+                      Remove Dependent
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Form.Item>
+                <Button
+                  type="dashed"
+                  onClick={() => add()}
+                  block
+                  icon={<PlusOutlined />}
+                >
+                  Add Dependent
+                </Button>
+              </Form.Item>
+            </>
+          )}
           </Form.List>
         </Form>
       ),
@@ -1794,42 +1831,55 @@ useEffect(() => {
       bodyStyle={{ paddingBottom: 80 }}
       className="new-prospect-drawer"
       footer={
-        <div style={{ textAlign: 'right' }}>
-          {currentStep > 0 && (
-            <Button style={{ margin: '0 8px' }} onClick={prev}>
-              Previous
-            </Button>
-          )}
-          {currentStep < steps.length - 1 && (
-            <Button onClick={next} type="primary">
-              Next
-            </Button>
-          )}
-          {currentStep === steps.length - 1 && (
-            <Button
-              onClick={handleSubmit}
-              type="primary"
-              loading={submitting}
-            >
-              Submit
-            </Button>
-          )}
-        </div>
+        !isLoading && (
+          <div style={{ textAlign: 'right' }}>
+            {currentStep > 0 && (
+              <Button style={{ margin: '0 8px' }} onClick={prev}>
+                Previous
+              </Button>
+            )}
+            {currentStep < steps.length - 1 && (
+              <Button onClick={next} type="primary">
+                Next
+              </Button>
+            )}
+            {currentStep === steps.length - 1 && (
+              <Button
+                onClick={handleSubmit}
+                type="primary"
+                loading={submitting}
+              >
+                Submit
+              </Button>
+            )}
+          </div>
+        )
       }
     >
-      <TwoStepView />
-      <div>{steps[currentStep].content}</div>
-      
-      {(loadingAssignees || loadingProperties || loadingAllUnits) && (
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
+      {isLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <Spin size="large" />
-          <p>Loading data...</p>
         </div>
+      ) : (
+        <>
+          <TwoStepView />
+          <div>{steps[currentStep].content}</div>
+          {/* Rest of your drawer content */}
+        </>
       )}
     </Drawer>
   );
 };
 
+// Update the PropertyData interface
+interface PropertyData {
+  property: string;
+  unit: string;
+  propertyName?: string;
+  unitName?: string;
+}
+
+// Update the FormValues interface
 interface FormValues {
   firstName?: string;
   lastName?: string;
@@ -1853,40 +1903,39 @@ interface FormValues {
   minBedrooms?: number;
   minBathrooms?: number;
   maxRent?: number;
-  moveInDate?: moment.Moment;
-  properties?: Array<{
-    property: string;
-    unit: string;
-    propertyName?: string;
-    unitName?: string;
-  }>;
+  moveInDate?: dayjs.Dayjs;
+  properties?: PropertyData[];
   pets?: Array<{ name: string; type: string }>;
   vehicles?: Array<{ make: string; model: string; year: number }>;
   dependents?: Array<{ firstName: string; lastName: string; relationship: string }>;
 }
 
+// In the ReviewSection component
 const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
-  const [formValues, setFormValues] = useState<FormValues>(form.getFieldsValue(true));
+  const [formValues, setFormValues] = useState<FormValues>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
       setLoading(true);
       try {
+        const values = form.getFieldsValue(true);
+        console.log("Form values:", values); // Debugging
+
         // Fetch assignee names
-        if (formValues.assignees && formValues.assignees.length > 0) {
-          const assigneePromises = formValues.assignees.map(async (uid: string) => {
+        if (values.assignees && values.assignees.length > 0) {
+          const assigneePromises = values.assignees.map(async (uid: string) => {
             const userDoc = await getDoc(doc(db, 'users', uid));
             const userData = userDoc.data();
             return userData ? `${userData.firstName} ${userData.lastName}` : 'Unknown User';
           });
           const assigneeNames = await Promise.all(assigneePromises);
-          setFormValues((prev: FormValues) => ({ ...prev, assigneeNames }));
+          values.assigneeNames = assigneeNames;
         }
 
         // Fetch property and unit names
-        if (formValues.properties && formValues.properties.length > 0) {
-          const updatedProperties = await Promise.all(formValues.properties.map(async (prop) => {
+        if (values.properties && values.properties.length > 0) {
+          const updatedProperties = await Promise.all(values.properties.map(async (prop: PropertyData) => {
             let propertyName = 'Unknown Property';
             let unitName = 'Unknown Unit';
 
@@ -1909,15 +1958,11 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
             return { ...prop, propertyName, unitName };
           }));
 
-          setFormValues((prev: FormValues) => ({ ...prev, properties: updatedProperties }));
+          values.properties = updatedProperties;
         }
 
-        // Fetch addresses if any
-        if (formValues.addresses && formValues.addresses.length > 0) {
-          // You can fetch additional data related to addresses if needed
-          // For now, we'll use them as is
-        }
-
+        console.log("Updated form values:", values); // Debugging
+        setFormValues(values);
       } catch (error) {
         console.error('Error fetching additional data:', error);
       } finally {
@@ -1926,7 +1971,7 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
     };
 
     fetchAdditionalData();
-  }, [formValues.assignees, formValues.properties, formValues.addresses]);
+  }, [form]);
 
   const InfoItem = ({ label, value }: { label: string; value: any }) => (
     <div style={{ marginBottom: 16 }}>
@@ -1941,10 +1986,14 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
                          formValues.minBedrooms || formValues.minBathrooms || formValues.maxRent || formValues.moveInDate;
 
   const hasPropertyInfo = formValues.properties && formValues.properties.length > 0 && 
-                          formValues.properties.some((prop: any) => prop.property || prop.unit);
+                          formValues.properties.some((prop: PropertyData) => prop.property || prop.unit);
 
   if (loading) {
     return <Spin size="large" />;
+  }
+
+  if (Object.keys(formValues).length === 0) {
+    return <div>No data available</div>;
   }
 
   return (
@@ -2015,7 +2064,7 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
                   <InfoItem label="Min Bedrooms" value={formValues.minBedrooms} />
                   <InfoItem label="Min Bathrooms" value={formValues.minBathrooms} />
                   <InfoItem label="Max Rent" value={formValues.maxRent} />
-                  <InfoItem label="Move-in Date" value={formValues.moveInDate?.format('YYYY-MM-DD')} />
+                  <InfoItem label="Move-in Date" value={formValues.moveInDate ? dayjs(formValues.moveInDate).format('YYYY-MM-DD') : 'N/A'} />
                 </Col>
               </Row>
             </Card>
@@ -2025,7 +2074,7 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
         {hasPropertyInfo && (
           <Col span={24}>
             <Card title="Properties">
-              {formValues.properties?.map((prop: any, index: number) => (
+              {formValues.properties?.map((prop: PropertyData, index: number) => (
                 <InfoItem 
                   key={`property-${index}`} 
                   label={`Property ${index + 1}`} 
@@ -2081,7 +2130,7 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
                   <Col span={12} key={`dependent-${index}`}>
                     <InfoItem label={`Dependent ${index + 1}`} value={`${dependent.firstName} ${dependent.lastName}`} />
                     <InfoItem label="Relationship" value={dependent.relationship} />
-                    <InfoItem label="Date of Birth" value={dependent.dateOfBirth?.format('YYYY-MM-DD')} />
+                    <InfoItem label="Date of Birth" value={dependent.dateOfBirth ? dayjs(dependent.dateOfBirth).format('YYYY-MM-DD') : 'N/A'} />
                     <InfoItem label="Gender" value={dependent.gender} />
                     <InfoItem label="SSN" value={dependent.ssn} />
                   </Col>
@@ -2096,3 +2145,4 @@ const ReviewSection: React.FC<{ form: any }> = ({ form }) => {
 };
 
 export default EditPersonDrawer;
+

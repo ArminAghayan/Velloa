@@ -1,0 +1,25 @@
+.search-input {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.add-task-button {
+  height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-button {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.ant-dropdown-menu {
+  padding: 4px 0;
+}
+
+.ant-dropdown-menu-item {
+  padding: 8px 16px;
+}

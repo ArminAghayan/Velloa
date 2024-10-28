@@ -1,0 +1,130 @@
+/* NewVendorPage.css */
+
+.new-vendor-drawer .ant-drawer-body {
+  padding: 24px;
+}
+
+.new-vendor-drawer .ant-form-item {
+  margin-bottom: 24px;
+}
+
+.new-vendor-drawer .ant-form-item-label {
+  font-weight: 500;
+}
+
+.new-vendor-drawer .ant-input,
+.new-vendor-drawer .ant-select-selector {
+  border-radius: 4px;
+}
+
+.new-vendor-drawer .ant-upload.ant-upload-select-picture-card {
+  width: 128px;
+  height: 128px;
+  margin-bottom: 16px;
+}
+
+.new-vendor-drawer .avatar-uploader > .ant-upload {
+  width: 128px;
+  height: 128px;
+}
+
+.new-vendor-drawer .ant-upload-list-picture-card .ant-upload-list-item {
+  width: 128px;
+  height: 128px;
+}
+
+.contactSection {
+  background: #f0f0f0;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.contactSelect,
+.contactInput {
+  width: 100%;
+}
+
+.contactSelect {
+  height: 40px;
+  font-size: 16px;
+}
+
+.contactSelect .ant-select-selector {
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  padding: 0 11px !important;
+}
+
+.contactSelect .ant-select-arrow {
+  line-height: 40px;
+}
+
+.contactSelect .ant-select-selector {
+  border-radius: 4px;
+}
+
+.contactInput .ant-input {
+  height: 40px;
+  padding: 6px 11px;
+  font-size: 16px;
+}
+
+.new-vendor-drawer .ant-form-item-control-input-content > div {
+  width: 100%;
+  display: block;
+  height: 40px;
+}
+
+.new-vendor-drawer .ant-steps-item-icon {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+.new-vendor-drawer .ant-steps-item-process .ant-steps-item-icon {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+.new-vendor-drawer .ant-steps-item-finish .ant-steps-item-icon {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+.new-vendor-drawer .ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
+  color: #fff;
+}
+
+.new-vendor-drawer .ant-card {
+  margin-bottom: 24px;
+}
+
+.new-vendor-drawer .ant-card-head {
+  background-color: #f0f2f5;
+}
+
+.new-vendor-drawer .ant-divider {
+  margin: 24px 0;
+}
+
+.new-vendor-drawer .ant-btn-link {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.new-vendor-drawer .ant-form-item-explain,
+.new-vendor-drawer .ant-form-item-extra {
+  font-size: 12px;
+}
+
+.new-vendor-drawer .ant-typography {
+  margin-bottom: 8px;
+}
+

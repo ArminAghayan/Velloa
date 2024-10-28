@@ -130,7 +130,6 @@ body, html {
   75% { transform: translateX(-20px); }
   100% { transform: translateX(0); }
 }
-
 .ant-form-item-control-input-content {
   display: flex;
   align-items: center;

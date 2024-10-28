@@ -39,7 +39,7 @@ import {
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import { v4 as uuidv4 } from 'uuid';
-import './ProspectsFilesPage.css';
+import './PeopleDashBoardFilesPage.css';
 
 const { Option } = Select;
 
@@ -363,7 +363,7 @@ const ProspectsFilesPage: React.FC<ProspectsFilesPageProps> = ({ personId }) => 
           <Row gutter={16}>
             <Col>
               <Input
-                className="file-search-input"
+                className="search-input"
                 placeholder="Search files"
                 value={searchText}
                 onChange={handleSearchChange}

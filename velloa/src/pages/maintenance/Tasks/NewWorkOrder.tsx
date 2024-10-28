@@ -87,6 +87,11 @@ interface Property {
   name: string;
 }
 
+interface Vendor {
+  uid: string;
+  displayName: string;
+}
+
 const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
 const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId }) => {
@@ -97,17 +102,21 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
   const [loadingProperties, setLoadingProperties] = useState<boolean>(false);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showPartsAndLabor, setShowPartsAndLabor] = useState<boolean>(false);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
       fetchAssignees();
       fetchProperties();
+      fetchVendors(); // Add this line
     } else {
       form.resetFields();
       setAssignees([]);
       setProperties([]);
       setLineItems([]);
       setShowPartsAndLabor(false);
+      setVendors([]); // Add this line
     }
   }, [visible, companyId]);
 
@@ -167,6 +176,61 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
       message.error('Failed to fetch properties. Please try again.');
     } finally {
       setLoadingProperties(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      console.log('Fetching vendors for company:', companyId);
+      
+      const vendorsQuery = query(
+        collection(db, 'people'),
+        where('companyId', '==', companyId),
+        where('peopleType', '==', 'vendor')
+      );
+
+      const vendorsSnapshot = await getDocs(vendorsQuery);
+      console.log('Vendors snapshot:', vendorsSnapshot.docs.map(doc => doc.data()));
+
+      if (vendorsSnapshot.empty) {
+        console.log('No vendors found - snapshot is empty');
+        message.warning('No vendors found for this company.');
+        setVendors([]);
+        return;
+      }
+
+      const vendorData: Vendor[] = vendorsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        console.log('Processing vendor doc:', data);
+        
+        // Create the name parts
+        const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+        const companyName = data.company?.trim();
+        
+        // Combine the parts based on what's available
+        let displayName = 'Unknown Vendor';
+        if (fullName && companyName) {
+          displayName = `${fullName} | ${companyName}`;
+        } else if (fullName) {
+          displayName = fullName;
+        } else if (companyName) {
+          displayName = companyName;
+        }
+        
+        return {
+          uid: doc.id,
+          displayName: displayName,
+        };
+      });
+
+      console.log('Final vendor data:', vendorData);
+      setVendors(vendorData);
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      message.error('Failed to fetch vendors. Please try again.');
+    } finally {
+      setLoadingVendors(false);
     }
   };
 
@@ -389,8 +453,16 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         <Title level={4}>General</Title>
 
         <Form.Item name="vendor" label="Select Vendor">
-          <Select placeholder="Select Vendor">
-            {/* Add vendor options here */}
+          <Select 
+            placeholder="Select Vendor"
+            loading={loadingVendors}
+            allowClear
+          >
+            {vendors.map((vendor) => (
+              <Select.Option key={vendor.uid} value={vendor.uid}>
+                {vendor.displayName}
+              </Select.Option>
+            ))}
           </Select>
         </Form.Item>
 

@@ -30,7 +30,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { db } from '../../../firebase-config';
-import './ProspectsDetailsNotes.css';
+import './PeopleDashboardDetailsNotes.css';
 
 const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;

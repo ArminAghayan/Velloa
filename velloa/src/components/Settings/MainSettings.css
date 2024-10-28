@@ -1,0 +1,56 @@
+.settings-sidebar {
+    min-height: 100vh;
+    border-right: 1px solid #f0f0f0;
+  }
+  
+  .settings-sidebar .ant-tabs-nav {
+    width: 200px;
+  }
+  
+  .settings-sidebar .ant-menu {
+    border-right: none;
+  }
+
+.settings-menu  {
+    border: none;
+}
+
+.settings-menu {
+  border-right: none !important;
+}
+
+/* Make only the main menu labels dark gray */
+.settings-menu .ant-menu-submenu-title {
+  color: #666 !important;
+  background-color: #f8f8f8 !important;
+}
+
+/* Make menu items have white background */
+.settings-menu .ant-menu-item {
+  background-color: white !important;
+}
+
+/* Make submenu container white */
+.settings-menu .ant-menu-sub {
+  background-color: white !important;
+}
+
+/* Selected state - green background */
+.settings-menu .ant-menu-item-selected {
+  background-color: #28A745 !important;
+  color: white !important;
+}
+
+/* Hover state with light green background */
+.settings-menu .ant-menu-item:hover {
+  background-color: #E9F7EC !important;
+  color: #28A745 !important;
+}
+
+.rental-application-modal .ant-modal-body {
+  background-color: white;
+}
+
+.ant-modal-content {
+  background-color: white !important;
+}

@@ -1,0 +1,435 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Drawer,
+  Form,
+  Input,
+  DatePicker,
+  Select,
+  Upload,
+  Button,
+  Space,
+  Typography,
+  message,
+  Row,
+  Col,
+  Divider,
+  Switch,
+} from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
+import type { UploadFile } from 'antd/es/upload/interface';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  Timestamp,
+  query,
+  where,
+  getDoc,
+  doc,
+  QueryDocumentSnapshot,
+  DocumentData,
+  setDoc,
+} from 'firebase/firestore';
+import { db} from '../../../firebase-config'; // Ensure this path is correct
+import './NewOwnerRequest.css'
+import { customAlphabet } from 'nanoid';
+
+const { TextArea } = Input;
+const { Dragger } = Upload;
+const { Title } = Typography;
+
+interface PeopleOwnerRequestProps {
+  visible: boolean;
+  onClose: () => void;
+  companyId: string;
+  personId: string; // Add personId to the props
+}
+
+interface OwnerRequestFormValues {
+  owner: string;
+  subject: string;
+  description?: string;
+  taskType: 'One Time Task' | 'Recurring Task';
+  dueDate?: Date;
+  status: string;
+  priority: string;
+  assignees?: string[];
+  notifyAssignees: boolean;
+  notifyOwner: boolean;
+  relatedTo: string;
+  attachments?: UploadFile[];
+  [key: string]: any;
+}
+
+interface Owner {
+  id: string;
+  displayName: string;
+}
+
+interface Assignee {
+  uid: string;
+  name: string;
+}
+
+interface Property {
+  id: string;
+  name: string;
+}
+
+const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
+
+const PeopleOwnerRequest: React.FC<PeopleOwnerRequestProps> = ({ visible, onClose, companyId, personId }) => {
+  const [form] = Form.useForm<OwnerRequestFormValues>();
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loadingOwners, setLoadingOwners] = useState<boolean>(false);
+  const [loadingAssignees, setLoadingAssignees] = useState<boolean>(false);
+  const [loadingProperties, setLoadingProperties] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (visible) {
+      fetchOwners();
+      fetchProperties();
+      fetchAssignees();
+    } else {
+      form.resetFields();
+    }
+  }, [visible, companyId, personId]);
+
+  // Pre-select the owner based on personId
+  useEffect(() => {
+    if (owners.length > 0) {
+      const selectedOwner = owners.find(owner => owner.id === personId);
+      if (selectedOwner) {
+        form.setFieldsValue({ owner: selectedOwner.id });
+      }
+    }
+  }, [owners, personId]);
+
+  const fetchOwners = async () => {
+    setLoadingOwners(true);
+    try {
+      const ownersQuery = query(
+        collection(db, 'people'),
+        where('companyId', '==', companyId),
+        where('peopleType', '==', 'owner')
+      );
+
+      const querySnapshot = await getDocs(ownersQuery);
+      
+      if (querySnapshot.empty) {
+        console.log('No owners found - snapshot is empty');
+        message.warning('No owners found for this company.');
+        setOwners([]);
+        return;
+      }
+
+      const ownersData: Owner[] = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        
+        // Create the name parts
+        const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+        const companyName = data.company?.trim();
+        
+        // Combine the parts based on what's available
+        let displayName = 'Unknown Owner';
+        if (fullName && companyName) {
+          displayName = `${fullName} | ${companyName}`;
+        } else if (fullName) {
+          displayName = fullName;
+        } else if (companyName) {
+          displayName = companyName;
+        }
+
+        return {
+          id: doc.id,
+          displayName: displayName,
+        };
+      });
+
+      setOwners(ownersData);
+    } catch (error) {
+      console.error('Error fetching owners:', error);
+      message.error('Failed to fetch owners. Please try again.');
+    } finally {
+      setLoadingOwners(false);
+    }
+  };
+
+  const fetchProperties = async () => {
+    setLoadingProperties(true);
+    try {
+      const propertiesQuery = query(collection(db, 'properties'), where('companyuid', '==', companyId));
+      const querySnapshot = await getDocs(propertiesQuery);
+      const propertiesData: Property[] = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+        id: doc.id,
+        name: doc.data().propertyName || 'Unnamed Property',
+      }));
+      setProperties(propertiesData);
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+      message.error('Failed to fetch properties. Please try again.');
+    } finally {
+      setLoadingProperties(false);
+    }
+  };
+
+  const fetchAssignees = async () => {
+    setLoadingAssignees(true);
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('companyuid', '==', companyId)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      const assigneeData: Assignee[] = usersSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const userData = doc.data();
+        return {
+          uid: doc.id,
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown User',
+        };
+      });
+      setAssignees(assigneeData);
+    } catch (error) {
+      console.error('Error fetching assignees:', error);
+      message.error('Failed to fetch assignees. Please try again.');
+    } finally {
+      setLoadingAssignees(false);
+    }
+  };
+
+  const onFinish = async (values: OwnerRequestFormValues) => {
+    try {
+      const cleanedValues = Object.entries(values).reduce((acc, [key, value]) => {
+        if (value !== undefined && value !== '') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Partial<OwnerRequestFormValues>);
+
+      const dueDateTimestamp = cleanedValues.dueDate
+        ? Timestamp.fromDate(new Date(cleanedValues.dueDate))
+        : null;
+
+      const attachments = cleanedValues.attachments
+        ? cleanedValues.attachments.map((file) => ({
+            name: file.name,
+            url: file.url || '',
+          }))
+        : [];
+
+      const taskRefId = generateTaskRefId();
+
+      // Change these lines
+      const maintenanceRef = doc(collection(db, 'maintenance')); // Changed from ownerRequests to maintenance
+      await setDoc(maintenanceRef, {  // Using setDoc instead of addDoc
+        owner: values.owner,
+        ...cleanedValues,
+        companyId,
+        createdAt: Timestamp.now(),
+        dueDate: dueDateTimestamp,
+        assignees: values.assignees ? values.assignees.map(id => ({ uid: id })) : [],
+        attachments,
+        status: cleanedValues.status || 'Not Started',
+        taskRefId,
+        taskType: 'Owner Request',  // Add this to identify the type
+        description: values.description || '', // Ensure description is never undefined
+      });
+
+      message.success('Owner request created successfully');
+      form.resetFields();
+      onClose();
+    } catch (error) {
+      console.error('Error saving owner request:', error);
+      message.error('Failed to create owner request. Please try again.');
+    }
+  };
+
+  const uploadProps = {
+    name: 'file',
+    multiple: true,
+    action: 'https://www.mocky.io/v2/5cc8019d300000980a055e76', // Replace with your actual upload endpoint
+    onChange(info: any) {
+      const { status } = info.file;
+      if (status !== 'uploading') {
+        console.log(info.file, info.fileList);
+      }
+      if (status === 'done') {
+        message.success(`${info.file.name} file uploaded successfully.`);
+      } else if (status === 'error') {
+        message.error(`${info.file.name} file upload failed.`);
+      }
+    },
+    onDrop(e: React.DragEvent<HTMLDivElement>) {
+      console.log('Dropped files', e.dataTransfer.files);
+    },
+  };
+
+  return (
+    <Drawer
+      title={<Title level={4} style={{ color: '#28A745' }}>New Owner Request</Title>}
+      placement="right"
+      onClose={onClose}
+      open={visible}
+      className='New-Owner-Request-Drawer'
+      width={720}
+      footer={
+        <div style={{ textAlign: 'right' }}>
+          <Space>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={() => form.submit()} type="primary">
+              Save
+            </Button>
+          </Space>
+        </div>
+      }
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{ notifyAssignees: false, notifyOwner: false, taskType: 'One Time Task' }}
+      >
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name="owner"
+              label="Owner"
+              rules={[{ required: true, message: 'Owner is required' }]}
+            >
+              <Select
+                disabled
+                placeholder="Owner"
+                loading={loadingOwners}
+              >
+                {owners.map(owner => (
+                  <Select.Option key={owner.id} value={owner.id}>
+                    {owner.displayName}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name="subject"
+              label="Subject"
+              rules={[{ required: true, message: 'Please enter a subject' }]}
+            >
+              <Input />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Form.Item name="description" label="Description">
+          <TextArea rows={4} maxLength={10000} showCount />
+        </Form.Item>
+
+        <Divider />
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="dueDate" label="Due Date" rules={[{ required: true, message: 'Please select a due date' }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="status" label="Status" initialValue="Not Started" rules={[{ required: true, message: 'Please select a status' }]}>
+              <Select>
+                <Select.Option value="Not Started">Not Started</Select.Option>
+                <Select.Option value="In Progress">In Progress</Select.Option>
+                <Select.Option value="Completed">Completed</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="priority" label="Priority" rules={[{ required: true, message: 'Please select a priority' }]}>
+              <Select placeholder="Select priority">
+                <Select.Option value="Low">Low</Select.Option>
+                <Select.Option value="Medium">Medium</Select.Option>
+                <Select.Option value="High">High</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="assignees" label="Assignees">
+              <Select
+                placeholder="Select assignees"
+                mode="multiple"
+                loading={loadingAssignees}
+                allowClear
+              >
+                {assignees.map((assignee) => (
+                  <Select.Option key={assignee.uid} value={assignee.uid}>
+                    {assignee.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              name="notifyAssignees"
+              label="Notify Assignee(s)"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="notifyOwner"
+              label="Notify Owner"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item name="relatedTo" label="Related To" rules={[{ required: true, message: 'Please select a property' }]}>
+              <Select placeholder="Select property">
+                {properties.map((property) => (
+                  <Select.Option key={property.id} value={property.id}>
+                    {property.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Form.Item name="attachments" label="Attachments">
+          <Dragger {...uploadProps}>
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <p className="ant-upload-text">
+              Drag files or Click here to upload
+            </p>
+            <p className="ant-upload-hint">
+              Support for a single or bulk upload. Files that are supported are jpg, png, mp4, doc, docx, pdf, xlsx, xls,
+              no larger than 50 MB.
+            </p>
+          </Dragger>
+        </Form.Item>
+      </Form>
+    </Drawer>
+  );
+};
+
+export default PeopleOwnerRequest;

@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, message, Input, Tag, Tooltip, Typography, Spin } from 'antd';
-import { PlusOutlined, ReloadOutlined, RightOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, UserOutlined, ToolOutlined } from '@ant-design/icons';
+import { Table, Button, Space, message, Input, Tag, Tooltip, Typography, Skeleton, Dropdown, MenuProps } from 'antd';
+import { PlusOutlined, ReloadOutlined, RightOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, UserOutlined, ToolOutlined, DownOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs, Timestamp, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '../../../firebase-config';
 import { useNavigate } from 'react-router-dom';
 import NewTaskDrawer from '../../maintenance/Tasks/NewTaskDrawer';
-
-import './prospectsDetails.css';
+import PeopleWorkOrder from '../../maintenance/Tasks/PeopleWorkOrder';  
+import OwnerRequestDrawer from '../../maintenance/Tasks/PeopleOwnerRequest';  // Add this import
+import './PeopleDashBoardDetailsTasks.css';
 const { Text } = Typography;
 
 interface TasksTabProps {
   personId: string | undefined;
   companyId: string | null;
-
+  isVendor?: boolean;
+  peopleType?: string | null;  // Add this line
 }
 
 interface Assignee {
@@ -33,7 +35,10 @@ interface Task {
   subTaskType: string; // Add this line
 }
 
-const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
+const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId, isVendor, peopleType }) => {
+  console.log('peopleType:', peopleType); // Debug line
+  console.log('isVendor:', isVendor); // Debug line
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTaskDrawerVisible, setNewTaskDrawerVisible] = useState(false);
@@ -43,6 +48,8 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loadingAssignees, setLoadingAssignees] = useState<boolean>(false);
   const navigate = useNavigate();
+  const [workOrderDrawerVisible, setWorkOrderDrawerVisible] = useState(false);
+  const [ownerRequestDrawerVisible, setOwnerRequestDrawerVisible] = useState(false);
 
   const fetchAssignees = async () => {
     if (!companyId) return;
@@ -91,12 +98,13 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
 
     setLoading(true);
     try {
+      // Create query based on whether the person is a vendor or owner
       const tasksQuery = query(
         collection(db, 'maintenance'),
         where('companyId', '==', companyId),
-        where('subTaskType', '==', 'People'),
-        where('relatedTo', '==', personId),
+        where(peopleType?.toLowerCase() === 'vendor' ? 'vendor' : 'owner', '==', personId)  // Changed 'relatedTo' to 'owner'
       );
+
       const tasksSnapshot = await getDocs(tasksQuery);
 
       const assigneeMap: Record<string, string> = {};
@@ -201,7 +209,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
       assignees: [],
       priority: '',
       taskType: '',
-      subTaskType: '', // Add this line
+      subTaskType: '',
     }));
   };
 
@@ -309,6 +317,14 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
     fetchTasks();
   };
 
+  const handleAddWorkOrder = () => {
+    if (companyId && personId) {
+      setWorkOrderDrawerVisible(true);
+    } else {
+      message.error('Company ID and Person ID are required to add a new work order');
+    }
+  };
+
   const handleAddTask = () => {
     if (companyId && personId) {
       setNewTaskDrawerVisible(true);
@@ -317,6 +333,34 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
     }
   };
 
+  const handleAddOwnerRequest = () => {
+    if (companyId && personId) {
+      setOwnerRequestDrawerVisible(true);
+    } else {
+      message.error('Company ID and Person ID are required to add a new owner request');
+    }
+  };
+
+  const items: MenuProps['items'] = [
+    {
+      key: 'task',
+      label: 'Task',
+      icon: <ProfileOutlined />,
+      onClick: () => handleAddTask(),
+    },
+    ...(peopleType?.toLowerCase() === 'vendor' ? [{
+      key: 'workOrder',
+      label: 'Work Order',
+      icon: <ToolOutlined />,
+      onClick: () => handleAddWorkOrder(),
+    }] : []),
+    ...(peopleType?.toLowerCase() === 'owner' ? [{
+      key: 'ownerRequest',
+      label: 'Owner Request',
+      icon: <UserOutlined />,
+      onClick: () => handleAddOwnerRequest(),
+    }] : []),
+  ];
 
   return (
     <div className="property-page-container">
@@ -328,21 +372,41 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
           className="search-input"
         />
         <Space>
+          <Dropdown 
+            menu={{ items }} 
+            placement="bottomRight"
+            trigger={['click']}
+          >
             <Button className="add-task-button">
-              Add Task <PlusOutlined />
+              Add New <DownOutlined />
             </Button>
+          </Dropdown>
           <Button
             icon={<ReloadOutlined spin={isRefreshing} />}
             onClick={handleRefresh}
             disabled={isRefreshing}
+            className="refresh-button"
+            style={{width: '40px'}}
           />
         </Space>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
+        <Table
+          columns={columns}
+          dataSource={createSkeletonData(3)} // Show 3 skeleton rows
+          rowKey="key"
+          components={{
+            body: {
+              cell: () => (
+                <td style={{ padding: '16px' }}>
+                  <Skeleton.Input active size="small" style={{ width: '100%' }} />
+                </td>
+              ),
+            },
+          }}
+          pagination={false}
+        />
       ) : (
         <Table
           columns={columns}
@@ -358,11 +422,25 @@ const TasksTab: React.FC<TasksTabProps> = ({ personId, companyId }) => {
         />
       )}
       {companyId && personId && (
-        <NewTaskDrawer
-          visible={newTaskDrawerVisible}
-          onClose={() => setNewTaskDrawerVisible(false)}
-          companyId={companyId}
-        />
+        <>
+          <NewTaskDrawer
+            visible={newTaskDrawerVisible}
+            onClose={() => setNewTaskDrawerVisible(false)}
+            companyId={companyId}
+          />
+          <PeopleWorkOrder
+            visible={workOrderDrawerVisible}
+            onClose={() => setWorkOrderDrawerVisible(false)}
+            companyId={companyId}
+            personId={personId}
+          />
+          <OwnerRequestDrawer
+            visible={ownerRequestDrawerVisible}
+            onClose={() => setOwnerRequestDrawerVisible(false)}
+            companyId={companyId}
+            personId={personId}
+          />
+        </>
       )}
     </div>
   );

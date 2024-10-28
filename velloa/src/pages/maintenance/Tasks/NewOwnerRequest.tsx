@@ -61,7 +61,7 @@ interface OwnerRequestFormValues {
 
 interface Owner {
   id: string;
-  name: string;
+  displayName: string;
 }
 
 interface Assignee {
@@ -98,12 +98,44 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
   const fetchOwners = async () => {
     setLoadingOwners(true);
     try {
-      const ownersQuery = query(collection(db, 'owners'), where('companyuid', '==', companyId));
+      const ownersQuery = query(
+        collection(db, 'people'),
+        where('companyId', '==', companyId),
+        where('peopleType', '==', 'owner')
+      );
+
       const querySnapshot = await getDocs(ownersQuery);
-      const ownersData: Owner[] = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
-        id: doc.id,
-        name: `${doc.data().firstName || ''} ${doc.data().lastName || ''}`.trim() || 'Unnamed Owner',
-      }));
+      
+      if (querySnapshot.empty) {
+        console.log('No owners found - snapshot is empty');
+        message.warning('No owners found for this company.');
+        setOwners([]);
+        return;
+      }
+
+      const ownersData: Owner[] = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        
+        // Create the name parts
+        const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+        const companyName = data.company?.trim();
+        
+        // Combine the parts based on what's available
+        let displayName = 'Unknown Owner';
+        if (fullName && companyName) {
+          displayName = `${fullName} | ${companyName}`;
+        } else if (fullName) {
+          displayName = fullName;
+        } else if (companyName) {
+          displayName = companyName;
+        }
+
+        return {
+          id: doc.id,
+          displayName: displayName,
+        };
+      });
+
       setOwners(ownersData);
     } catch (error) {
       console.error('Error fetching owners:', error);
@@ -193,6 +225,8 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
         attachments,
         status: cleanedValues.status || 'Not Started',
         taskRefId,
+        taskType: 'Owner Request',  // Add this to identify the type
+        description: values.description || '', // Ensure description is never undefined
       });
 
       message.success('Owner request created successfully');
@@ -266,7 +300,7 @@ const NewOwnerRequest: React.FC<NewOwnerRequestProps> = ({ visible, onClose, com
               >
                 {owners.map(owner => (
                   <Select.Option key={owner.id} value={owner.id}>
-                    {owner.name}
+                    {owner.displayName}
                   </Select.Option>
                 ))}
               </Select>

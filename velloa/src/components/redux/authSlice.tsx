@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { auth, db } from '../../firebase-config';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+} from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { RootState } from './store';
 
@@ -12,9 +18,28 @@ interface UserData {
   companyuid: string | null;
 }
 
-export const fetchUserDetails = createAsyncThunk(
-  'auth/fetchUserDetails',
-  async (uid: string) => {
+interface AuthState {
+  isLoading: boolean;
+  isAuthenticated: boolean | null; // Changed to null to represent unknown state initially
+  userData: UserData | null;
+  error: string | null;
+}
+
+const initialState: AuthState = {
+  isLoading: true, // Initially loading
+  isAuthenticated: null,
+  userData: null,
+  error: null,
+};
+
+// Async Thunks
+
+export const fetchUserDetails = createAsyncThunk<
+  UserData,
+  string,
+  { rejectValue: string }
+>('auth/fetchUserDetails', async (uid: string, { rejectWithValue }) => {
+  try {
     const userDocRef = doc(db, 'users', uid);
     const userSnapshot = await getDoc(userDocRef);
 
@@ -30,90 +55,96 @@ export const fetchUserDetails = createAsyncThunk(
       lastName: userData?.lastName ?? '',
       companyuid: userData?.companyuid ?? null,
     };
+  } catch (error) {
+    return rejectWithValue((error as Error).message);
   }
-);
+});
 
-export const login = createAsyncThunk(
-  'auth/login',
-  async ({ email, password }: { email: string; password: string }, { dispatch, rejectWithValue }) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await dispatch(fetchUserDetails(user.uid)).unwrap();
-      return {
-        uid: user.uid,
-        email: user.email,
-      };
-    } catch (error) {
-      return rejectWithValue((error as Error).message);
+export const login = createAsyncThunk<
+  { uid: string; email: string | null },
+  { email: string; password: string; rememberMe: boolean },
+  { rejectValue: string }
+>('auth/login', async ({ email, password, rememberMe }, { dispatch, rejectWithValue }) => {
+  try {
+    if (rememberMe) {
+      await setPersistence(auth, browserLocalPersistence);
+    } else {
+      await setPersistence(auth, browserSessionPersistence);
     }
+
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    return { uid: user.uid, email: user.email };
+  } catch (error) {
+    return rejectWithValue((error as Error).message);
   }
-);
+});
 
 export const logout = createAsyncThunk('auth/logout', async () => {
   await signOut(auth);
 });
 
-interface AuthState {
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  userData: UserData | null;
-  error: string | null;
-}
-
-const initialState: AuthState = {
-  isLoading: false,
-  isAuthenticated: false,
-  userData: null,
-  error: null,
-};
+// Slice
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    setAuthenticated: (state, action: PayloadAction<boolean | null>) => {
+      state.isAuthenticated = action.payload;
+      state.isLoading = false;
+    },
+  },
   extraReducers: (builder) => {
     builder
+      // Login Cases
       .addCase(login.pending, (state) => {
         state.isLoading = true;
-        state.isAuthenticated = false;
-        state.userData = null;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action: PayloadAction<{ uid: string; email: string | null }>) => {
-        state.isLoading = false;
-        state.isAuthenticated = true;
-        if (state.userData) {
-          state.userData.uid = action.payload.uid;
-          state.userData.email = action.payload.email;
-        } else {
-          state.userData = {
-            uid: action.payload.uid,
-            email: action.payload.email,
-            firstName: '',
-            lastName: '',
-            companyuid: null,
-          };
+      .addCase(
+        login.fulfilled,
+        (state, action: PayloadAction<{ uid: string; email: string | null }>) => {
+          state.isLoading = false;
+          state.isAuthenticated = true;
+          if (state.userData) {
+            state.userData.uid = action.payload.uid;
+            state.userData.email = action.payload.email;
+          } else {
+            state.userData = {
+              uid: action.payload.uid,
+              email: action.payload.email,
+              firstName: '',
+              lastName: '',
+              companyuid: null,
+            };
+          }
+          state.error = null;
         }
-        state.error = null;
-      })
+      )
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = false;
         state.userData = null;
         state.error = action.payload as string;
       })
+
+      // Logout Case
       .addCase(logout.fulfilled, (state) => {
         state.isLoading = false;
         state.isAuthenticated = false;
         state.userData = null;
         state.error = null;
       })
+
+      // Fetch User Details Cases
       .addCase(fetchUserDetails.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(fetchUserDetails.fulfilled, (state, action: PayloadAction<UserData>) => {
         state.isLoading = false;
+        state.isAuthenticated = true;
         state.userData = action.payload;
       })
       .addCase(fetchUserDetails.rejected, (state, action) => {
@@ -124,4 +155,5 @@ const authSlice = createSlice({
 });
 
 export const isAuthenticated = (state: RootState) => state.auth.isAuthenticated;
+export const { setAuthenticated } = authSlice.actions;
 export default authSlice.reducer;

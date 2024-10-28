@@ -1,0 +1,73 @@
+/* General Layout Styles */
+.fields-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #666;
+}
+
+.fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.field-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-left span {
+  font-size: 14px;
+}
+
+
+/* Question Number Styles */
+.question-number {
+  position: relative;
+}
+
+.question-number .number {
+  display: block;
+  transition: opacity 0.3s;
+  color: white; /* Explicitly set the default color */
+}
+
+
+.question-number .delete-icon {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.3s;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.question-number:hover .number {
+  opacity: 0;
+}
+
+.question-number:hover .delete-icon {
+  opacity: 1;
+}
+
+/* Form Styles */
+.ant-form-item-label > label {
+  font-weight: 500;
+}
+
+/* Button Styles */
+.ant-btn-link {
+  font-weight: 500
+}   
+

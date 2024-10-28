@@ -1,9 +1,17 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { ConfigProvider } from 'antd';
-import { Provider } from 'react-redux';
-import store from './components/redux/store';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase-config';
+import { setAuthenticated, fetchUserDetails } from './components/redux/authSlice';
+import { ConfigProvider, Spin } from 'antd';
+import LoginPage from './pages/Auth/loginpage';
 import HomePage from './pages/Home/home';
 import Toolspage from './pages/Tools/toolspage';
 import Propertypage from './pages/property/property';
@@ -13,9 +21,7 @@ import Peoplepage from './pages/people/peoplePage';
 import Accountingpage from './pages/Accounting/accounting';
 import Analyticsspage from './pages/Analytics/analytics';
 import ProtectedRoute from './pages/Auth/PrivateRoute';
-import LoginPage from './pages/Auth/loginpage';
 import SignupPage from './pages/Auth/signup';
-import PropertyInfoUnitViewNotes from './pages/property/propertyinfo/tabs/PropertyInfoUnitViewNotes';
 import SideBarPage from './components/sidebar';
 import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
 import MaintenancePage from './pages/maintenance/maintenancepage';
@@ -28,14 +34,14 @@ import Applicationviewer from './pages/Tools/toolapplication/newapplications/app
 import AddNewProperty from './pages/applications/newproperty/addnewproperty';
 import PropertyInfo from './pages/property/propertyinfo/propertyinfo';
 import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/propertyinfo_units_view';
-import ProspectsDetailsPage from './pages/people/peopledashboard/prospectsdetails';
-import { fetchUserDetails } from './components/redux/authSlice';
-import { AppDispatch } from './components/redux/store';
-import { auth } from './firebase-config';
+import ProspectsDetailsPage from './pages/people/peopledashboard/PeopleDashboarddetails';
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
-import { AnimatePresence, motion } from 'framer-motion'; // Import framer-motion
+import MainSettings from './components/Settings/MainSettings';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AppDispatch, RootState } from './components/redux/store';
+import RentalApplication from './components/Settings/settingsPages/PropertySettings/SettingsRentalApplication';
 
-
+// Define the theme object
 const theme = {
   token: {
     colorPrimary: "#28a745",
@@ -57,7 +63,7 @@ const theme = {
     Layout: {
       headerBg: "#d8e6d9",
       siderBg: "#188034",
-    },    
+    },
     Button: {
       dangerShadow: "",
       defaultShadow: "",
@@ -78,7 +84,6 @@ const theme = {
       lineWidthBold: 2,
       colorBorderSecondary: "rgb(230, 233, 236)",
     },
-
   },
 };
 
@@ -90,14 +95,13 @@ const pageVariants = {
   },
   in: {
     opacity: 1,
-    x: 0, // Slide to original position
+    x: 0, // Enter to the screen
   },
   out: {
     opacity: 0,
-    x: "-100vw", // Slide off-screen to the left
+    x: "-100vw", // Exit off-screen to the left
   },
 };
-
 
 const pageTransition = {
   type: "tween",
@@ -125,14 +129,29 @@ const AnimatedRoutes: React.FC = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<AnimatedPage><SignupPage /></AnimatedPage>} />
-        <Route path="/forgot-password" element={<AnimatedPage><ForgotPassword /></AnimatedPage>} />
+        <Route
+          path="/signup"
+          element={
+            <AnimatedPage>
+              <SignupPage />
+            </AnimatedPage>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <AnimatedPage>
+              <ForgotPassword />
+            </AnimatedPage>
+          }
+        />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<SideBarPage />}>
             {/* Nested routes are automatically protected and included in the sidebar */}
             <Route index element={<AnimatedPage><HomePage /></AnimatedPage>} />
+            <Route path="settings" element={<AnimatedPage><MainSettings /></AnimatedPage>} />
             <Route path="home" element={<AnimatedPage><HomePage /></AnimatedPage>} />
             <Route path="tools" element={<AnimatedPage><Toolspage /></AnimatedPage>} />
             <Route path="property" element={<AnimatedPage><Propertypage /></AnimatedPage>} />
@@ -151,12 +170,15 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/unitinfo" element={<AnimatedPage><UnitInfoPage /></AnimatedPage>} />
             <Route path="/applicationviewer" element={<AnimatedPage><Applicationviewer /></AnimatedPage>} />
             <Route path="/addnewproperty" element={<AnimatedPage><AddNewProperty /></AnimatedPage>} />
-            
-            {/* Updated PropertyInfo Route */}
+
+            {/* Updated PropertyInfo Routes */}
             <Route path="property/:uid" element={<AnimatedPage><PropertyInfo /></AnimatedPage>} />
             <Route path="property/:uid/unit/:unitName" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
           </Route>
         </Route>
+
+        {/* Redirect any unknown routes to home */}
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </AnimatePresence>
   );
@@ -164,21 +186,42 @@ const AnimatedRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { isLoading } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      dispatch(fetchUserDetails(currentUser.uid));
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('User is authenticated:', user);
+        dispatch(setAuthenticated(true));
+        dispatch(fetchUserDetails(user.uid));
+      } else {
+        console.log('User is not authenticated');
+        dispatch(setAuthenticated(false));
+      }
+    });
+
+    return () => unsubscribe();
   }, [dispatch]);
+
+  if (isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        width: '100vw',
+      }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <ConfigProvider theme={theme}>
-      <Provider store={store}>
-        <Router>
-          <AnimatedRoutes />
-        </Router>
-      </Provider>
+      <Router>
+        <AnimatedRoutes />
+      </Router>
     </ConfigProvider>
   );
 };

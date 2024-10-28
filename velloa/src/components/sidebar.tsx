@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, Outlet, useLocation, } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Dropdown, Avatar, Badge } from 'antd';
 import {
   HomeIcon,
@@ -21,7 +21,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
 import { AppDispatch, RootState } from '../components/redux/store';
 import 'antd/dist/reset.css';
-import GlobalSettings from './globalsettings'
 
 import './Sidebar.css'; // Import your CSS file
 
@@ -32,7 +31,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const selectedProperty = useSelector((state: RootState) => state.property.property);
   const userData = useSelector((state: RootState) => state.auth.userData);
-  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const navigate = useNavigate();
 
   // State for notification count
   const [notificationCount, setNotificationCount] = useState(0); // Example count
@@ -42,11 +41,7 @@ const Sidebar: React.FC = () => {
   };
 
   const showSettings = () => {
-    setIsSettingsVisible(true);
-  };
-
-  const hideSettings = () => {
-    setIsSettingsVisible(false);
+    navigate('/settings'); // Update this path to match your router configuration
   };
 
   const dropdownMenu = (
@@ -59,10 +54,10 @@ const Sidebar: React.FC = () => {
         Settings
       </Menu.Item>
       <Menu.Item key="help" icon={<QuestionMarkCircleIcon className="dropdownsideIcon" />}>
-        Help
+        <a href="https://velloa.tawk.help/" target="_blank" rel="noopener noreferrer">Help</a>
       </Menu.Item>
       <Menu.Item key="forms" icon={<DocumentTextIcon className="dropdownsideIcon" />}>
-        Forms
+      <a href="https://velloaapp/forms" target="_blank" rel="noopener noreferrer">Forms</a>
       </Menu.Item>
        <Menu.Item key="inbox" icon={<InboxIcon className="dropdownsideIcon" />}>
         Inbox
@@ -179,7 +174,7 @@ const Sidebar: React.FC = () => {
           </div>
         </Content>
       </Layout>
-      <GlobalSettings isVisible={isSettingsVisible} onClose={hideSettings} />
+      {/* <GlobalSettings isVisible={isSettingsVisible} onClose={hideSettings} /> */}
     </Layout>
   );
 };

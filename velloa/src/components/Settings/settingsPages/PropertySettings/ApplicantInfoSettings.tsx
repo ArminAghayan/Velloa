@@ -1,0 +1,83 @@
+import React from 'react';
+import { Form, Switch, Button, Space, Checkbox, Typography } from 'antd';
+import TextArea from 'antd/es/input/TextArea';
+import { CloseOutlined } from '@ant-design/icons';
+import './ApplicantInfoSettings.css'; // We'll add custom styles
+const { Title, Text } = Typography;
+
+const ApplicantInfoSettings: React.FC = () => {
+  const [form] = Form.useForm();
+
+  const fields = [
+    { name: 'First Name', required: true, enabled: true, locked: true },
+    { name: 'Middle Name', required: false, enabled: true, darkBlue: true },
+    { name: 'Last Name', required: true, enabled: true, locked: true },
+    { name: 'SSN', required: true, enabled: true, locked: true },
+    { name: 'ITIN', required: false, enabled: false },
+    { name: 'Date Of Birth', required: true, enabled: true, locked: true },
+    { name: 'Email', required: true, enabled: true, locked: true },
+    { name: 'Phone Number', required: true, enabled: true, locked: true },
+    { name: 'Gender', required: false, enabled: true, darkBlue: true },
+    { name: 'Marital Status', required: false, enabled: true, darkBlue: true },
+    { name: 'Driver License State', required: false, enabled: true, darkBlue: true },
+    { name: 'Drivers License Number', required: false, enabled: true, darkBlue: true },
+    { name: "Tell us who you are!", required: false, enabled: true, darkBlue: true },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ maxWidth: 800, flex: 1, overflowY: 'auto', padding: '24px 12px 24px 24px' }}>
+        <Title level={2} style={{ marginTop: 0 }}>Applicant Info</Title>
+
+
+        <Form form={form} layout="vertical">
+          <Form.Item
+            label="Any specific instructions for the application? These will be shown on the first page of the application."
+          >
+            <TextArea
+              placeholder="Instructions for applicants"
+              maxLength={5000}
+              showCount
+              style={{ height: 200 }}
+            />
+          </Form.Item>
+
+          <div className="fields-header">
+            <span>Field</span>
+            <span>Required</span>
+          </div>
+
+          <div className="fields-container">
+            {fields.map((field) => (
+              <div key={field.name} className="field-row">
+                <div className="field-left">
+                  <Switch 
+                    defaultChecked={field.enabled}
+                    disabled={field.locked}
+                    className={field.darkBlue ? 'switch-dark' : 'switch-light'}
+                  />
+                  <span>{field.name}</span>
+                </div>
+                <Checkbox checked={field.required} disabled={field.locked} />
+              </div>
+            ))}
+          </div>
+        </Form>
+      </div>
+
+      <div style={{ 
+        borderTop: '1px solid #f0f0f0',
+        padding: '16px 24px',
+        backgroundColor: '#fff',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 12
+      }}>
+        <Button>Cancel</Button>
+        <Button type="primary">Save</Button>
+      </div>
+    </div>
+  );
+};
+
+export default ApplicantInfoSettings;

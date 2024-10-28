@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Table, Input, Skeleton, Button, message, Dropdown, Menu, Col, Row, Tooltip, Steps, Modal } from 'antd';
-import { RightOutlined, UserOutlined, FileTextOutlined, DownOutlined, ReloadOutlined, ClockCircleOutlined, MailTwoTone, PhoneTwoTone, MoreOutlined } from '@ant-design/icons';
+import {UserOutlined, FileTextOutlined, DownOutlined, ReloadOutlined, ClockCircleOutlined, MailTwoTone, PhoneTwoTone, MoreOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import NewProspectPage from './applications/NewProspectPage';
+import NewVendorPage from './applications/NewVendorPage'; // Import the NewVendorPage component
+import NewOwnerPage from './applications/NewOwnerPage'; // Import the NewOwnerPage component
+
 import './peoplePage.css';
 const { Title, Text } = Typography;
 
@@ -23,6 +26,12 @@ interface PeopleData {
   moveInDate: string;
   assignees: Array<{ uid: string }>; // Changed from 'assignee' to 'assignees'
   applicationStatus: string;
+  company?: string;
+  insurance?: Array<{
+    expirationDate: Timestamp;
+    // Add other insurance fields if needed
+  }>;
+  agreement?: Agreement;
 }
 
 interface IntermediatePeopleData extends Omit<PeopleData, 'properties'> {
@@ -30,7 +39,41 @@ interface IntermediatePeopleData extends Omit<PeopleData, 'properties'> {
   assignees: Array<{ uid: string }>; // Changed from 'assignee' to 'assignees'
 }
 
+// Add this interface to your existing interfaces
+interface Agreement {
+  startDate: string;
+  endDate: string;
+}
 
+// Add this helper function
+const getAgreementStatus = (startDate: string, endDate: string): { status: string; color: string } => {
+  const currentDate = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (currentDate < start) {
+    return { status: 'Pending', color: '#faad14' }; // Orange for pending
+  } else if (currentDate > end) {
+    return { status: 'Expired', color: '#ff4d4f' }; // Red for expired
+  } else {
+    return { status: 'Active', color: '#52c41a' }; // Green for active
+  }
+};
+
+// Add this helper function for insurance status
+const getInsuranceStatus = (expirationDate: Timestamp, effectiveDate: Timestamp): { status: string; color: string } => {
+  const currentDate = new Date();
+  const endDate = expirationDate.toDate();
+  const startDate = effectiveDate.toDate();
+
+  if (currentDate < startDate) {
+    return { status: 'Pending', color: '#faad14' }; // Orange for pending
+  } else if (currentDate > endDate) {
+    return { status: 'Expired', color: '#ff4d4f' }; // Red for expired
+  } else {
+    return { status: 'Active', color: '#52c41a' }; // Green for active
+  }
+};
 
 const PeoplePage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
@@ -44,6 +87,8 @@ const PeoplePage: React.FC = () => {
   const [filteredPeopleData, setFilteredPeopleData] = useState<PeopleData[]>([]);
   const [assignees, setAssignees] = useState<{ [key: string]: string }>({});
   const [userDetails, setUserDetails] = useState<{ [key: string]: { firstName: string; lastName: string } }>({});
+  const [vendorDrawerVisible, setVendorDrawerVisible] = useState(false);
+  const [ownerDrawerVisible, setOwnerDrawerVisible] = useState(false);
 
   // Add this new function to format phone numbers
   const formatPhoneNumber = (phoneNumber: string) => {
@@ -119,6 +164,9 @@ const PeoplePage: React.FC = () => {
             : data.moveInDate || '',
           assignees: data.assignees || [],
           applicationStatus: data.applicationStatus ? data.applicationStatus.toLowerCase() : 'start', // Normalize to lowercase
+          company: data.company || '',
+          insurance: data.insurance || '',
+          agreement: data.agreement || undefined,
         };
       });
 
@@ -302,8 +350,12 @@ const PeoplePage: React.FC = () => {
     setDrawerVisible(true);
   };
 
-  const handleNewOwnerRequest = () => {
-    navigate('/newownerrequest');
+  const handleNewOwnerClick = () => {
+    setOwnerDrawerVisible(true);
+  };
+
+  const handleOwnerDrawerClose = () => {
+    setOwnerDrawerVisible(false);
   };
 
   const handleNewTenantRequest = () => {
@@ -316,6 +368,14 @@ const PeoplePage: React.FC = () => {
 
   const handleDrawerClose = () => {
     setDrawerVisible(false);
+  };
+
+  const handleNewVendorClick = () => {
+    setVendorDrawerVisible(true);
+  };
+
+  const handleVendorDrawerClose = () => {
+    setVendorDrawerVisible(false);
   };
 
   // Create skeleton data for loading state
@@ -934,30 +994,128 @@ const PeoplePage: React.FC = () => {
 
   const vendorsColumns = [
     {
-      title: 'Company Name',
-      dataIndex: 'companyName',
-      key: 'companyName',
-      sorter: (a: any, b: any) => a.companyName.localeCompare(b.companyName),
+      title: 'Vendor',
+      key: 'name',
+      render: (text: string, record: PeopleData) => (
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{
+             width: '40px',
+             height: '40px',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             backgroundColor: '#d8e6d9',
+             borderRadius: '4px',
+             marginRight: '12px'
+          }}>
+            <UserOutlined style={{ fontSize: '24px', color: '#168033' }} />
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.name}</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>{record.company || 'No company'}</Text>
+          </span>
+        </span>
+      ),
+      sorter: (a: PeopleData, b: PeopleData) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Service Type',
-      dataIndex: 'serviceType',
-      key: 'serviceType',
+      title: 'Contact Info',
+      key: 'contactInfo',
+      render: (text: string, record: PeopleData) => (
+        <span>
+          {record.emails.length > 0 && (
+            <div>
+              <MailTwoTone style={{ marginRight: '8px', color: '#188034' }} />
+              <Text>{record.emails[0]}</Text>
+              {record.emails.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.emails.map((email, index) => (
+                      <div key={index}>{email}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.emails.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          )}
+          {record.phones.length > 0 ? (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#5890E2' }} />
+              <Text>{formatPhoneNumber(record.phones[0])}</Text>
+              {record.phones.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.phones.map((phone, index) => (
+                      <div key={index}>{formatPhoneNumber(phone)}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.phones.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          ) : (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#bfbfbf' }} />
+              <Text type="secondary">No phone number</Text>
+            </div>
+          )}
+        </span>
+      ),
     },
     {
-      title: 'Contact Person',
-      dataIndex: 'contactPerson',
-      key: 'contactPerson',
+      title: 'Insurance Status',
+      dataIndex: 'insurance',
+      key: 'insurance',
+      render: (insurance: Array<{ expirationDate: Timestamp; effectiveDate: Timestamp }> | undefined) => {
+        if (!insurance || insurance.length === 0) {
+          return <Text type="secondary">No Insurance</Text>;
+        }
+
+        const latestInsurance = insurance.reduce((latest, current) => {
+          return latest.expirationDate.toDate() > current.expirationDate.toDate() ? latest : current;
+        });
+
+        const { status, color } = getInsuranceStatus(
+          latestInsurance.expirationDate,
+          latestInsurance.effectiveDate
+        );
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip 
+              title={`Valid from ${latestInsurance.effectiveDate.toDate().toLocaleDateString()} to ${latestInsurance.expirationDate.toDate().toLocaleDateString()}`}
+              placement="topLeft"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: color,
+                  marginRight: '8px'
+                }} />
+                <Text style={{ color }}>{status}</Text>
+              </div>
+            </Tooltip>
+          </div>
+        );
+      },
     },
     {
-      title: 'Phone',
-      dataIndex: 'phone',
-      key: 'phone',
-    },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
+      title: 'Open Balance',
+      dataIndex: 'openBalance',
+      key: 'openBalance',
+      render: (openBalance: number | undefined) => {
+        const balance = openBalance ?? 0;
+        return `$${balance.toFixed(2)}`;
+      },
     },
     {
       title: '',
@@ -980,31 +1138,140 @@ const PeoplePage: React.FC = () => {
   const ownersColumns = [
     {
       title: 'Name',
-      dataIndex: 'name',
       key: 'name',
-      sorter: (a: any, b: any) => a.name.localeCompare(b.name),
+      render: (text: string, record: PeopleData) => (
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{
+             width: '40px',
+             height: '40px',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             backgroundColor: '#d8e6d9',
+             borderRadius: '4px',
+             marginRight: '12px'
+          }}>
+            <UserOutlined style={{ fontSize: '24px', color: '#168033' }} />
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.name}</Text>
+          </span>
+        </span>
+      ),
+      sorter: (a: PeopleData, b: PeopleData) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Properties Owned',
-      dataIndex: 'propertiesOwned',
-      key: 'propertiesOwned',
+      title: 'Properties',
+      key: 'property',
+      render: (text: string, record: PeopleData) => {
+        if (record.properties.length === 0) {
+          return '--';
+        }
+        const firstProperty = record.properties[0].name;
+        return (
+          <span>
+            {firstProperty}
+            {record.properties.length > 1 && (
+              <Tooltip title={
+                <div>
+                  {record.properties.map((prop, index) => (
+                    <div key={index}>{prop.name}</div>
+                  ))}
+                </div>
+              }>
+                <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                  +{record.properties.length - 1}
+                </span>
+              </Tooltip>
+            )}
+          </span>
+        );
+      },
     },
     {
-      title: 'Total Units',
-      dataIndex: 'totalUnits',
-      key: 'totalUnits',
-      sorter: (a: any, b: any) => a.totalUnits - b.totalUnits,
+      title: 'Contact Info',
+      key: 'contactInfo',
+      render: (text: string, record: PeopleData) => (
+        <span>
+          {record.emails.length > 0 && (
+            <div>
+              <MailTwoTone style={{ marginRight: '8px', color: '#188034' }} />
+              <Text>{record.emails[0]}</Text>
+              {record.emails.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.emails.map((email, index) => (
+                      <div key={index}>{email}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.emails.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          )}
+          {record.phones.length > 0 ? (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#5890E2' }} />
+              <Text>{formatPhoneNumber(record.phones[0])}</Text>
+              {record.phones.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.phones.map((phone, index) => (
+                      <div key={index}>{formatPhoneNumber(phone)}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.phones.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          ) : (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#bfbfbf' }} />
+              <Text type="secondary">No phone number</Text>
+            </div>
+          )}
+        </span>
+      ),
     },
     {
-      title: 'Contact',
-      dataIndex: 'contact',
-      key: 'contact',
-    },
-    {
-      title: 'Last Communication',
-      dataIndex: 'lastCommunication',
-      key: 'lastCommunication',
-      sorter: (a: any, b: any) => new Date(a.lastCommunication).getTime() - new Date(b.lastCommunication).getTime(),
+      title: 'Agreement',
+      key: 'agreement',
+      render: (text: string, record: PeopleData) => {
+        if (!record.agreement?.startDate || !record.agreement?.endDate) {
+          return <Text type="secondary">No Agreement</Text>;
+        }
+
+        const { status, color } = getAgreementStatus(
+          record.agreement.startDate,
+          record.agreement.endDate
+        );
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip 
+              title={`Valid from ${new Date(record.agreement.startDate).toLocaleDateString()} to ${new Date(record.agreement.endDate).toLocaleDateString()}`}
+              placement="topLeft"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: color,
+                  marginRight: '8px'
+                }} />
+                <Text style={{ color }}>{status}</Text>
+              </div>
+            </Tooltip>
+          </div>
+        );
+      },
     },
     {
       title: '',
@@ -1065,16 +1332,16 @@ const PeoplePage: React.FC = () => {
         New Prospect
       </Menu.Item>
       <Menu.Item
-        key="newOwnerRequest"
+        key="newOwner"
         icon={<UserOutlined />}
-        onClick={handleNewOwnerRequest}
+        onClick={handleNewOwnerClick} // Updated to use new handler
       >
         New Owners
       </Menu.Item>
       <Menu.Item
-        key="newTenantRequest"
+        key="newVendor"
         icon={<UserOutlined />}
-        onClick={handleNewTenantRequest}
+        onClick={handleNewVendorClick}
       >
         New Vendors
       </Menu.Item>
@@ -1209,7 +1476,20 @@ const PeoplePage: React.FC = () => {
         onClose={handleDrawerClose}
         companyId={companyId || ''}
         onSubmitSuccess={handleSubmitSuccess}
+      />
 
+      <NewVendorPage
+        visible={vendorDrawerVisible}
+        onClose={handleVendorDrawerClose}
+        companyId={companyId || ''}
+        onSubmitSuccess={handleSubmitSuccess}
+      />
+
+      <NewOwnerPage
+        visible={ownerDrawerVisible}
+        onClose={handleOwnerDrawerClose}
+        companyId={companyId || ''}
+        onSubmitSuccess={handleSubmitSuccess}
       />
     </div>
   );
