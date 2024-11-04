@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Switch, Button, Typography, Select } from 'antd';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { Form, Switch, Button, Typography, Select, message } from 'antd';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../../../../firebase-config';
 import './ApplicantInfoSettings.css';
 const { Title, Text } = Typography;
@@ -18,78 +18,102 @@ const NotificationSettings: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyuid, setCompanyuid] = useState<string | null>(null);  // Changed from companyId
+  const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // First, fetch the company ID using the user's UID
-  useEffect(() => {
-    const fetchCompanyId = async () => {
-      try {
-        const currentUser = auth.currentUser;
-        if (!currentUser?.uid) {
-          console.error('No user UID found');
-          return;
-        }
-
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setCompanyuid(userData.companyuid);  // Changed from companyId
-        } else {
-          console.error('User document not found');
-        }
-      } catch (error) {
-        console.error('Error fetching company ID:', error);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser?.uid) {
+        message.error('No user found');
+        return;
       }
-    };
 
-    fetchCompanyId();
-  }, []);
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
 
-  // Then, fetch users once we have the company ID
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        if (!companyuid) {  // Changed from companyId
-          return;
+      if (!companyId) {
+        message.error('No company found');
+        return;
+      }
+
+      const notificationFields = {
+        settings: {
+          enableNotifications,
+          notifiedUserId: selectedUser,
+          lastUpdated: Timestamp.now()
         }
+      };
 
-        const usersRef = collection(db, 'users');
-        const q = query(
-          usersRef,
-          where('companyuid', '==', companyuid)  // Changed from companyId
-        );
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      await setDoc(settingsRef, { notifications: notificationFields }, { merge: true });
 
-        const querySnapshot = await getDocs(q);
-        const fetchedUsers: User[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data() as User;
-          fetchedUsers.push({
-            id: doc.id,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            email: userData.email,
-            companyuid: userData.companyuid  // Changed from companyId
-          });
+      setHasUnsavedChanges(false);
+      message.success('Notification settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      message.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser?.uid) return;
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
+      
+      if (!companyId) return;
+
+      // First fetch users
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('companyuid', '==', companyId));
+      const querySnapshot = await getDocs(q);
+      const fetchedUsers: User[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data() as User;
+        fetchedUsers.push({
+          id: doc.id,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          companyuid: userData.companyuid
         });
+      });
 
-        setUsers(fetchedUsers);
-        
-        // If there are users and no selection, select the first user
-        if (fetchedUsers.length > 0 && !selectedUser) {
-          setSelectedUser(fetchedUsers[0].id);
+      setUsers(fetchedUsers);
+
+      // Then fetch settings
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      const settingsDoc = await getDoc(settingsRef);
+
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        if (data.notifications?.settings) {
+          const { enableNotifications: savedEnable, notifiedUserId } = data.notifications.settings;
+          setEnableNotifications(savedEnable ?? true);
+          setSelectedUser(notifiedUserId || (fetchedUsers[0]?.id || ''));
+          setHasUnsavedChanges(false);
         }
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchUsers();
-  }, [companyuid]);  // Changed from companyId
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   // Transform users data for Select options
   const userOptions = users.map(user => ({
@@ -106,13 +130,16 @@ const NotificationSettings: React.FC = () => {
           alignItems: 'center',
           marginBottom: '16px'
         }}>
-          <Title level={2} style={{ margin: 0 }}>NOTIFICATIONS</Title>
+          <Title level={2} style={{ margin: 0 }}>Notifications</Title>
           <Switch 
             checked={enableNotifications}
-            onChange={setEnableNotifications}
+            onChange={(checked) => {
+              setEnableNotifications(checked);
+              setHasUnsavedChanges(true);
+            }}
             className="switch-dark"
-            checkedChildren=""
-            unCheckedChildren=""
+            checkedChildren="On"
+            unCheckedChildren="Off"
           />
         </div>
         
@@ -134,7 +161,10 @@ const NotificationSettings: React.FC = () => {
               </Text>
               <Select
                 value={selectedUser}
-                onChange={setSelectedUser}
+                onChange={(value) => {
+                  setSelectedUser(value);
+                  setHasUnsavedChanges(true);
+                }}
                 style={{ width: '100%' }}
                 options={userOptions}
                 placeholder="Select users to notify"
@@ -154,8 +184,20 @@ const NotificationSettings: React.FC = () => {
         justifyContent: 'flex-end',
         gap: 12
       }}>
-        <Button>Cancel</Button>
-        <Button type="primary">Save</Button>
+        <Button 
+          onClick={fetchSettings}
+          disabled={!hasUnsavedChanges}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="primary"
+          onClick={handleSave}
+          loading={saving}
+          disabled={!hasUnsavedChanges}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </div>
   );

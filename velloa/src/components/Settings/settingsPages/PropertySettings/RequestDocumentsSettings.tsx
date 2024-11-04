@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import {Switch, Button, Input, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Switch, Button, Input, Typography, message } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { db, auth } from '../../../../firebase-config';
 import './ApplicantInfoSettings.css';
+
 const { Title, Text } = Typography;
 
 interface DocumentRequest {
@@ -20,6 +23,91 @@ const RequestDocumentsSettings: React.FC = () => {
     instructions: '',
     mandatory: false
   }]);
+  const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser?.uid) {
+        message.error('No user found');
+        return;
+      }
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
+
+      if (!companyId) {
+        message.error('No company found');
+        return;
+      }
+
+      const documentFields = {
+        settings: {
+          enableDocuments,
+          lastUpdated: Timestamp.now()
+        },
+        documents: documents.map(doc => ({
+          name: doc.name,
+          instructions: doc.instructions,
+          mandatory: enableDocuments ? doc.mandatory : false,
+          lastUpdated: Timestamp.now()
+        }))
+      };
+
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      await setDoc(settingsRef, { documentRequests: documentFields }, { merge: true });
+
+      setHasUnsavedChanges(false);
+      message.success('Document settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      message.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser?.uid) return;
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
+      
+      if (!companyId) return;
+
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      const settingsDoc = await getDoc(settingsRef);
+
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        if (data.documentRequests) {
+          const { settings, documents: savedDocs } = data.documentRequests;
+          setEnableDocuments(settings.enableDocuments ?? true);
+          
+          if (savedDocs && Array.isArray(savedDocs)) {
+            const loadedDocs = savedDocs.map((doc, index) => ({
+              id: index + 1,
+              name: doc.name,
+              instructions: doc.instructions,
+              mandatory: doc.mandatory
+            }));
+            
+            setDocuments(loadedDocs);
+          }
+          setHasUnsavedChanges(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
 
   const addDocument = () => {
     const newId = documents.length + 1;
@@ -29,11 +117,13 @@ const RequestDocumentsSettings: React.FC = () => {
       instructions: '',
       mandatory: false
     }]);
+    setHasUnsavedChanges(true);
   };
 
   const removeDocument = (id: number) => {
     if (documents.length > 1) {
       setDocuments(documents.filter(doc => doc.id !== id));
+      setHasUnsavedChanges(true);
     }
   };
 
@@ -41,7 +131,12 @@ const RequestDocumentsSettings: React.FC = () => {
     setDocuments(documents.map(doc => 
       doc.id === id ? { ...doc, [field]: value } : doc
     ));
+    setHasUnsavedChanges(true);
   };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -154,8 +249,20 @@ const RequestDocumentsSettings: React.FC = () => {
         justifyContent: 'flex-end',
         gap: 12
       }}>
-        <Button>Cancel</Button>
-        <Button type="primary">Save</Button>
+        <Button 
+          onClick={fetchSettings}
+          disabled={!hasUnsavedChanges}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="primary"
+          onClick={handleSave}
+          loading={saving}
+          disabled={!hasUnsavedChanges}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Radio, Space, Button, Checkbox, Switch, Input, Form, Modal } from 'antd';
+import { Typography, Radio, Space, Button, Checkbox, Switch, Input, Modal } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { doc, updateDoc, getDoc, collection, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../../../../firebase-config';
 import { message } from 'antd';
 

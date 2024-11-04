@@ -1,0 +1,13 @@
+.header-nav-item.ant-menu-item {
+  color: #8c8c8c !important;
+}
+
+.header-nav-item.ant-menu-item:hover,
+.header-nav-item.ant-menu-item-selected {
+  color: #8c8c8c !important;
+  background: none !important;
+}
+
+.header-nav-item.ant-menu-item::after {
+  display: none !important;
+} 

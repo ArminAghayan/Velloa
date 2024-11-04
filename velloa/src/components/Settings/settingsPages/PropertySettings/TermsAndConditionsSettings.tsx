@@ -1,13 +1,90 @@
-import React, { useState } from 'react';
-import { Form, Switch, Button, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Switch, Button, Typography, message } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { db, auth } from '../../../../firebase-config';
 import './ApplicantInfoSettings.css';
+
 const { Title, Text } = Typography;
 
 const TermsAndConditionsSettings: React.FC = () => {
   const [form] = Form.useForm();
   const [enableTerms, setEnableTerms] = useState(true);
-  const [terms, setTerms] = useState('');  // Removed default value
+  const [terms, setTerms] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser?.uid) {
+        message.error('No user found');
+        return;
+      }
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
+
+      if (!companyId) {
+        message.error('No company found');
+        return;
+      }
+
+      const termsFields = {
+        settings: {
+          enableTerms,
+          terms: terms.trim(),
+          lastUpdated: Timestamp.now()
+        }
+      };
+
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      await setDoc(settingsRef, { termsAndConditions: termsFields }, { merge: true });
+
+      setHasUnsavedChanges(false);
+      message.success('Terms and conditions saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      message.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser?.uid) return;
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const companyId = userDoc.data()?.companyuid;
+      
+      if (!companyId) return;
+
+      const settingsRef = doc(db, `companies/${companyId}/settings/rentalApplication`);
+      const settingsDoc = await getDoc(settingsRef);
+
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        if (data.termsAndConditions?.settings) {
+          const { enableTerms: savedEnable, terms: savedTerms } = data.termsAndConditions.settings;
+          setEnableTerms(savedEnable ?? true);
+          setTerms(savedTerms || '');
+          setHasUnsavedChanges(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -21,7 +98,10 @@ const TermsAndConditionsSettings: React.FC = () => {
           <Title level={2} style={{ margin: 0 }}>Terms & Conditions</Title>
           <Switch 
             checked={enableTerms}
-            onChange={setEnableTerms}
+            onChange={(checked) => {
+              setEnableTerms(checked);
+              setHasUnsavedChanges(true);
+            }}
             className="switch-dark"
             checkedChildren="On"
             unCheckedChildren="Off"
@@ -46,7 +126,10 @@ const TermsAndConditionsSettings: React.FC = () => {
               </Text>
               <TextArea
                 value={terms}
-                onChange={(e) => setTerms(e.target.value)}
+                onChange={(e) => {
+                  setTerms(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
                 maxLength={10000}
                 showCount
                 style={{ height: 300 }}
@@ -65,8 +148,20 @@ const TermsAndConditionsSettings: React.FC = () => {
         justifyContent: 'flex-end',
         gap: 12
       }}>
-        <Button>Cancel</Button>
-        <Button type="primary">Save</Button>
+        <Button 
+          onClick={fetchSettings}
+          disabled={!hasUnsavedChanges}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="primary"
+          onClick={handleSave}
+          loading={saving}
+          disabled={!hasUnsavedChanges}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </div>
   );

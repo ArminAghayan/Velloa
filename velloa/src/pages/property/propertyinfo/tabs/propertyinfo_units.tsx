@@ -107,7 +107,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
 
   const handleRowClick = (unit: Unit) => {
     dispatch(setSelectedUnit(unit));
-    navigate(`/propertyinfo/${propertyId}/unit/${unit.unitName}`);
+    navigate(`/property/${propertyId}/unit/${unit.unitId}`);
   };
 
   const handleNewUnitClick = () => {
