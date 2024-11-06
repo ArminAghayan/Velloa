@@ -1,0 +1,70 @@
+/* container styles */
+.unit-notes-container {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 6px;
+  border: 1.25px #E6E9EC solid;
+}
+
+/* search input styles */
+.unit-notes-search-input {
+  width: 250px;
+  height: 40px;
+}
+
+/* dropdown input styles */
+.unit-notes-dropdown-input {
+  width: 200px;
+  height: 40px;
+}
+
+/* new note button styles */
+.unit-notes-new-note-button {
+  height: 40px;
+  width: 150px;
+} 
+
+/* Modal styles */
+.ant-modal-body {
+  padding: 24px;
+  width: 100%;
+}
+
+.ant-form-item {
+  width: 100%;
+}
+
+/* Table specific styles */
+.unit-notes-table .ant-table-row {
+  cursor: pointer;
+}
+
+.unit-notes-table .ant-table-row:hover {
+  background-color: #fafafa;
+}
+
+/* Note content styles */
+.note-content-cell {
+  max-width: 400px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.unit-notes-tag-select .ant-select-item {
+    height: 100% !important;
+    display: flex;
+    align-items: center;
+    padding: 0 11px !important;
+}
+
+.unit-notes-tag-select{
+    height: 40px;
+
+}
+
+
+.new-note-drawer .ant-form-item-control-input-content > div {
+    width: 100%;
+    display: block;
+
+}

@@ -4,6 +4,8 @@ import { Card, Row, Col, Typography, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import './MainSettings.css';
 import RentalApplicationSettings from './settingsPages/PropertySettings/SettingsRentalApplication';
+import NoteTagSettings from './settingsPages/Notetag/NoteTagSettings';
+import FileTagSettings from './settingsPages/FileTag/FileTagSettings';
 const { Title } = Typography;
 
 interface MenuItemType {
@@ -78,19 +80,39 @@ const items: MenuItemType[] = [
 
 const MainSettings: React.FC = () => {
   const navigate = useNavigate();
-  // Add state for modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState<{title: string, content: React.ReactNode} | null>(null);
 
   const handleClick = (key: string) => {
-    if (key === 'rental-application') {
-      setIsModalOpen(true); // Open modal instead of navigating
-    } else {
-      navigate(`/settings/${key}`);
+    switch(key) {
+      case 'rental-application':
+        setModalContent({
+          title: 'Rental Application',
+          content: <RentalApplicationSettings />
+        });
+        setIsModalOpen(true);
+        break;
+      case 'note-tags':
+        setModalContent({
+          title: 'Note Tags',
+          content: <NoteTagSettings />
+        });
+        setIsModalOpen(true);
+        break;
+      case 'file-tags':
+        setModalContent({
+          title: 'File Tags',
+          content: <FileTagSettings />
+        });
+        setIsModalOpen(true);
+        break;
+      default:
+        navigate(`/settings/${key}`);
     }
   };
 
   return (
-    <div style={{ padding: '64px 36px'  }}>
+    <div style={{ padding: '64px 36px' }}>
       <Title level={1}>Settings</Title>
       <Row gutter={[16, 16]}>
         {items.map((category) => (
@@ -125,19 +147,20 @@ const MainSettings: React.FC = () => {
         ))}
       </Row>
       
-      {/* Add Modal component at the end of the return statement */}
       <Modal
-        title="Rental Application"
+        title={modalContent?.title}
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setModalContent(null);
+        }}
         footer={null}
         width={1100}
-        bodyStyle={{ padding: 0 }}
+        bodyStyle={{ padding: 0, minHeight: '500px' }}
         centered
-        className='rental-application-modal'
-        
+        className='settings-modal'
       >
-        <RentalApplicationSettings />
+        {modalContent?.content}
       </Modal>
     </div>
   );

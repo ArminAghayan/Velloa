@@ -50,7 +50,6 @@ const theme = {
   token: {
     colorPrimary: "#28a745",
     colorInfo: "#28a745",
-    fontSize: 14,
     sizeStep: 4,
     wireframe: false,
     colorBgLayout: "#F3F5F8",
@@ -88,6 +87,7 @@ const theme = {
       lineWidthBold: 2,
       colorBorderSecondary: "rgb(230, 233, 236)",
     },
+    
   },
 };
 

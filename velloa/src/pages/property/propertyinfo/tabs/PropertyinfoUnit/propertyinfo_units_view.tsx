@@ -44,6 +44,7 @@ import PropertyinfoUnitMaintenance from './propertyinfo_units_Maintenance';
 import NewTaskDrawer from '../../../../maintenance/Tasks/NewTaskDrawer';
 import PropertyUnitFiles from './propertyinfo_units_files';
 import PropertyinfoUnitImages from './propertyinfo_units_images';
+import PropertyUnitNotes from './propertyinfo_units_notes';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -617,7 +618,7 @@ const PropertyInfoUnitView: React.FC = () => {
       case 'listings':
         return <div>Listings Content</div>;
       case 'notes':
-        return <div>Notes Content</div>;
+        return <PropertyUnitNotes propertyId={propertyId || ''} unitId={unitId || ''} />;
       case 'images':
         return <PropertyinfoUnitImages propertyId={propertyId || ''} unitId={unitId || ''} />;
       case 'files':

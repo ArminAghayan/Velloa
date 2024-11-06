@@ -17,6 +17,7 @@ const firebaseConfig = {
   measurementId: "G-L90VJ7YTYM",
 };
 
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = typeof window !== "undefined" ? getAnalytics(app) : null; // Initialize analytics only on client

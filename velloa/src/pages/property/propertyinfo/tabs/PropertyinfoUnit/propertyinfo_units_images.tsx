@@ -255,7 +255,7 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
   };
 
   const handleRowClick = (image: UnitImage) => {
-    if (image.isVideo) {
+    if (!isSelectionMode && image.isVideo) {
       setPreviewImage(image);
       setPreviewModalVisible(true);
     }
@@ -328,7 +328,6 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
     setEditingIndex(null);
     setEditingName('');
   };
-
 
 
 
@@ -469,6 +468,22 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
         return [...prev, itemId];
       }
     });
+  };
+
+  const handleCardClick = (item: UnitImage, e: React.MouseEvent) => {
+    if (isSelectionMode) {
+      handleCardSelection(item.id || '');
+    } else {
+      if (item.isVideo) {
+        handleRowClick(item);
+      } else {
+        // For images, trigger the preview by clicking the hidden preview button
+        const previewButton = e.currentTarget.querySelector('.ant-image-mask');
+        if (previewButton) {
+          (previewButton as HTMLElement).click();
+        }
+      }
+    }
   };
 
   return (
@@ -626,13 +641,7 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
                     border: selectedItems.includes(item.id || '') ? '2px solid #1890ff' : undefined
                   }}
                   bodyStyle={{ padding: '12px' }}
-                  onClick={(e) => {
-                    if (isSelectionMode) {
-                      handleCardSelection(item.id || '');
-                    } else if (item.isVideo) {
-                      handleRowClick(item);
-                    }
-                  }}
+                  onClick={(e) => handleCardClick(item, e)}
                   cover={
                     item.isVideo ? (
                       <div style={{
@@ -673,7 +682,13 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
                             width: '100%',
                             display: 'block'
                           }}
-                          
+                          preview={!isSelectionMode}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelectionMode) {
+                              handleCardSelection(item.id || '');
+                            }
+                          }}
                         />
                       </div>
                     )
