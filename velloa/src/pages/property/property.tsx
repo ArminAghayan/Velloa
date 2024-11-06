@@ -43,9 +43,14 @@ const PropertyPage: React.FC = () => {
       const propertiesData: PropertyData[] = await Promise.all(querySnapshot.docs.map(async (doc) => {
         const data = doc.data();
         const unitsSnapshot = await getDocs(collection(db, 'properties', doc.id, 'units'));
+        
+        const propertySettingsSnapshot = await getDocs(collection(db, 'properties', doc.id, 'propertySettings'));
+        const propertySettings = propertySettingsSnapshot.docs[0]?.data();
+        const propertyName = propertySettings?.propertyName || data.propertyName || '';
+
         return {
           key: doc.id,
-          propertyName: data.propertyName || '',
+          propertyName: propertyName,
           propertyType: data.propertyType || '',
           propertyDescription: data.propertyDescription || '',
           address: `${data.address.street1 || ''}, ${data.address.city || ''}, ${data.address.state || ''}, ${data.address.zip || ''}`,

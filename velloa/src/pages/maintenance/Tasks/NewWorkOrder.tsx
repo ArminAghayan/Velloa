@@ -92,6 +92,11 @@ interface Vendor {
   displayName: string;
 }
 
+interface Unit {
+  id: string;
+  name: string;
+}
+
 const generateTaskRefId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
 const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId }) => {
@@ -104,19 +109,22 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
   const [showPartsAndLabor, setShowPartsAndLabor] = useState<boolean>(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState<boolean>(false);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
       fetchAssignees();
       fetchProperties();
-      fetchVendors(); // Add this line
+      fetchVendors();
     } else {
       form.resetFields();
       setAssignees([]);
       setProperties([]);
       setLineItems([]);
       setShowPartsAndLabor(false);
-      setVendors([]); // Add this line
+      setVendors([]);
+      setUnits([]);
     }
   }, [visible, companyId]);
 
@@ -234,6 +242,26 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
     }
   };
 
+  const fetchUnits = async (propertyId: string) => {
+    setLoadingUnits(true);
+    try {
+      const unitsQuery = query(collection(db, 'properties', propertyId, 'units'));
+      const unitsSnapshot = await getDocs(unitsQuery);
+      
+      const unitsData: Unit[] = unitsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().unitName || 'Unnamed Unit',
+      }));
+      
+      setUnits(unitsData);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+      message.error('Failed to fetch units. Please try again.');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const onFinish = async (values: WorkOrderFormValues) => {
     try {
       console.log('Starting onFinish with values:', values);
@@ -270,6 +298,11 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
 
       const taskRefId = generateTaskRefId();
 
+      // Transform assignees array to array of objects with uid property
+      const formattedAssignees = values.assignees?.map(assigneeId => ({
+        uid: assigneeId
+      })) || [];
+
       // Use addDoc to add a new document to the 'maintenance' collection
       const maintenanceRef = collection(db, 'maintenance');
       const newWorkOrderRef = await addDoc(maintenanceRef, {
@@ -279,7 +312,7 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         dueDate: dueDateTimestamp,
         startDate: startDateTimestamp,
         endDate: endDateTimestamp,
-        assignees: values.assignees,
+        assignees: formattedAssignees, // Use the formatted assignees array
         relatedToName: propertyName,
         priority: cleanedValues.priority,
         relatedTo: cleanedValues.relatedProperty,
@@ -669,16 +702,43 @@ const NewWorkOrder: React.FC<NewWorkOrderProps> = ({ visible, onClose, companyId
         <Form.Item
           name="relatedProperty"
           label="Property"
-          rules={[{ required: true, message: 'Please select a property' }]} // Made required
+          rules={[{ required: true, message: 'Please select a property' }]}
         >
           <Select
             placeholder="Select a property"
             loading={loadingProperties}
             allowClear
+            onChange={(value) => {
+              form.setFieldValue('relatedUnit', undefined);
+              if (value) {
+                fetchUnits(value);
+              } else {
+                setUnits([]);
+              }
+            }}
           >
             {properties.map((property) => (
               <Select.Option key={property.id} value={property.id}>
                 {property.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="relatedUnit"
+          label="Unit"
+          rules={[{ required: false }]}
+        >
+          <Select
+            placeholder="Select a unit"
+            loading={loadingUnits}
+            allowClear
+            disabled={!form.getFieldValue('relatedProperty')}
+          >
+            {units.map((unit) => (
+              <Select.Option key={unit.id} value={unit.id}>
+                {unit.name}
               </Select.Option>
             ))}
           </Select>

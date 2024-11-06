@@ -5,7 +5,7 @@ import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleO
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, getDocs, query, where, Timestamp, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, QueryDocumentSnapshot, DocumentData, doc, getDoc } from 'firebase/firestore';
 import './maintenancepage.css';
 import NewTaskDrawer from './Tasks/NewTaskDrawer';
 import NewWorkOrder from './Tasks/NewWorkOrder';
@@ -21,7 +21,7 @@ export interface MaintenanceData {
   assignees: { uid: string; name: string }[];
   dueDate: string;
   relatedTo: string;
-  relatedToName: string;
+  relatedToName?: string; // Add this property
   status: string;
   priority: string;
   taskType: string;
@@ -169,6 +169,36 @@ const MaintenancePage: React.FC = () => {
     }
   };
 
+  const fetchRelatedToName = async (relatedTo: string): Promise<string> => {
+    try {
+      // First try to fetch from propertySettings
+      const propertySettingsQuery = query(
+        collection(db, 'properties', relatedTo, 'propertySettings')
+      );
+      const propertySettingsSnapshot = await getDocs(propertySettingsQuery);
+
+      if (!propertySettingsSnapshot.empty) {
+        const propertyData = propertySettingsSnapshot.docs[0].data();
+        return propertyData.propertyName || 'Unknown Property';
+      }
+
+      // If no property found, fetch user directly using the ID
+      const userDoc = await getDoc(doc(db, 'people', relatedTo));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const title = userData.title ? `${userData.title} ` : '';
+        const firstName = userData.firstName || '';
+        const lastName = userData.lastName || '';
+        return `${title}${firstName} ${lastName}`.trim() || 'Unknown User';
+      }
+
+      return 'Unknown';
+    } catch (error) {
+      console.error('Error fetching related name:', error);
+      return 'Unknown';
+    }
+  };
+
   const fetchMaintenanceTasks = useCallback(async () => {
     if (!companyId) return;
     
@@ -177,14 +207,16 @@ const MaintenancePage: React.FC = () => {
       const tasksQuery = query(collection(db, 'maintenance'), where('companyId', '==', companyId));
       const querySnapshot = await getDocs(tasksQuery);
 
-      // Create a mapping from uid to name for quick lookup
       const assigneeMap: Record<string, string> = {};
       assignees.forEach(assignee => {
         assigneeMap[assignee.uid] = assignee.name;
       });
 
-      const tasksData: MaintenanceData[] = querySnapshot.docs.map(doc => {
+      const tasksWithProperties = await Promise.all(querySnapshot.docs.map(async doc => {
         const data = doc.data();
+        // Always fetch the property name from propertySettings
+        const propertyName = data.relatedTo ? await fetchRelatedToName(data.relatedTo) : '';
+        
         const taskAssignees: { uid: string; name: string }[] = Array.isArray(data.assignees) 
           ? data.assignees.map((assignee: any) => ({
               uid: assignee.uid || '',
@@ -200,16 +232,16 @@ const MaintenancePage: React.FC = () => {
           dueDate: data.dueDate instanceof Timestamp 
             ? data.dueDate.toDate().toLocaleDateString() 
             : '',
-            relatedTo: data.relatedTo || '',
-          relatedToName: data.relatedToName || 'Unknown',
+          relatedTo: data.relatedTo || '',
+          relatedToName: propertyName,
           status: data.status || '',
           priority: data.priority || 'Low',
           taskType: data.taskType || 'Task',
           companyId: data.companyId || '',
         };
-      });
+      }));
 
-      setMaintenanceTasks(tasksData);
+      setMaintenanceTasks(tasksWithProperties);
     } catch (error) {
       console.error("Error fetching maintenance tasks: ", error);
       message.error("Failed to fetch maintenance tasks. Please try again.");
@@ -296,7 +328,6 @@ const MaintenancePage: React.FC = () => {
 
   const filteredTasks = maintenanceTasks.filter((task) => {
     const matchesSearch = task.subject.toLowerCase().includes(searchText.toLowerCase()) ||
-      task.relatedToName.toLowerCase().includes(searchText.toLowerCase()) ||
       task.assignees.some(assignee => assignee.name.toLowerCase().includes(searchText.toLowerCase())) ||
       task.taskRefId.toLowerCase().includes(searchText.toLowerCase());
 
@@ -304,6 +335,17 @@ const MaintenancePage: React.FC = () => {
 
     return matchesSearch && matchesTaskType;
   });
+
+  const copyTaskRefId = (e: React.MouseEvent, taskRefId: string) => {
+    e.stopPropagation(); // Prevent row click from firing
+    navigator.clipboard.writeText(taskRefId)
+      .then(() => {
+        message.success('Task ID copied to clipboard');
+      })
+      .catch(() => {
+        message.error('Failed to copy Task ID');
+      });
+  };
 
   const columns = [
     {
@@ -336,14 +378,18 @@ const MaintenancePage: React.FC = () => {
                   <Text strong style={{ color: 'Black', fontSize: '14px' }}>{record.taskType}</Text>
                   {getPriorityTag(record.priority)}
                 </Space>
-                <div style={{
-                  backgroundColor: '#f0f0f0',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: '#666',
-                  marginLeft: '20px'
-                }}>
+                <div 
+                  onClick={(e) => copyTaskRefId(e, record.taskRefId)}
+                  style={{
+                    backgroundColor: '#f0f0f0',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#666',
+                    marginLeft: '20px',
+                    cursor: 'pointer' // Add pointer cursor to indicate clickable
+                  }}
+                >
                   #{record.taskRefId}
                 </div>
               </div>
@@ -383,7 +429,7 @@ const MaintenancePage: React.FC = () => {
           return <Skeleton.Input style={{ width: '100px' }} active size="small" />;
         }
         if (!text) {
-          return <Text>No Timeline</Text>;
+          return <Text>--</Text>;
         }
         return (
           <Space direction="vertical" size={0}>
@@ -397,7 +443,7 @@ const MaintenancePage: React.FC = () => {
       title: 'Related To',
       dataIndex: 'relatedToName',
       key: 'relatedToName',
-      sorter: (a: MaintenanceData, b: MaintenanceData) => a.relatedToName.localeCompare(b.relatedToName),
+      sorter: (a: MaintenanceData, b: MaintenanceData) => a.relatedTo.localeCompare(b.relatedTo),
       render: (text: string) => (loading || loadingAssignees ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
     },
     {

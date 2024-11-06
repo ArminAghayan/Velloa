@@ -1,0 +1,149 @@
+.unit-images-box {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 6px;
+    border: 1.25px #E6E9EC solid;
+}
+
+/* Search and Filter Styles */
+.unit-images-search-input {
+  width: 250px;
+  height: 40px;
+}
+
+.unit-images-dropdown-input {
+  min-width: 150px;
+  height: 40px;
+}
+
+/* Button Styles */
+.unit-images-new-image-button {
+  height: 40px;
+  width: 150px;
+}
+
+
+
+.unit-images-delete-images-button {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.unit-images-cancel-selection-button {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+/* List and Card Styles */
+.unit-images-container .ant-list-items {
+  width: 100%;
+}
+
+.unit-images-container .ant-list-item {
+  display: flex !important;
+}
+
+.unit-images-container .ant-card {
+  width: 100% !important;
+  transition: all 0.3s ease;
+}
+
+.unit-images-container .ant-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.unit-images-container .ant-card-body {
+  padding: 12px;
+}
+
+.unit-images-container .ant-card-cover {
+  width: 100%;
+  margin: 0 !important;
+}
+
+.unit-images-container .ant-card-cover img {
+  width: 100%;
+  display: block;
+}
+
+.unit-images-container .ant-image {
+  display: block;
+  width: 100%;
+}
+
+/* Upload Modal Styles */
+.full-width-upload {
+  width: 100%;
+}
+
+.upload-progress-container {
+  margin-top: 16px;
+}
+
+.upload-progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  background-color: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background-color: #28A744;
+  transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+/* Preview Modal Styles */
+.custom-mask {
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.custom-mask:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.unit-images-container .ant-card.selected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.unit-images-container .selection-checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  padding: 4px;
+}
+
+.unit-images-select-button {
+  height: 40px;
+}   
+
+.unit-images-delete-selected-button {
+  height: 40px;
+}       
+.unit-images-cancel-selection-button {
+  height: 40px;
+}
+
+.skeleton-node-full-width {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  
+  .skeleton-node-full-width::before {
+    width: 100% !important;
+    min-width: 100% !important;
+  } 

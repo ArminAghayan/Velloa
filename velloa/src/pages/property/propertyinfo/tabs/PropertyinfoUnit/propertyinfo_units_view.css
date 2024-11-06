@@ -94,7 +94,7 @@
 }
 
 /* New CSS class to increase button height */
-.tall-button {
+.property-info-unit-tall-button {
   height: 40px; /* Adjust the height as desired */
   display: flex;
   align-items: center;
@@ -103,12 +103,12 @@
   margin-bottom: 20px; /* Ensures spacing below buttons */
 }
 
-.tall-button .anticon {
+.property-info-unit-tall-button .anticon {
   font-size: 18px; /* Adjust icon size for smaller screens */
 }
 
 /* Adds padding to the top of the Description section */
-.description-padding-top {
+.property-info-unit-description-padding-top {
   padding-top: 15px; /* Adjust the value as needed */
 }
 
