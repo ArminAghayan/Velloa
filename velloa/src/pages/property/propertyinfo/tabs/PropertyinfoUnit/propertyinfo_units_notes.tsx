@@ -4,7 +4,7 @@ import {
   Button, 
   Table, 
   Typography, 
-  message, 
+  notification,
   Modal, 
   Dropdown, 
   Menu,
@@ -13,14 +13,26 @@ import {
   Form,
   Select,
   Tag,
-  Skeleton,
+  Upload,
+  UploadFile as AntUploadFile,
+  Space,
 } from 'antd';
 import { 
   PlusOutlined, 
   MoreOutlined, 
   ExclamationCircleOutlined,
   InfoCircleOutlined,
-  UploadOutlined
+  UploadOutlined,
+  LoadingOutlined,
+  FileOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  PlaySquareOutlined,
+  PaperClipOutlined,
 } from '@ant-design/icons';
 import { 
   collection, 
@@ -33,10 +45,15 @@ import {
   updateDoc, 
   deleteDoc, 
   Timestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { db } from '../../../../../firebase-config';
 import './propertyinfo_units_notes.css';
+import { RcFile, UploadChangeParam } from 'antd/es/upload/interface';
+import { v4 as uuidv4 } from 'uuid';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../../../../firebase-config';
 
 const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;
@@ -59,6 +76,40 @@ interface PropertyUnitNotesProps {
   unitId: string;
 }
 
+interface CustomUploadFile extends AntUploadFile<any> {
+  originFileObj?: RcFile;
+}
+
+interface NoteTag {
+  name: string;
+  createdAt: string;
+  id: string;
+}
+
+// Helper function to get a friendly file type name
+const getFileType = (file: File): string => {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  
+  // Document types
+  if (extension === 'doc' || extension === 'docx') return 'Word Document';
+  if (extension === 'pdf') return 'PDF Document';
+  if (['xls', 'xlsx'].includes(extension)) return 'Excel Spreadsheet';
+  if (['ppt', 'pptx'].includes(extension)) return 'PowerPoint';
+  if (extension === 'txt') return 'Text Document';
+
+  // Image types
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+    return `Image (${extension.toUpperCase()})`;
+  }
+
+  // Video types
+  if (['mp4', 'mov', 'avi', 'wmv'].includes(extension)) {
+    return `Video (${extension.toUpperCase()})`;
+  }
+
+  return `File (${extension.toUpperCase()})`;
+};
+
 const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitId }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -73,31 +124,90 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [fileList, setFileList] = useState<CustomUploadFile[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [totalProgress, setTotalProgress] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState(0);
+  const [fileData, setFileData] = useState<{ [key: string]: any }>({});
+  const [filterType, setFilterType] = useState('');
+  const [availableNoteTags, setAvailableNoteTags] = useState<NoteTag[]>([]);
 
   const fetchNoteTags = async (companyId: string) => {
     try {
+      console.log('Fetching note tags for company:', companyId);
+      
       const noteTagsDoc = await getDoc(doc(db, 'companies', companyId, 'settings', 'notetags'));
+      console.log('Note tags doc exists:', noteTagsDoc.exists());
+      
       if (noteTagsDoc.exists()) {
-        const tags = noteTagsDoc.data().tags || [];
-        setAvailableTags(tags.map((tag: any) => tag.name));
+        const data = noteTagsDoc.data();
+        console.log('Raw note tags data:', data);
+        
+        // Convert the numbered objects into an array
+        const tags = data?.tags ? Object.values(data.tags) : [];
+        
+        // Validate tags before setting them
+        const validTags = tags.filter((tag: any) => 
+          tag && 
+          typeof tag === 'object' && 
+          typeof tag.name === 'string'
+        ) as NoteTag[];
+        
+        console.log('Validated note tags:', validTags);
+        setAvailableNoteTags(validTags);
+
+        if (validTags.length === 0) {
+          notification.info({
+            message: 'No Tags Available',
+            description: 'No note tags have been configured for your company.',
+            placement: 'topRight'
+          });
+        }
+      } else {
+        notification.info({
+          message: 'No Tags Available',
+          description: 'No note tags have been configured for your company.',
+          placement: 'topRight'
+        });
+        setAvailableNoteTags([]);
       }
     } catch (error) {
       console.error('Error fetching note tags:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch note tags.',
+        placement: 'topRight'
+      });
+      setAvailableNoteTags([]);
     }
   };
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed, user:', user?.uid);
+      
       setCurrentUser(user);
       if (user) {
         fetchUserName(user.uid);
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const companyId = userDoc.data().companyuid;
-          if (companyId) {
-            fetchNoteTags(companyId);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          console.log('User doc exists:', userDoc.exists());
+          
+          if (userDoc.exists()) {
+            const companyId = userDoc.data().companyuid;
+            console.log('Company ID from user doc:', companyId);
+            
+            if (companyId) {
+              await fetchNoteTags(companyId);
+            } else {
+              console.error('No company ID found for user');
+            }
           }
+        } catch (error) {
+          console.error('Error fetching user doc:', error);
         }
       }
     });
@@ -115,7 +225,11 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
       }
     } catch (error) {
       console.error('Error fetching user name:', error);
-      message.error('Failed to fetch user information.');
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch user information.',
+        placement: 'topRight'
+      });
     }
   };
 
@@ -140,15 +254,44 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
         createdBy: docSnapshot.data().createdBy || 'Unknown',
         companyId: docSnapshot.data().companyId || docSnapshot.data().companyuid,
       })) as Note[];
+
+      // Fetch file data for notes with attachments
+      const allFileIds = fetchedNotes.flatMap(note => note.attachments || []);
+      if (allFileIds.length > 0) {
+        const fileData = await fetchFileData(allFileIds);
+        setFileData(fileData);
+      }
+
       setNotes(fetchedNotes);
+      setFilteredNotes(fetchedNotes);
     } catch (error) {
       console.error('Error fetching notes:', error);
-      message.error('Failed to fetch notes. Please try again.');
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch notes. Please try again.',
+        placement: 'topRight'
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchFileData = async (fileIds: string[]) => {
+    const fileData: { [key: string]: any } = {};
+    await Promise.all(
+      fileIds.map(async (fileId) => {
+        try {
+          const fileDoc = await getDoc(doc(db, 'properties', propertyId, 'units', unitId, 'files', fileId));
+          if (fileDoc.exists()) {
+            fileData[fileId] = fileDoc.data();
+          }
+        } catch (error) {
+          console.error('Error fetching file:', error);
+        }
+      })
+    );
+    return fileData;
+  };
 
   const handleView = (record: Note) => {
     setSelectedNote(record);
@@ -174,26 +317,44 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
 
   const handleUpdateNote = async () => {
     if (!selectedNote) {
-      message.error('Invalid note.');
+      notification.error({
+        message: 'Error',
+        description: 'Invalid note.',
+        placement: 'topRight'
+      });
       return;
     }
 
     if (!editNoteContent.trim()) {
-      message.error('Note content cannot be empty.');
+      notification.error({
+        message: 'Error',
+        description: 'Note content cannot be empty.',
+        placement: 'topRight'
+      });
       return;
     }
 
     try {
       const noteDocRef = doc(db, 'properties', propertyId, 'units', unitId, 'notes', selectedNote.id);
       await updateDoc(noteDocRef, {
+        title: form.getFieldValue('editTitle'),
         content: editNoteContent.trim(),
+        tags: form.getFieldValue('editTags') || [],
       });
-      message.success('Note updated successfully');
+      notification.success({
+        message: 'Success',
+        description: 'Note updated successfully',
+        placement: 'topRight'
+      });
       handleEditModalClose();
       await fetchNotes();
     } catch (error) {
       console.error('Error updating note:', error);
-      message.error('Failed to update note. Please try again.');
+      notification.error({
+        message: 'Error',
+        description: 'Failed to update note. Please try again.',
+        placement: 'topRight'
+      });
     }
   };
 
@@ -209,11 +370,19 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
         try {
           const noteDocRef = doc(db, 'properties', propertyId, 'units', unitId, 'notes', record.id);
           await deleteDoc(noteDocRef);
-          message.success('Note deleted successfully');
+          notification.success({
+            message: 'Success',
+            description: 'Note deleted successfully',
+            placement: 'topRight'
+          });
           await fetchNotes();
         } catch (error) {
           console.error('Error deleting note:', error);
-          message.error('Failed to delete note. Please try again.');
+          notification.error({
+            message: 'Error',
+            description: 'Failed to delete note. Please try again.',
+            placement: 'topRight'
+          });
         }
       },
     });
@@ -244,17 +413,97 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
     try {
       const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
       if (!propertyDoc.exists()) {
-        message.error('Property not found');
+        notification.error({
+          message: 'Error',
+          description: 'Property not found',
+          placement: 'topRight'
+        });
         return;
       }
 
       const companyuid = propertyDoc.data().companyuid;
-
       if (!companyuid) {
-        message.error('Company ID not found');
+        notification.error({
+          message: 'Error',
+          description: 'Company ID not found',
+          placement: 'topRight'
+        });
         return;
       }
 
+      // Array to store file IDs
+      const fileIds: string[] = [];
+
+      // First upload all files and collect their IDs
+      if (fileList.length > 0) {
+        const totalFiles = fileList.length;
+        setUploadedFiles(0);
+        setTotalProgress(0);
+
+        // Upload each file
+        await Promise.all(fileList.map(async (fileItem, index) => {
+          const file = fileItem.originFileObj;
+          if (!file) return;
+
+          const fileName = fileItem.name;
+          const storageFileName = `${uuidv4()}-${fileName}`;
+          const storageRef = ref(storage, `properties/${propertyId}/units/${unitId}/files/${storageFileName}`);
+          
+          const metadata = {
+            customMetadata: {
+              uploadedBy: currentUser?.uid || 'unknown',
+              uploadedByEmail: currentUser?.email || 'unknown',
+              companyId: companyuid
+            }
+          };
+          
+          const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+          await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed',
+              (snapshot) => {
+                const fileProgress = (snapshot.bytesTransferred / snapshot.totalBytes);
+                const combinedProgress = ((index + fileProgress) / totalFiles) * 100;
+                setTotalProgress(combinedProgress);
+              },
+              (error) => {
+                reject(error);
+              },
+              async () => {
+                try {
+                  const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                  
+                  // Save file info to files collection
+                  const newFile = {
+                    fileName: fileName,
+                    fileType: getFileType(file),
+                    uploadDate: Timestamp.now(),
+                    size: Math.round((file.size / 1024) * 100) / 100,
+                    uploadedBy: currentUser?.uid || 'unknown',
+                    uploadedByName: userName || currentUser?.email || 'Unknown User',
+                    fileUrl: downloadURL,
+                    companyId: companyuid
+                  };
+
+                  // Add file document and get its ID
+                  const fileRef = await addDoc(collection(db, 'properties', propertyId, 'units', unitId, 'files'), newFile);
+                  fileIds.push(fileRef.id); // Store the file ID
+                  
+                  setUploadedFiles(prev => prev + 1);
+                  resolve(null);
+                } catch (error) {
+                  reject(error);
+                }
+              }
+            );
+          });
+        }));
+
+        setTotalProgress(0);
+        setUploadedFiles(0);
+      }
+
+      // Then create the note with the file IDs
       const newNote = {
         title: values.title,
         content: values.content,
@@ -262,44 +511,160 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
         createdAt: Timestamp.now(),
         createdBy: userName || currentUser?.email || 'Unknown User',
         companyId: companyuid,
+        attachments: fileIds // Add the file IDs to the note
       };
 
-      const notesRef = collection(db, 'properties', propertyId, 'units', unitId, 'notes');
-      await addDoc(notesRef, newNote);
-      message.success('Note added successfully');
+      // Add the note
+      await addDoc(collection(db, 'properties', propertyId, 'units', unitId, 'notes'), newNote);
+
+      notification.success({
+        message: 'Success',
+        description: 'Note and files added successfully',
+        placement: 'topRight'
+      });
       setIsModalVisible(false);
       form.resetFields();
+      setFileList([]);
       await fetchNotes();
+
     } catch (error) {
-      console.error('Error adding note:', error);
-      message.error('Failed to add note. Please try again.');
+      console.error('Error adding note and files:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to add note and files. Please try again.',
+        placement: 'topRight'
+      });
+      setTotalProgress(0);
+      setUploadedFiles(0);
     }
   };
 
-  const renderSkeletonRow = () => (
-    <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-      <Row gutter={16} align="middle">
-        <Col flex="1">
-          <Skeleton.Input style={{ width: '100%' }} active size="small" />
-          <div style={{ marginTop: 8 }}>
-            <Skeleton.Input style={{ width: '60%' }} active size="small" />
-          </div>
-        </Col>
-        <Col style={{ width: 200 }}>
-          <Skeleton.Input style={{ width: '80%' }} active size="small" />
-        </Col>
-        <Col style={{ width: 150 }}>
-          <Skeleton.Input style={{ width: '80%' }} active size="small" />
-        </Col>
-        <Col style={{ width: 200 }}>
-          <Skeleton.Input style={{ width: '80%' }} active size="small" />
-        </Col>
-        <Col style={{ width: 80 }}>
-          <Skeleton.Button active size="small" />
-        </Col>
-      </Row>
-    </div>
-  );
+  const getFileExtension = (filename: string): string => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+  };
+
+  const isFileTypeAllowed = (file: File): boolean => {
+    if (file.size > 50 * 1024 * 1024) { // 50MB
+      notification.error({
+        message: 'File Too Large',
+        description: `File ${file.name} is too large. Maximum size is 50MB`,
+        placement: 'topRight'
+      });
+      return false;
+    }
+
+    const extension = getFileExtension(file.name);
+    const allAllowedTypes = [
+      'doc', 'docx', 'pdf', 'xls', 'xlsx',
+      'jpg', 'jpeg', 'png', 'gif', 'svg',
+      'mp4', 'webm', 'avi', 'wmv'
+    ];
+    
+    if (!allAllowedTypes.includes(extension)) {
+      notification.error({
+        message: 'Invalid File Type',
+        description: `File type .${extension} is not allowed`,
+        placement: 'topRight'
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleFileChange = (info: UploadChangeParam<AntUploadFile<any>>) => {
+    const { fileList: newFileList } = info;
+    
+    const filteredNewFiles = newFileList
+      .filter((file: AntUploadFile<any>) => 
+        file.originFileObj && isFileTypeAllowed(file.originFileObj)
+      )
+      .filter((newFile: AntUploadFile<any>) => 
+        !fileList.some(existingFile => existingFile.name === newFile.name)
+      ) as CustomUploadFile[];
+
+    const updatedFileList = [...fileList, ...filteredNewFiles];
+    
+    setFileList(updatedFileList);
+    form.setFieldsValue({
+      file: updatedFileList
+    });
+  };
+
+  const handleRemoveFile = (fileIndex: number) => {
+    const newFileList = fileList.filter((_, index) => index !== fileIndex);
+    setFileList(newFileList);
+    form.setFieldsValue({
+      file: newFileList
+    });
+  };
+
+  const handleEditName = (index: number, currentName: string) => {
+    setEditingIndex(index);
+    setEditingName(currentName);
+  };
+
+  const handleSaveEdit = (index: number) => {
+    if (editingName.trim()) {
+      const newFileList = [...fileList];
+      const fileExtension = newFileList[index].name.split('.').pop();
+      newFileList[index] = {
+        ...newFileList[index],
+        name: `${editingName.trim()}.${fileExtension}`
+      };
+      setFileList(newFileList);
+      form.setFieldsValue({
+        file: newFileList
+      });
+    }
+    setEditingIndex(null);
+    setEditingName('');
+  };
+
+  const getFileIcon = (fileType: string) => {
+    const type = fileType.toLowerCase();
+    if (type.includes('pdf')) {
+      return <FilePdfOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+    } else if (type.includes('word') || type.includes('doc')) {
+      return <FileWordOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+    } else if (type.includes('excel') || type.includes('spreadsheet')) {
+      return <FileExcelOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+    } else if (type.includes('image')) {
+      return <FileImageOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+    } else if (type.includes('video')) {
+      return <PlaySquareOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+    }
+    return <FileOutlined style={{ fontSize: '16px', color: '#168033' }} />;
+  };
+
+  const handleFileClick = (e: React.MouseEvent, fileUrl: string) => {
+    e.stopPropagation(); // Prevent note row click
+    window.open(fileUrl, '_blank');
+  };
+
+  useEffect(() => {
+    const lowercasedSearch = searchText.toLowerCase();
+    const filtered = notes.filter(note => {
+      const titleMatch = note.title.toLowerCase().includes(lowercasedSearch);
+      const contentMatch = note.content?.toLowerCase().includes(lowercasedSearch);
+      const createdByMatch = note.createdBy?.toLowerCase().includes(lowercasedSearch);
+      
+      let typeMatch = true;
+      if (filterType !== '') {
+        if (filterType === 'general') {
+          typeMatch = !note.tags || note.tags.length === 0;
+        } else {
+          typeMatch = note.tags?.includes(filterType) || false;
+        }
+      }
+      
+      return (titleMatch || contentMatch || createdByMatch) && typeMatch;
+    });
+    setFilteredNotes(filtered);
+  }, [notes, searchText, filterType, availableNoteTags]);
+
+  const handleFilterChange = (value: string) => {
+    setFilterType(value || '');
+  };
 
   if (!currentUser) {
     return <div>Please log in to view and add notes.</div>;
@@ -318,6 +683,21 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
                   value={searchText}
                   onChange={handleSearchChange}
                 />
+              </Col>
+              <Col>
+                <Select
+                  className='unit-notes-dropdown-input'
+                  placeholder="Filter by type"
+                  onChange={handleFilterChange}
+                  allowClear
+                  style={{ width: 150 }}
+                >
+                  {availableNoteTags.map(tag => (
+                    <Option key={tag.id} value={tag.name}>
+                      {tag.name}
+                    </Option>
+                  ))}
+                </Select>
               </Col>
             </Row>
           </Col>
@@ -343,36 +723,60 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
           </Col>
         </Row>
         <Table
+          loading={{
+            indicator: <LoadingOutlined style={{ fontSize: 24 }} spin />,
+            spinning: loading
+          }}
           columns={[
             {
               title: 'Note',
-              dataIndex: 'content',
-              key: 'content',
-              render: (text: string) => loading ? (
-                <Skeleton.Input style={{ width: '100%' }} active size="small" />
-              ) : (
-                <Typography.Paragraph
-                  ellipsis={{ rows: 2 }}
-                  style={{ marginBottom: 0 }}
-                >
-                  {text}
-                </Typography.Paragraph>
-              )
+              dataIndex: 'title',
+              key: 'title',
+              render: (text: string, record: Note) => (
+                <Space align="center">
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#D8E6D9',
+                    borderRadius: '4px',
+                    marginRight: '12px'
+                  }}>
+                    <PaperClipOutlined style={{ fontSize: '24px', color: '#168033' }} />
+                  </div>
+                  <Text 
+                    strong 
+                    style={{ 
+                      maxWidth: '300px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title={record.title} // Shows full title on hover
+                  >
+                    {record.title.length > 40 ? `${record.title.substring(0, 40)}...` : record.title}
+                  </Text>
+                </Space>
+              ),
             },
             {
               title: 'Tags',
               dataIndex: 'tags',
               key: 'tags',
               width: 200,
-              render: (tags: string[]) => loading ? (
-                <Skeleton.Input style={{ width: '80%' }} active size="small" />
-              ) : (
+              render: (tags: string[]) => (
                 <span>
-                  {tags?.map((tag) => (
-                    <Tag key={tag} color="blue" style={{ marginBottom: '4px' }}>
-                      {tag}
-                    </Tag>
-                  ))}
+                  {tags?.length ? 
+                    tags.map((tag) => (
+                      <Tag key={tag} color="blue" style={{ marginBottom: '4px' }}>
+                        {tag}
+                      </Tag>
+                    ))
+                    : 
+                    '--'
+                  }
                 </span>
               )
             },
@@ -381,28 +785,19 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
               dataIndex: 'createdAt',
               key: 'createdAt',
               width: 150,
-              render: (timestamp: Timestamp) => loading ? (
-                <Skeleton.Input style={{ width: '80%' }} active size="small" />
-              ) : (
-                timestamp?.toDate().toLocaleDateString() || 'N/A'
-              )
+              render: (timestamp: Timestamp) => timestamp?.toDate().toLocaleDateString() || 'N/A'
             },
             {
               title: 'Created By',
               dataIndex: 'createdBy',
               key: 'createdBy',
               width: 200,
-              render: (text: string) => loading ? (
-                <Skeleton.Input style={{ width: '80%' }} active size="small" />
-              ) : text
             },
             {
               title: '',
               key: 'action',
               width: 80,
-              render: (_: any, record: Note) => loading ? (
-                <Skeleton.Button active size="small" />
-              ) : (
+              render: (_: any, record: Note) => (
                 <Dropdown
                   overlay={
                     <Menu>
@@ -437,24 +832,25 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
               )
             }
           ]}
-          dataSource={loading ? Array(5).fill({}) : filteredNotes}
-          rowKey={loading ? 
-            ((record: any, index?: number) => `loading-${index}`) : 
-            'id'
-          }
+          dataSource={loading ? [] : filteredNotes}
+          rowKey="id"
           pagination={{ 
-            pageSize: 10,
+            pageSize: 5,
             showSizeChanger: false 
           }}
           onRow={(record) => ({
-            onClick: () => !loading && handleView(record),
-            style: { cursor: loading ? 'default' : 'pointer' }
+            onClick: () => handleView(record),
+            style: { cursor: 'pointer' }
           })}
+          locale={{
+            emptyText: loading ? ' ' : 'No Data'
+          }}
         />
       </div>
 
       <Modal
-        title={<Title level={4}>Note Details</Title>}
+        className="new-note-drawer"
+        title={<Title level={4}>{selectedNote?.title || 'Note Details'}</Title>}
         visible={isViewModalVisible}
         onCancel={handleModalClose}
         footer={[
@@ -467,10 +863,6 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
       >
         {selectedNote && (
           <Typography>
-            <Paragraph>
-              <Text strong>Title: </Text>
-              <Text>{selectedNote.title}</Text>
-            </Paragraph>
             <Paragraph style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text strong>Tags: </Text>
               <span>
@@ -503,7 +895,9 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
                 padding: '16px',
                 backgroundColor: '#f5f5f5',
                 whiteSpace: 'pre-wrap',
-                wordWrap: 'break-word'
+                wordWrap: 'break-word',
+                minHeight: '200px',
+                overflowY: 'auto'
               }}
             >
               {selectedNote.content}
@@ -516,6 +910,7 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
         title={<Title level={4}>Edit Note</Title>}
         visible={isEditModalVisible}
         onCancel={handleEditModalClose}
+        className="new-note-drawer"
         footer={[
           <Button key="cancel" onClick={handleEditModalClose}>
             Cancel
@@ -528,25 +923,54 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
         bodyStyle={{ maxHeight: '80vh', overflow: 'auto' }}
       >
         {selectedNote && (
-          <Typography>
-            <Paragraph>
-              <Text strong>Created At: </Text>
-              <Text>{selectedNote.createdAt ? selectedNote.createdAt.toDate().toLocaleDateString() : 'N/A'}</Text>
-            </Paragraph>
-            <Paragraph>
-              <Text strong>Created By: </Text>
-              <Text>{selectedNote.createdBy}</Text>
-            </Paragraph>
-            <Paragraph>
-              <Text strong>Edit Content:</Text>
-            </Paragraph>
-            <TextArea
-              rows={6}
-              value={editNoteContent}
-              onChange={(e) => setEditNoteContent(e.target.value)}
-              placeholder="Edit your note here..."
-            />
-          </Typography>
+          <Form
+            form={form}
+            initialValues={{
+              editTitle: selectedNote.title,
+              editTags: selectedNote.tags,
+            }}
+          >
+            <Form.Item
+              name="editTitle"
+              rules={[{ required: true, message: 'Please enter a title' }]}
+            >
+              <Input placeholder="Note title" />
+            </Form.Item>
+
+            <Form.Item name="editTags">
+              <Select
+                className="unit-notes-tag-select"
+                mode="multiple"
+                placeholder="Select Tags"
+                style={{ width: '100%' }}
+                dropdownStyle={{ padding: '8px' }}
+              >
+                {availableTags.map(tag => (
+                  <Option key={tag} value={tag}>{tag}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Typography>
+              <Paragraph>
+                <Text strong>Created At: </Text>
+                <Text>{selectedNote.createdAt ? selectedNote.createdAt.toDate().toLocaleDateString() : 'N/A'}</Text>
+              </Paragraph>
+              <Paragraph>
+                <Text strong>Created By: </Text>
+                <Text>{selectedNote.createdBy}</Text>
+              </Paragraph>
+              <Paragraph>
+                <Text strong>Edit Content:</Text>
+              </Paragraph>
+              <TextArea
+                rows={6}
+                value={editNoteContent}
+                onChange={(e) => setEditNoteContent(e.target.value)}
+                placeholder="Edit your note here..."
+              />
+            </Typography>
+          </Form>
         )}
       </Modal>
 
@@ -625,21 +1049,126 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
             </Select>
           </Form.Item>
 
-          <div 
-            style={{ 
-              border: '1px dashed #d9d9d9',
-              borderRadius: '2px',
-              padding: '20px',
-              textAlign: 'center',
-              background: '#fafafa',
-              marginTop: '16px'
-            }}
-          >
-            <Typography.Text type="secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <UploadOutlined />
-              Drag files or <Typography.Link>Click here</Typography.Link> to upload
-            </Typography.Text>
-          </div>
+          <Form.Item name="attachments" style={{ width: '100%', margin: 0 }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '16px', 
+              width: '100%' 
+            }}>
+              {fileList.map((file: any, index: number) => (
+                <div key={index} style={{ 
+                  padding: '12px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #e8e8e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  backgroundColor: '#fff'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    <FileOutlined style={{ fontSize: '24px', color: '#168033' }} />
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      flex: 1,
+                      overflow: 'hidden'
+                    }}>
+                      {editingIndex === index ? (
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onPressEnter={() => handleSaveEdit(index)}
+                          onBlur={() => handleSaveEdit(index)}
+                          autoFocus
+                          style={{ 
+                            flex: 1,
+                            height: '24px',
+                            padding: '0 8px',
+                            lineHeight: '24px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <span style={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '40ch'
+                          }} title={file.name}>
+                            {file.name}
+                          </span>
+                          <span style={{ color: '#8c8c8c', flexShrink: 0 }}>
+                            ({((file.size || 0) / 1024).toFixed(2)} kB)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {editingIndex !== index && (
+                      <Button 
+                        type="text" 
+                        icon={<EditOutlined />} 
+                        size="small"
+                        onClick={() => handleEditName(index, file.name.split('.')[0])}
+                        style={{ color: '#1890ff' }}
+                      />
+                    )}
+                    <Button 
+                      type="text" 
+                      icon={<DeleteOutlined />} 
+                      size="small"
+                      onClick={() => handleRemoveFile(index)}
+                      style={{ color: '#ff4d4f' }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <Upload.Dragger 
+                multiple={true}
+                beforeUpload={(file: RcFile) => {
+                  const isAllowed = isFileTypeAllowed(file);
+                  if (!isAllowed) {
+                    return Upload.LIST_IGNORE;
+                  }
+                  return false;
+                }}
+                onChange={handleFileChange}
+                style={{ 
+                  padding: '4px',
+                  height: '60px',
+                  width: '100%'
+                }}
+                className="full-width-upload"
+                fileList={[]}
+                showUploadList={false}
+              >
+                <p style={{ margin: 0 }}>
+                  <UploadOutlined style={{ fontSize: '16px', color: '#28A744', marginRight: '8px' }} />
+                  Drag files here or <Button type="link" style={{ padding: '0' }}>click to upload</Button>
+                </p>
+              </Upload.Dragger>
+
+              {totalProgress > 0 && (
+                <div className="upload-progress-container">
+                  <div className="upload-progress-bar-bg">
+                    <div 
+                      className="upload-progress-bar"
+                      style={{ width: `${totalProgress}%` }}
+                    />
+                  </div>
+                  <div className="upload-progress-text">
+                    {`Uploading ${uploadedFiles}/${fileList.length} files (${Math.round(totalProgress)}%)`}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Form.Item>
         </Form>
       </Modal>
     </div>

@@ -37,14 +37,22 @@ import {
   MailOutlined,
   CameraOutlined,
   PictureOutlined,
+  CarOutlined,
+  FireOutlined,
+  ThunderboltOutlined,
+  AppstoreOutlined,
+  CloudOutlined,
+  BorderOuterOutlined,
 } from '@ant-design/icons';
 import { getFirestore, doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import './propertyinfo_units_view.css';
 import PropertyinfoUnitMaintenance from './propertyinfo_units_Maintenance';
 import NewTaskDrawer from '../../../../maintenance/Tasks/NewTaskDrawer';
 import PropertyUnitFiles from './propertyinfo_units_files';
 import PropertyinfoUnitImages from './propertyinfo_units_images';
 import PropertyUnitNotes from './propertyinfo_units_notes';
+import PropertyInfoUnitViewListing from './propertyinfo_units_view_listing';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -65,6 +73,15 @@ interface Unit {
   description?: string;
   status?: string;
   tenantId?: string;
+  amenities?: string[];
+  parking?: string;
+  laundry?: string;
+  interior?: string;
+  appliances?: string;
+  cooling?: string;
+  heating?: string;
+  exterior?: string;
+  includedInRent?: string;
 }
 
 interface Tenant {
@@ -117,6 +134,7 @@ const PropertyInfoUnitView: React.FC = () => {
   const [editedUnit, setEditedUnit] = useState<Unit | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [unitImages, setUnitImages] = useState<UnitImage[]>([]);
+  const [companyId, setCompanyId] = useState<string>('');
 
   // Menu items for the dropdown
   const menuItems: MenuProps['items'] = [
@@ -147,6 +165,29 @@ const PropertyInfoUnitView: React.FC = () => {
   };
 
   useEffect(() => {
+    const auth = getAuth();
+    const db = getFirestore();
+
+    // Set up auth state listener
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userCompanyId = userDoc.data().companyuid;
+            setCompanyId(userCompanyId);
+          }
+        } catch (error) {
+          console.error('Error fetching user doc:', error);
+        }
+      }
+    });
+
+    // Clean up subscription
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (!propertyId || !unitId) return;
 
@@ -158,8 +199,9 @@ const PropertyInfoUnitView: React.FC = () => {
         const propertySettingsCollection = collection(db, 'properties', propertyId, 'propertySettings');
         const propertySettingsSnapshot = await getDocs(propertySettingsCollection);
         
-        // Get the first (and should be only) document from propertySettings
+        // Get the first document from propertySettings
         const propertySettingsDoc = propertySettingsSnapshot.docs[0];
+
         const unitDoc = await getDoc(doc(db, 'properties', propertyId, 'units', unitId));
 
         if (propertySettingsDoc && unitDoc.exists()) {
@@ -605,18 +647,149 @@ const PropertyInfoUnitView: React.FC = () => {
                 </Card>
               </Col>
             </Row>
+
+            {/* New Unit Information Card */}
+            <Row gutter={[16, 16]} style={{ marginTop: '16px' }}>
+              <Col span={24}>
+                <Card 
+                  title="Amenities" 
+                  hoverable
+                  onClick={() => handleEdit('unit')}
+                >
+                  <Row gutter={[24, 16]}>
+                    {/* Left Column */}
+                    <Col span={12}>
+                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                        {/* Included in Rent */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <DollarOutlined style={{ color: '#1890ff' }}/>
+                            <Text strong>Included in Rent:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.includedInRent || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Interior */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <HomeOutlined style={{ color: '#1890ff' }}/>
+                            <Text strong>Interior:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.interior || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Appliances */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <AppstoreOutlined style={{ color: '#1890ff' }}/>
+                            <Text strong>Appliances:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.appliances || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Heating */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <FireOutlined style={{ color: '#1890ff' }}/>
+                            <Text strong>Heating:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.heating || '--'}</Text>
+                          </Space>
+                        </Space>
+                      </Space>
+                    </Col>
+
+                    {/* Right Column */}
+                    <Col span={12}>
+                      {/* Cooling */}
+                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <CloudOutlined style={{ color: '#52c41a' }}/>
+                            <Text strong>Cooling:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.cooling || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Laundry */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <ThunderboltOutlined style={{ color: '#52c41a' }}/>
+                            <Text strong>Laundry:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.laundry || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Parking */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <CarOutlined style={{ color: '#52c41a' }}/>
+                            <Text strong>Parking:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.parking || '--'}</Text>
+                          </Space>
+                        </Space>
+
+                        <Divider style={{ margin: '8px 0' }} />
+
+                        {/* Exterior */}
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space>
+                            <BorderOuterOutlined style={{ color: '#52c41a' }}/>
+                            <Text strong>Exterior:</Text>
+                          </Space>
+                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
+                            <Text>{unit?.exterior || '--'}</Text>
+                          </Space>
+                        </Space>
+                      </Space>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+            </Row>
           </>
         );
       case 'maintenance':
         return (
           <PropertyinfoUnitMaintenance 
             personId={propertyId || ''} 
-            companyId={propertyId || ''} 
+            companyId={companyId}
             unitId={unitId || ''}
           />
         );
-      case 'listings':
-        return <div>Listings Content</div>;
+      case 'listing details':
+        return (
+          <PropertyInfoUnitViewListing 
+            property={property}
+            unit={unit}
+            tenant={tenant}
+            unitImages={unitImages}
+            companyId={companyId}
+          />
+        );
       case 'notes':
         return <PropertyUnitNotes propertyId={propertyId || ''} unitId={unitId || ''} />;
       case 'images':
@@ -669,7 +842,7 @@ const PropertyInfoUnitView: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Overview" key="overview" />
           <TabPane tab="Maintenance" key="maintenance" />
-          <TabPane tab="Listings" key="listings" />
+          <TabPane tab="Listing Details" key="listing details" />
           <TabPane tab="Notes" key="notes" />
           <TabPane tab="Images" key="images" />
           <TabPane tab="Files" key="files" />

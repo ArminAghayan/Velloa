@@ -1,0 +1,14 @@
+.custom-alert {
+    background-color: #E6F4FF !important;
+    border: 1px solid #91CAFF !important;
+}
+
+.custom-alert .ant-alert-icon {
+    font-size: 18px !important;
+    color: #1677FF !important;
+}
+
+.custom-alert .ant-alert-message {
+    margin-left: 12px;
+    color: #000000 !important;
+} 

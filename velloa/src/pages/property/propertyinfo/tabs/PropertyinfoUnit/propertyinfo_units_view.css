@@ -124,3 +124,67 @@
 
 }   
 
+.custom-carousel-dots li button {
+  background: black !important;
+}
+.ant-carousel .slick-prev,
+.ant-carousel .slick-next {
+  color: black !important;
+}
+
+
+
+
+.image-star-button {
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.image-star-button .anticon {
+  font-size: 20px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.image-star-button.starred .anticon {
+  color: #52c41a;
+}
+
+.carousel-image-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.image-star-button {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 2;
+}
+
+.image-star-button .anticon {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.image-star-button.starred .anticon {
+  color: #52c41a;
+}
+
+.ant-carousel .slick-slide {
+  padding: 0 8px;
+}
+
+.ant-carousel .slick-list {
+  margin: 0 -8px;
+}

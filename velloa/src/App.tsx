@@ -72,6 +72,7 @@ const theme = {
       defaultShadow: "",
       primaryShadow: "",
       lineWidth: 1.25,
+      
     },
     Card: {
       colorBorderSecondary: "rgb(230, 233, 236)",
