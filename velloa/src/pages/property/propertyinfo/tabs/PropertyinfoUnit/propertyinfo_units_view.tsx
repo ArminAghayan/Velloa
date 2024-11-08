@@ -787,6 +787,8 @@ const PropertyInfoUnitView: React.FC = () => {
             unit={unit}
             tenant={tenant}
             unitImages={unitImages}
+            onImagesUpdate={setUnitImages}
+            setActiveTab={setActiveTab}
             companyId={companyId}
           />
         );

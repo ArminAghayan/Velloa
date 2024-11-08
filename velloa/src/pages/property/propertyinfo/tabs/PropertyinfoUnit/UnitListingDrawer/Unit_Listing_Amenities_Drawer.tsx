@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Typography, Button, Space, Divider, notification, Spin } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
-import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, Timestamp, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, setDoc,getDoc, Timestamp, serverTimestamp, collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../../../../../firebase-config';
+import { 
+  DollarOutlined,  
+  AppstoreOutlined,  
+  FireOutlined,  
+  CloudOutlined,  
+  ShoppingOutlined,  
+  CarOutlined,  
+  HomeOutlined,  
+} from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -49,6 +58,20 @@ const amenities = {
   ]
 };
 
+// Add this constant to map categories to their icons
+const categoryIcons = {
+  'Included in rent': <DollarOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Interior & Appliances': <AppstoreOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Heating': <FireOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Cooling': <CloudOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Laundry': <ShoppingOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Parking': <CarOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+  'Exterior': <HomeOutlined style={{ marginRight: 8, color: '#28A744' }} />,
+};
+
+// TypeScript type for the icons object
+type CategoryIconsType = typeof categoryIcons;
+
 const UnitListingAmenitiesDrawer: React.FC<UnitListingAmenitiesDrawerProps> = ({
   open,
   onClose,
@@ -60,31 +83,57 @@ const UnitListingAmenitiesDrawer: React.FC<UnitListingAmenitiesDrawerProps> = ({
 }) => {
   const [selectedAmenities, setSelectedAmenities] = useState<AmenityData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [amenitiesDocId, setAmenitiesDocId] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchAmenities = async () => {
       if (!open || !propertyId || !unitId) return;
 
-      setIsLoading(true);
+      console.log('Fetching amenities with:', {
+        propertyId,
+        unitId,
+        companyId
+      });
+
       try {
-        const amenitiesDocRef = doc(db, 'properties', propertyId, 'units', unitId, 'amenities', 'amenities');
-        const amenitiesDoc = await getDoc(amenitiesDocRef);
+        const amenitiesCollectionRef = collection(db, 'properties', propertyId, 'units', unitId, 'amenities');
+        const amenitiesSnapshot = await getDocs(amenitiesCollectionRef);
+        
+        console.log('Amenities snapshot exists:', !amenitiesSnapshot.empty);
+        if (!amenitiesSnapshot.empty) {
+          console.log('First amenity doc ID:', amenitiesSnapshot.docs[0].id);
+        }
 
-        if (amenitiesDoc.exists()) {
+        if (!isMounted) return;
+
+        const amenitiesDoc = amenitiesSnapshot.docs[0];
+
+        if (amenitiesDoc) {
           const data = amenitiesDoc.data();
-          const existingAmenities = data.amenities || [];
-
-          const categorizedAmenities = Object.entries(amenities).map(([category, items]) => ({
+          setAmenitiesDocId(amenitiesDoc.id);
+          
+          // Get the categorized amenities from Firestore
+          const categorizedAmenities = data.categorizedAmenities || {};
+          
+          // Transform the data to match our state structure
+          const formattedAmenities = Object.entries(amenities).map(([category, _]) => ({
             category,
-            items: items.filter(item => existingAmenities.includes(item))
+            items: categorizedAmenities[category] || []
           }));
 
-          setSelectedAmenities(categorizedAmenities);
+          setSelectedAmenities(formattedAmenities);
         } else {
-          setSelectedAmenities([]);
+          // Initialize empty categories if no document exists
+          const emptyCategories = Object.keys(amenities).map(category => ({
+            category,
+            items: []
+          }));
+          setSelectedAmenities(emptyCategories);
         }
       } catch (error) {
-        console.error('Error fetching amenities:', error);
+        console.error('Fetch error details:', error);
         notification.error({
           message: 'Error',
           description: 'Failed to load existing amenities',
@@ -96,6 +145,10 @@ const UnitListingAmenitiesDrawer: React.FC<UnitListingAmenitiesDrawerProps> = ({
     };
 
     fetchAmenities();
+
+    return () => {
+      isMounted = false;
+    };
   }, [open, propertyId, unitId]);
 
   const handleAmenityClick = (amenity: string, category: string) => {
@@ -162,56 +215,67 @@ const UnitListingAmenitiesDrawer: React.FC<UnitListingAmenitiesDrawerProps> = ({
 
   const handleSave = async () => {
     try {
-      // First verify the property exists and get its companyuid
+      setIsLoading(true);
+      
+      console.log('Starting save with:', {
+        propertyId,
+        unitId,
+        companyId,
+        amenitiesDocId
+      });
+
       const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
-      if (!propertyDoc.exists()) {
-        notification.error({
-          message: 'Error',
-          description: 'Property not found',
-          placement: 'topRight'
-        });
-        return;
+      const propertyData = propertyDoc.data();
+      
+      console.log('Property data:', {
+        exists: propertyDoc.exists(),
+        companyuid: propertyData?.companyuid,
+        propertyId: propertyDoc.id
+      });
+
+      if (!propertyDoc.exists() || !propertyData?.companyuid) {
+        throw new Error('Property not found or missing company ID');
       }
 
-      const companyuid = propertyDoc.data().companyuid;
-      if (!companyuid) {
-        notification.error({
-          message: 'Error',
-          description: 'Company ID not found',
-          placement: 'topRight'
-        });
-        return;
-      }
+      const companyuid = propertyData.companyuid;
 
-      // Convert the selected amenities to a flat array of items
-      const flatAmenities = selectedAmenities.flatMap(cat => cat.items);
+      const categorizedAmenities = selectedAmenities.reduce((acc, cat) => {
+        acc[cat.category] = cat.items;
+        return acc;
+      }, {} as Record<string, string[]>);
 
-      // Create the amenities document
       const newAmenities = {
-        amenities: flatAmenities,
-        updatedAt: Timestamp.now(),
-        companyId: companyuid
+        categorizedAmenities,
+        updatedAt: serverTimestamp(),
+        companyId: companyuid  // Make sure to use the companyuid from the property document
       };
 
-      // Use a fixed document ID 'amenities'
-      const amenitiesDocRef = doc(db, 'properties', propertyId, 'units', unitId, 'amenities', 'amenities');
-      await setDoc(amenitiesDocRef, newAmenities, { merge: true });
+      const amenitiesCollectionRef = collection(db, 'properties', propertyId, 'units', unitId, 'amenities');
 
-      onSave(flatAmenities);
-      onClose();
-      
+      if (amenitiesDocId) {
+        await setDoc(doc(amenitiesCollectionRef, amenitiesDocId), newAmenities, { merge: true });
+      } else {
+        const docRef = await addDoc(amenitiesCollectionRef, newAmenities);
+        setAmenitiesDocId(docRef.id);
+      }
+
       notification.success({
         message: 'Success',
-        description: 'Amenities saved successfully',
+        description: 'Unit amenities saved successfully',
         placement: 'topRight'
       });
+      
+      await onSave(Object.values(categorizedAmenities).flat());
+      onClose();
     } catch (error) {
       console.error('Error saving amenities:', error);
       notification.error({
         message: 'Error',
-        description: `Failed to save amenities: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: error instanceof Error ? error.message : 'Failed to save amenities',
         placement: 'topRight'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -252,7 +316,8 @@ const UnitListingAmenitiesDrawer: React.FC<UnitListingAmenitiesDrawerProps> = ({
         <div style={{ marginBottom: '60px' }}>
           {Object.entries(amenities).map(([category, items], index, array) => (
             <div key={category}>
-              <Title level={5} style={{ marginBottom: '16px' }}>
+              <Title level={5} style={{ marginBottom: '16px', display: 'flex', alignItems: 'center' }}>
+                {categoryIcons[category as keyof CategoryIconsType]}
                 {category}
               </Title>
               <div style={{ display: 'flex', flexWrap: 'wrap' }}>

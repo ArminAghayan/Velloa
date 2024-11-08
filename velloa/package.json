@@ -46,6 +46,7 @@
     "firebase": "^10.14.1",
     "firebase-admin": "^12.4.0",
     "framer-motion": "^11.11.9",
+    "groq-sdk": "^0.7.0",
     "lexical": "^0.17.0",
     "mailtrap": "^3.4.0",
     "moment": "^2.30.1",

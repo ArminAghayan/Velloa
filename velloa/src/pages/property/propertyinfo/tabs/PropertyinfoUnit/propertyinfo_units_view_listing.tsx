@@ -13,7 +13,8 @@ import {
   Avatar,
   Carousel,
   Divider,
-  Alert
+  Alert,
+  Skeleton
 } from 'antd';
 import { 
   EditOutlined, 
@@ -33,18 +34,19 @@ import {
   AppstoreOutlined,
   FireOutlined,
   CloudOutlined,
-  ThunderboltOutlined,
-  BorderOuterOutlined,
   CarOutlined,
   SaveOutlined,
   SendOutlined,
-  LinkOutlined
+  LinkOutlined,
 } from '@ant-design/icons';
 import { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../../../../../firebase-config';
 import './PropertyInfoUnitViewListing.css';
 import UnitListingAmenitiesDrawer from './UnitListingDrawer/Unit_Listing_Amenities_Drawer';
+import UnitListingDetailsDrawer from './UnitListingDrawer/unit_Listing_detalis_Drawer';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -61,7 +63,8 @@ interface Unit {
   baths?: number;
   size?: number;
   marketRent?: number;
-  description?: string;
+  ListingDescription?: string;
+  ListingTitle?: string;
   status?: string;
   tenantId?: string;
   amenities?: string[];
@@ -113,18 +116,97 @@ interface PropertyInfoUnitViewListingProps {
   tenant: Tenant | null;
   companyId: string | null;
   unitImages: UnitImage[];
-  onImagesUpdate?: (images: UnitImage[]) => void;
+  onImagesUpdate: (images: UnitImage[]) => void;
+  setActiveTab: (tab: string) => void;
 }
+
+// Update the interfaces to match the Firestore structure
+interface CategorizedAmenities {
+  'Cooling'?: string[];
+  'Exterior'?: string[];
+  'Heating'?: string[];
+  'Included in rent'?: string[];
+  'Interior & Appliances'?: string[];
+  'Laundry'?: string[];
+  'Parking'?: string[];
+}
+
+
+
+// Helper function to safely check array length
+const hasItems = (arr: string[] | undefined): boolean => {
+  console.log('Checking array:', arr);
+  const result = Array.isArray(arr) && arr.length > 0;
+  console.log('Has items:', result);
+  return result;
+};
 
 const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = ({
   property,
-  companyId,
-  unit,
+  unit: initialUnit,
   tenant,
   unitImages,
   onImagesUpdate,
+  setActiveTab,
 }) => {
- 
+  const navigate = useNavigate();
+
+  // Use the renamed prop in the state initialization
+  const [unit, setUnit] = useState<Unit | null>(initialUnit);
+
+  // Add state for amenities
+  const [amenitiesData, setAmenitiesData] = useState<CategorizedAmenities>({
+    'Cooling': [],
+    'Exterior': [],
+    'Heating': [],
+    'Included in rent': [],
+    'Interior & Appliances': [],
+    'Laundry': [],
+    'Parking': [],
+  });
+  const [unitAmenities, setUnitAmenities] = useState<string[]>([]);
+
+  // Fetch amenities when component mounts
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      if (!property?.id || !unit?.unitId) {
+        console.log('Missing property or unit ID:', { propertyId: property?.id, unitId: unit?.unitId });
+        return;
+      }
+      
+      try {
+        const amenitiesRef = collection(db, 'properties', property.id, 'units', unit.unitId, 'amenities');
+        const amenitiesSnapshot = await getDocs(amenitiesRef);
+        
+        console.log('Amenities snapshot:', amenitiesSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
+        
+        if (!amenitiesSnapshot.empty) {
+          const amenitiesDoc = amenitiesSnapshot.docs[0].data();
+          console.log('Raw amenities data:', amenitiesDoc);
+          
+          // Check if we have categorizedAmenities
+          if (amenitiesDoc.categorizedAmenities) {
+            console.log('Setting amenities data:', amenitiesDoc.categorizedAmenities);
+            setAmenitiesData(amenitiesDoc.categorizedAmenities);
+          } else {
+            console.log('No categorizedAmenities found in document');
+          }
+        } else {
+          console.log('No amenities documents found');
+        }
+      } catch (error) {
+        console.error('Error fetching amenities:', error);
+      }
+    };
+
+    fetchAmenities();
+  }, [property?.id, unit?.unitId]);
+
+  // Add a debug effect to monitor state changes
+  useEffect(() => {
+    console.log('Current amenitiesData state:', amenitiesData);
+  }, [amenitiesData]);
+
   const [isPublished, setIsPublished] = useState(false);
 
   // Add state to manage images locally
@@ -232,8 +314,9 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
   }, [images]);
 
   const [isAmenitiesDrawerOpen, setIsAmenitiesDrawerOpen] = useState(false);
+  const [isListingDetailsDrawerOpen, setIsListingDetailsDrawerOpen] = useState(false);
 
-  const handleAmenitiesSave = (amenities: string[]) => {
+  const handleAmenitiesSave = async (amenities: string[]) => {
     if (!property?.id || !unit?.unitId || !companyId) {
       notification.error({
         message: 'Error',
@@ -242,7 +325,159 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
       });
       return;
     }
+
+    try {
+      // Fetch the updated amenities data after save
+      const amenitiesRef = collection(db, 'properties', property.id, 'units', unit.unitId, 'amenities');
+      const amenitiesSnapshot = await getDocs(amenitiesRef);
+      
+      if (!amenitiesSnapshot.empty) {
+        const amenitiesDoc = amenitiesSnapshot.docs[0].data();
+        if (amenitiesDoc.categorizedAmenities) {
+          setAmenitiesData(amenitiesDoc.categorizedAmenities);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing amenities:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to refresh amenities list',
+        placement: 'topRight',
+      });
+    }
+
     setIsAmenitiesDrawerOpen(false);
+  };
+
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch company ID when component mounts
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userCompanyId = userDoc.data().companyuid;
+            console.log('Company ID from user doc:', userCompanyId);
+            setCompanyId(userCompanyId);
+          } else {
+            console.error('No user document found');
+          }
+        } catch (error) {
+          console.error('Error fetching user doc:', error);
+        }
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Render loading state if still fetching company ID
+  if (isLoading) {
+    return (
+      <Row gutter={16}>
+        <Col span={16}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {/* Property Card Skeleton */}
+            <Card>
+              <Skeleton active paragraph={{ rows: 4 }} />
+              <Row gutter={16} style={{ marginTop: 16 }}>
+                <Col span={16}>
+                  <Skeleton.Image style={{ width: '100%', height: 300 }} />
+                </Col>
+                <Col span={8}>
+                  <Card>
+                    <Skeleton active paragraph={{ rows: 2 }} />
+                  </Card>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* Listing Details Skeleton */}
+            <Card>
+              <Skeleton active paragraph={{ rows: 3 }} />
+            </Card>
+
+            {/* Photos Skeleton */}
+            <Card>
+              <Skeleton.Image style={{ width: '100%', height: 160 }} />
+            </Card>
+
+            {/* Amenities Skeleton */}
+            <Card>
+              <Skeleton active paragraph={{ rows: 6 }} />
+            </Card>
+          </Space>
+        </Col>
+
+        <Col span={8}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {/* Action Buttons Skeleton */}
+            <Row gutter={8}>
+              {[1, 2, 3].map(i => (
+                <Col span={8} key={i}>
+                  <Skeleton.Button active block style={{ height: 40 }} />
+                </Col>
+              ))}
+            </Row>
+
+            {/* Listing Platforms Card Skeleton */}
+            <Card>
+              <Skeleton active paragraph={{ rows: 4 }} />
+            </Card>
+
+            {/* Share Listing Card Skeleton */}
+            <Card>
+              <Skeleton active paragraph={{ rows: 4 }} />
+            </Card>
+
+            {/* Contact Card Skeleton */}
+            <Card>
+              <Skeleton.Avatar active size={64} style={{ marginBottom: 16 }} />
+              <Skeleton active paragraph={{ rows: 3 }} />
+            </Card>
+          </Space>
+        </Col>
+      </Row>
+    );
+  }
+
+  // Add this function to fetch unit details
+  const fetchUnitDetails = async () => {
+    if (!property?.id || !unit?.unitId) return;
+    
+    try {
+      const unitRef = doc(db, 'properties', property.id, 'units', unit.unitId);
+      const unitDoc = await getDoc(unitRef);
+      
+      if (unitDoc.exists()) {
+        const unitData = unitDoc.data() as Unit;
+        // Update the unit data in your component
+        setUnit({ ...unit, ...unitData });
+      }
+    } catch (error) {
+      console.error('Error fetching unit details:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to refresh listing details',
+        placement: 'topRight',
+      });
+    }
+  };
+
+  // Update the handler function
+  const handleListingDetailsSubmit = async (values: any) => {
+    setIsListingDetailsDrawerOpen(false);
+    // Fetch updated unit details after drawer closes
+    await fetchUnitDetails();
+  };
+
+  const handlePhotoEditClick = () => {
+    setActiveTab('images');
   };
 
   return (
@@ -339,22 +574,26 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
             {/* Listing Details Section */}
             <Card
               title="Listing details"
-              extra={<Button type="text" icon={<EditOutlined />} />}
+              extra={
+                <Button 
+                  type="text" 
+                  icon={<EditOutlined />} 
+                  onClick={() => setIsListingDetailsDrawerOpen(true)}
+                />
+              }
               style={{ minHeight: '250px' }}
             >
-              <Title level={5}>Luxurious {unit?.beds}-Bedroom Home in {property?.propertyName}</Title>
+              <Title level={5}>{unit?.ListingTitle || 'No title available'}</Title>
               
               <Text>
-                Discover the charm of this stunning {unit?.beds}-bedroom, {unit?.baths}-bathroom single-family home 
-                located at {property?.propertyName}. Boasting a generous total area of {unit?.size} square feet, 
-                this spacious property offers ample room for family gatherings and entertaining guests.
+                {unit?.ListingDescription || 'No description available'}
               </Text>
             </Card>
 
             {/* Photos Card */}
             <Card
-              title="Photos"
-              extra={<Button type="text" icon={<EditOutlined />} />}
+              title={`Photos (${images.length})`}
+              extra={<Button type="text" icon={<EditOutlined />} onClick={handlePhotoEditClick} />}
               bodyStyle={{ padding: '16px' }}
             >
               {images.length > 0 ? (
@@ -433,113 +672,171 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
               }
             >
               <Row gutter={[24, 16]}>
-                {/* Left Column */}
+                {/* First Row */}
                 <Col span={12}>
-                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    {/* Included in Rent */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <DollarOutlined style={{ color: '#1890ff' }}/>
-                        <Text strong>Included in Rent:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.includedInRent || '--'}</Text>
-                      </Space>
+                  {/* Included in Rent */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <DollarOutlined style={{ color: '#1890ff' }}/>
+                      <Text strong>Included in Rent:</Text>
                     </Space>
-
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Interior */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <HomeOutlined style={{ color: '#1890ff' }}/>
-                        <Text strong>Interior:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.interior || '--'}</Text>
-                      </Space>
-                    </Space>
-
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Appliances */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <AppstoreOutlined style={{ color: '#1890ff' }}/>
-                        <Text strong>Appliances:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.appliances || '--'}</Text>
-                      </Space>
-                    </Space>
-
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Heating */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <FireOutlined style={{ color: '#1890ff' }}/>
-                        <Text strong>Heating:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.heating || '--'}</Text>
-                      </Space>
-                    </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Included in rent']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Included in rent']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No included items</Text>
+                      )}
+                    </div>
                   </Space>
                 </Col>
 
-                {/* Right Column */}
                 <Col span={12}>
+                  {/* Interior & Appliances */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <AppstoreOutlined style={{ color: '#28A744' }}/>
+                      <Text strong>Interior & Appliances:</Text>
+                    </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Interior & Appliances']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Interior & Appliances']?.map((amenity: string) => (
+                            <Col span={8} key={amenity}>
+                              <Space>
+                                <span style={{ color: '#28A744' }}>•</span>
+                                <Text>{amenity}</Text>
+                              </Space>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No interior features listed</Text>
+                      )}
+                    </div>
+                  </Space>
+                </Col>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                {/* Second Row */}
+                <Col span={4}>
+                  {/* Heating */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <FireOutlined style={{ color: '#52c41a' }}/>
+                      <Text strong>Heating:</Text>
+                    </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Heating']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Heating']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No heating features listed</Text>
+                      )}
+                    </div>
+                  </Space>
+                </Col>
+
+                <Col span={4}>
                   {/* Cooling */}
-                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <CloudOutlined style={{ color: '#52c41a' }}/>
-                        <Text strong>Cooling:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.cooling || '--'}</Text>
-                      </Space>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <CloudOutlined style={{ color: '#52c41a' }}/>
+                      <Text strong>Cooling:</Text>
                     </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Cooling']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Cooling']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No cooling features listed</Text>
+                      )}
+                    </div>
+                  </Space>
+                </Col>
 
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Laundry */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <ThunderboltOutlined style={{ color: '#52c41a' }}/>
-                        <Text strong>Laundry:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.laundry || '--'}</Text>
-                      </Space>
+                <Col span={4}>
+                  {/* Laundry */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <AppstoreOutlined style={{ color: '#52c41a' }}/>
+                      <Text strong>Laundry:</Text>
                     </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Laundry']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Laundry']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No laundry features listed</Text>
+                      )}
+                    </div>
+                  </Space>
+                </Col>
 
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Parking */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <CarOutlined style={{ color: '#52c41a' }}/>
-                        <Text strong>Parking:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.parking || '--'}</Text>
-                      </Space>
+                <Col span={6}>
+                  {/* Parking */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <CarOutlined style={{ color: '#52c41a' }}/>
+                      <Text strong>Parking:</Text>
                     </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Parking']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Parking']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No parking features listed</Text>
+                      )}
+                    </div>
+                  </Space>
+                </Col>
 
-                    <Divider style={{ margin: '8px 0' }} />
-
-                    {/* Exterior */}
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Space>
-                        <BorderOuterOutlined style={{ color: '#52c41a' }}/>
-                        <Text strong>Exterior:</Text>
-                      </Space>
-                      <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                        <Text>{unit?.exterior || '--'}</Text>
-                      </Space>
+                <Col span={6}>
+                  {/* Exterior */}
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <HomeOutlined style={{ color: '#52c41a' }}/>
+                      <Text strong>Exterior:</Text>
                     </Space>
+                    <div style={{ marginLeft: '24px' }}>
+                      {hasItems(amenitiesData['Exterior']) ? (
+                        <Row gutter={[8, 8]}>
+                          {amenitiesData['Exterior']?.map((amenity: string) => (
+                            <Col span={24} key={amenity}>
+                              <Text>{amenity}</Text>
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <Text type="secondary">No exterior features listed</Text>
+                      )}
+                    </div>
                   </Space>
                 </Col>
               </Row>
@@ -755,16 +1052,27 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
           </Space>
         </Col>
       </Row>
-      {property?.id && unit?.unitId && (
-        <UnitListingAmenitiesDrawer
-          open={isAmenitiesDrawerOpen}
-          onClose={() => setIsAmenitiesDrawerOpen(false)}
-          onSave={handleAmenitiesSave}
-          currentAmenities={unit.amenities || []}
-          propertyId={property.id}
-          unitId={unit.unitId}
-          companyId={companyId || ''} 
-        />
+      {property?.id && unit?.unitId && companyId && (
+        <>
+          <UnitListingAmenitiesDrawer
+            open={isAmenitiesDrawerOpen}
+            onClose={() => setIsAmenitiesDrawerOpen(false)}
+            onSave={handleAmenitiesSave}
+            currentAmenities={unitAmenities}
+            propertyId={property.id}
+            unitId={unit.unitId}
+            companyId={companyId || ''} 
+          />
+
+          <UnitListingDetailsDrawer
+            unitId={unit.unitId}
+            propertyId={property.id}
+            open={isListingDetailsDrawerOpen}
+            onClose={() => setIsListingDetailsDrawerOpen(false)}
+            onSubmit={handleListingDetailsSubmit}
+            companyId={companyId || ''} 
+          /> 
+        </>
       )}
     </div>
   );

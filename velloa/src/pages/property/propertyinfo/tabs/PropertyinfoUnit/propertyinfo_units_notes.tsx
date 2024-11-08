@@ -45,7 +45,6 @@ import {
   updateDoc, 
   deleteDoc, 
   Timestamp,
-  setDoc,
 } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { db } from '../../../../../firebase-config';

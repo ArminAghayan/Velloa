@@ -4,7 +4,7 @@
 }
 
 .custom-alert .ant-alert-icon {
-    font-size: 18px !important;
+    font-size: 24px !important;
     color: #1677FF !important;
 }
 
@@ -12,3 +12,15 @@
     margin-left: 12px;
     color: #000000 !important;
 } 
+
+
+.custom-carousel-dots li button {
+    background: #28A744 !important;
+  }
+  .ant-carousel .slick-prev,
+  .ant-carousel .slick-next {
+    color: #000000 !important;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+  
