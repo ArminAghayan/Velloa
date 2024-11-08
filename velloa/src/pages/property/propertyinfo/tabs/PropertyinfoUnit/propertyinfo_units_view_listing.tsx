@@ -38,6 +38,7 @@ import {
   SaveOutlined,
   SendOutlined,
   LinkOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc, collection, getDocs, getDoc } from 'firebase/firestore';
@@ -45,8 +46,9 @@ import { db } from '../../../../../firebase-config';
 import './PropertyInfoUnitViewListing.css';
 import UnitListingAmenitiesDrawer from './UnitListingDrawer/Unit_Listing_Amenities_Drawer';
 import UnitListingDetailsDrawer from './UnitListingDrawer/unit_Listing_detalis_Drawer';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { getAuth } from 'firebase/auth';
+import UnitListingPropertyDrawer from './UnitListingDrawer/unit_Listing_property_drawer';
+import UnitListingContactDrawer from './UnitListingDrawer/unit_Listing_contact_drawer';
 
 const { Title, Text } = Typography;
 
@@ -76,6 +78,15 @@ interface Unit {
   heating?: string;
   exterior?: string;
   includedInRent?: string;
+  contactInfo?: {
+    type: 'user' | 'custom';
+    userId?: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    email?: string;
+    phoneNumber?: string;
+  };
 }
 
 interface Tenant {
@@ -141,6 +152,15 @@ const hasItems = (arr: string[] | undefined): boolean => {
   return result;
 };
 
+const formatPhoneNumber = (value: string): string => {
+  if (!value) return '';
+  const phoneNumber = value.replace(/\D/g, '');
+  if (phoneNumber.length >= 10) {
+    return `(${phoneNumber.slice(0, 3)})-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  }
+  return phoneNumber;
+};
+
 const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = ({
   property,
   unit: initialUnit,
@@ -149,12 +169,9 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
   onImagesUpdate,
   setActiveTab,
 }) => {
-  const navigate = useNavigate();
-
-  // Use the renamed prop in the state initialization
+  // Move all hooks to the top level
+  const [contactInfo, setContactInfo] = useState<any>(null);
   const [unit, setUnit] = useState<Unit | null>(initialUnit);
-
-  // Add state for amenities
   const [amenitiesData, setAmenitiesData] = useState<CategorizedAmenities>({
     'Cooling': [],
     'Exterior': [],
@@ -165,57 +182,87 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     'Parking': [],
   });
   const [unitAmenities, setUnitAmenities] = useState<string[]>([]);
+  const [isPublished, setIsPublished] = useState(false);
+  const [images, setImages] = useState<UnitImage[]>(unitImages);
+  const [isAmenitiesDrawerOpen, setIsAmenitiesDrawerOpen] = useState(false);
+  const [isListingDetailsDrawerOpen, setIsListingDetailsDrawerOpen] = useState(false);
+  const [isPropertyDrawerOpen, setIsPropertyDrawerOpen] = useState(false);
+  const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch amenities when component mounts
+  // Combined fetch effect
   useEffect(() => {
-    const fetchAmenities = async () => {
-      if (!property?.id || !unit?.unitId) {
-        console.log('Missing property or unit ID:', { propertyId: property?.id, unitId: unit?.unitId });
-        return;
-      }
-      
+    const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
-        const amenitiesRef = collection(db, 'properties', property.id, 'units', unit.unitId, 'amenities');
-        const amenitiesSnapshot = await getDocs(amenitiesRef);
-        
-        console.log('Amenities snapshot:', amenitiesSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() })));
-        
-        if (!amenitiesSnapshot.empty) {
-          const amenitiesDoc = amenitiesSnapshot.docs[0].data();
-          console.log('Raw amenities data:', amenitiesDoc);
-          
-          // Check if we have categorizedAmenities
-          if (amenitiesDoc.categorizedAmenities) {
-            console.log('Setting amenities data:', amenitiesDoc.categorizedAmenities);
-            setAmenitiesData(amenitiesDoc.categorizedAmenities);
-          } else {
-            console.log('No categorizedAmenities found in document');
+        // Fetch company ID
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userCompanyId = userDoc.data().companyuid;
+            setCompanyId(userCompanyId);
           }
-        } else {
-          console.log('No amenities documents found');
         }
+
+        // Fetch unit details directly from Firestore
+        if (property?.id && initialUnit?.unitId) {
+          const unitRef = doc(db, 'properties', property.id, 'units', initialUnit.unitId);
+          const unitDoc = await getDoc(unitRef);
+          
+          if (unitDoc.exists()) {
+            const unitData = unitDoc.data() as Unit;
+            setUnit({ ...initialUnit, ...unitData });
+
+            // Fetch contact info based on the fresh unit data
+            if (unitData.contactInfo?.type === 'user' && unitData.contactInfo?.userId) {
+              const userDoc = await getDoc(doc(db, 'users', unitData.contactInfo.userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                setContactInfo({
+                  firstName: userData.firstName,
+                  middleName: userData.middleName,
+                  lastName: userData.lastName,
+                  phoneNumber: userData.phoneNumber,
+                  email: userData.email,
+                });
+              }
+            } else if (unitData.contactInfo?.type === 'custom') {
+              setContactInfo(unitData.contactInfo);
+            }
+
+            // Fetch amenities
+            const amenitiesRef = collection(db, 'properties', property.id, 'units', initialUnit.unitId, 'amenities');
+            const amenitiesSnapshot = await getDocs(amenitiesRef);
+            
+            if (!amenitiesSnapshot.empty) {
+              const amenitiesDoc = amenitiesSnapshot.docs[0].data();
+              if (amenitiesDoc.categorizedAmenities) {
+                setAmenitiesData(amenitiesDoc.categorizedAmenities);
+              }
+            }
+          }
+        }
+
+        // Set initial images
+        setImages(unitImages);
+
       } catch (error) {
-        console.error('Error fetching amenities:', error);
+        console.error('Error fetching initial data:', error);
+        notification.error({
+          message: 'Error',
+          description: 'Failed to load some data. Please try refreshing the page.',
+          placement: 'topRight',
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchAmenities();
-  }, [property?.id, unit?.unitId]);
-
-  // Add a debug effect to monitor state changes
-  useEffect(() => {
-    console.log('Current amenitiesData state:', amenitiesData);
-  }, [amenitiesData]);
-
-  const [isPublished, setIsPublished] = useState(false);
-
-  // Add state to manage images locally
-  const [images, setImages] = useState<UnitImage[]>(unitImages);
-
-  // Update local images state when unitImages prop changes
-  useEffect(() => {
-    setImages(unitImages);
-  }, [unitImages]);
+    fetchInitialData();
+  }, [property?.id, initialUnit?.unitId, unitImages]); // Updated dependencies
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -313,9 +360,6 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     return favoriteImage || images[0];
   }, [images]);
 
-  const [isAmenitiesDrawerOpen, setIsAmenitiesDrawerOpen] = useState(false);
-  const [isListingDetailsDrawerOpen, setIsListingDetailsDrawerOpen] = useState(false);
-
   const handleAmenitiesSave = async (amenities: string[]) => {
     if (!property?.id || !unit?.unitId || !companyId) {
       notification.error({
@@ -349,34 +393,40 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     setIsAmenitiesDrawerOpen(false);
   };
 
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch company ID when component mounts
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userCompanyId = userDoc.data().companyuid;
-            console.log('Company ID from user doc:', userCompanyId);
-            setCompanyId(userCompanyId);
-          } else {
-            console.error('No user document found');
-          }
-        } catch (error) {
-          console.error('Error fetching user doc:', error);
-        }
+  // Add this function to fetch unit details
+  const fetchUnitDetails = async () => {
+    if (!property?.id || !unit?.unitId) return;
+    
+    try {
+      const unitRef = doc(db, 'properties', property.id, 'units', unit.unitId);
+      const unitDoc = await getDoc(unitRef);
+      
+      if (unitDoc.exists()) {
+        const unitData = unitDoc.data() as Unit;
+        // Update the unit data in your component
+        setUnit({ ...unit, ...unitData });
       }
-      setIsLoading(false);
-    });
+    } catch (error) {
+      console.error('Error fetching unit details:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to refresh listing details',
+        placement: 'topRight',
+      });
+    }
+  };
 
-    return () => unsubscribe();
-  }, []);
+  // Update the handler function
+  const handleListingDetailsSubmit = async (values: any) => {
+    setIsListingDetailsDrawerOpen(false);
+    // Fetch updated unit details after drawer closes
+    await fetchUnitDetails();
+  };
 
-  // Render loading state if still fetching company ID
+  const handlePhotoEditClick = () => {
+    setActiveTab('images');
+  };
+
   if (isLoading) {
     return (
       <Row gutter={16}>
@@ -387,7 +437,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
               <Skeleton active paragraph={{ rows: 4 }} />
               <Row gutter={16} style={{ marginTop: 16 }}>
                 <Col span={16}>
-                  <Skeleton.Image style={{ width: '100%', height: 300 }} />
+                  <div style={{ width: '100%', height: '300px', background: '#f0f0f0', borderRadius: '8px' }} />
                 </Col>
                 <Col span={8}>
                   <Card>
@@ -403,8 +453,22 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
             </Card>
 
             {/* Photos Skeleton */}
-            <Card>
-              <Skeleton.Image style={{ width: '100%', height: 160 }} />
+            <Card
+              title="Photos (0)"
+              extra={<Skeleton.Button active size="small" style={{ width: 70 }} />}
+              bodyStyle={{ padding: '16px' }}
+            >
+              <div style={{ position: 'relative' }}>
+                <Row gutter={16} >
+                  {[1, 2, 3].map((index) => (
+                    <Col span={8} key={index}>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ width: '100%', height: '160px', background: '#f0f0f0', borderRadius: '8px' }} />
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
             </Card>
 
             {/* Amenities Skeleton */}
@@ -446,40 +510,6 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     );
   }
 
-  // Add this function to fetch unit details
-  const fetchUnitDetails = async () => {
-    if (!property?.id || !unit?.unitId) return;
-    
-    try {
-      const unitRef = doc(db, 'properties', property.id, 'units', unit.unitId);
-      const unitDoc = await getDoc(unitRef);
-      
-      if (unitDoc.exists()) {
-        const unitData = unitDoc.data() as Unit;
-        // Update the unit data in your component
-        setUnit({ ...unit, ...unitData });
-      }
-    } catch (error) {
-      console.error('Error fetching unit details:', error);
-      notification.error({
-        message: 'Error',
-        description: 'Failed to refresh listing details',
-        placement: 'topRight',
-      });
-    }
-  };
-
-  // Update the handler function
-  const handleListingDetailsSubmit = async (values: any) => {
-    setIsListingDetailsDrawerOpen(false);
-    // Fetch updated unit details after drawer closes
-    await fetchUnitDetails();
-  };
-
-  const handlePhotoEditClick = () => {
-    setActiveTab('images');
-  };
-
   return (
     <div>
       <Alert
@@ -499,7 +529,13 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
               extra={
                 <Space>
                   <Tag color="orange">DRAFT</Tag>
-                  <Button type="text" icon={<EditOutlined />} />
+                  <Button 
+                    type="text" 
+                    icon={<EditOutlined />} 
+                    onClick={() => setIsPropertyDrawerOpen(true)}
+                  >
+                    Edit
+                  </Button>
                 </Space>
               }
             >
@@ -511,7 +547,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
 
                 {/* Date and Payment Info */}
                 <Text style={{ color: '#28A744' }}>
-                Monthly payments | ${tenant?.rentAmount || '0'} | Deposit of ${tenant?.depositAmount || '0'}
+                Monthly payments | ${tenant?.rentAmount || '0'}
                 </Text>
 
                 {/* Property Stats */}
@@ -537,7 +573,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                 {/* Image and Leads Section */}
                 <Row gutter={16}>
                   <Col span={16}>
-                    {mainImage && (
+                    {mainImage ? (
                       <div style={{ position: 'relative' }}>
                         <img 
                           key={mainImage.id}
@@ -550,6 +586,23 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                             borderRadius: '8px'
                           }}
                         />
+                      </div>
+                    ) : (
+                      <div 
+                        style={{ 
+                          width: '100%', 
+                          height: '300px', 
+                          background: '#f5f5f5',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <CameraOutlined style={{ fontSize: '32px', color: '#bfbfbf' }} />
+                        <Text type="secondary">No images available</Text>
                       </div>
                     )}
                   </Col>
@@ -923,21 +976,92 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
               </Text>
               
               <Row gutter={[16, 16]} style={{ marginTop: '20px' }}>
-                {['Zillow', 'Zolo', 'Hotpads', 'Trulia', 'Zumper', 'Rental Source', 'Website'].map(platform => (
-                  <Col key={platform}>
-                    <Button 
-                      icon={<LinkOutlined />}
-                      style={{ 
-                        height: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      {platform}
-                    </Button>
-                  </Col>
-                ))}
+                <Space wrap>
+                  <Button type="default">
+                    <Space>
+                    <LinkOutlined />
+                      <img 
+                        src={`${process.env.PUBLIC_URL}/assets/zillow-logo.png`}
+                        alt="Zillow" 
+                        height={15}
+                        style={{ objectFit: 'contain' }}
+                      />
+                    </Space>
+                  </Button>
+
+                  
+                  <Button type="default">
+                    <Space>
+                    <LinkOutlined />
+                      <img 
+                        src={`${process.env.PUBLIC_URL}/assets/trulia_logo.png`}
+                        alt="Trulia" 
+                        height={15}
+                        style={{ objectFit: 'contain' }}
+                      />
+                    </Space>
+                  </Button>
+                  <Button type="default">
+                    <Space>
+                      <LinkOutlined />
+                      <img 
+                        src={`${process.env.PUBLIC_URL}/assets/hotpads.svg`}
+                        alt="Hotpads" 
+                        height={20}
+                        style={{ objectFit: 'contain' }}
+                      />
+                    </Space>
+                  </Button>
+
+
+                  <Button type="default">
+                    <Space>
+                      <LinkOutlined />
+                      <img 
+                        src={`${process.env.PUBLIC_URL}/assets/zolo-logo.png`}
+                        alt="Zolo" 
+                        height={15}
+                        style={{ objectFit: 'contain' }}
+                      />
+                    </Space>
+                  </Button>
+
+                  <Button type="default">
+                    <Space>
+                      <LinkOutlined />
+                      <img 
+                        src={`${process.env.PUBLIC_URL}/assets/zumper-logo.svg`}
+                        alt="Zumper" 
+                        height={30}
+                        style={{ objectFit: 'contain' }}
+                      />
+                    </Space>
+                  </Button>
+
+                  <Button type="default">
+                    <Space>
+                      <LinkOutlined />
+                      <span style={{ 
+                        fontWeight: 500,
+                        fontSize: '14px'
+                      }}>
+                        RentalSource
+                      </span>
+                    </Space>
+                  </Button>
+
+                  <Button type="default">
+                    <Space>
+                      <LinkOutlined /> 
+                      <span style={{ 
+                        fontWeight: 500,
+                        fontSize: '14px'
+                      }}>
+                        Website
+                      </span>
+                    </Space>
+                  </Button>
+                </Space>
               </Row>
             </Card>
 
@@ -1013,7 +1137,13 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
             {/* Contact Card */}
             <Card 
               title="Contact"
-              extra={<Button type="text" icon={<EditOutlined />} />}
+              extra={
+                <Button 
+                  type="text" 
+                  icon={<EditOutlined />} 
+                  onClick={() => setIsContactDrawerOpen(true)}
+                />
+              }
             >
               <Space direction="vertical" align="center" style={{ width: '100%' }}>
                 <Avatar 
@@ -1024,35 +1154,47 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                     fontSize: '24px'
                   }}
                 >
-                  LR
+                  {contactInfo ? (
+                    `${contactInfo.firstName?.[0] || ''}${contactInfo.lastName?.[0] || ''}`
+                  ) : 'NA'}
                 </Avatar>
                 <Text strong style={{ fontSize: '16px', marginTop: '8px' }}>
-                  Logan Ransley
+                  {contactInfo ? (
+                    <>
+                      {contactInfo.firstName}
+                      {contactInfo.middleName ? ` ${contactInfo.middleName} ` : ' '}
+                      {contactInfo.lastName}
+                    </>
+                  ) : 'No Contact Set'}
                 </Text>
                 <Space direction="vertical" align="center">
-                  <Button 
-                    type="text" 
-                    icon={<MailOutlined />}
-                    style={{ color: '#595959' }}
-                    onClick={() => handleCopy('logan@landlordstudio.com', 'Email')}
-                  >
-                    logan@Velloaapp.com
-                  </Button>
-                  <Button 
-                    type="text" 
-                    icon={<PhoneOutlined />}
-                    style={{ color: '#595959' }}
-                    onClick={() => handleCopy('No phone number', 'Phone number')}
-                  >
-                    No phone number
-                  </Button>
+                  {contactInfo?.email && (
+                    <Button 
+                      type="text" 
+                      icon={<MailOutlined />}
+                      style={{ color: '#595959' }}
+                      onClick={() => handleCopy(contactInfo.email, 'Email')}
+                    >
+                      {contactInfo.email}
+                    </Button>
+                  )}
+                  {contactInfo?.phoneNumber && (
+                    <Button 
+                      type="text" 
+                      icon={<PhoneOutlined />}
+                      style={{ color: '#595959' }}
+                      onClick={() => handleCopy(contactInfo.phoneNumber, 'Phone number')}
+                    >
+                      {formatPhoneNumber(contactInfo.phoneNumber)}
+                    </Button>
+                  )}
                 </Space>
               </Space>
             </Card>
           </Space>
         </Col>
       </Row>
-      {property?.id && unit?.unitId && companyId && (
+      {property?.id && unit?.unitId && (
         <>
           <UnitListingAmenitiesDrawer
             open={isAmenitiesDrawerOpen}
@@ -1072,6 +1214,23 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
             onSubmit={handleListingDetailsSubmit}
             companyId={companyId || ''} 
           /> 
+
+          <UnitListingPropertyDrawer
+            open={isPropertyDrawerOpen}
+            onClose={() => setIsPropertyDrawerOpen(false)}
+            propertyId={property.id}
+            unitId={unit.unitId}
+            onSubmit={fetchUnitDetails}
+          />
+
+          <UnitListingContactDrawer
+            open={isContactDrawerOpen}
+            onClose={() => setIsContactDrawerOpen(false)}
+            propertyId={property.id}
+            unitId={unit.unitId}
+            onSubmit={fetchUnitDetails}
+            companyId={companyId || ''} 
+          />
         </>
       )}
     </div>

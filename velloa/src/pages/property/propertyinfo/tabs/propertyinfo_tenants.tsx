@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch, Modal, Card, InputNumber, Divider, Dropdown, Menu } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Tag, Steps, Typography, Select, Switch, Modal, Card, InputNumber, Divider, Dropdown, Menu, Spin } from 'antd';
 import { db } from '../../../../firebase-config';
 import { doc, getDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
-import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ClockCircleFilled, CalendarOutlined, ReloadOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ClockCircleFilled, CalendarOutlined, ReloadOutlined, EllipsisOutlined, LoadingOutlined } from '@ant-design/icons';
 import { IconPigMoney, IconPigOff, IconCashBanknote, IconCashBanknoteOff } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { Tenant as ReduxTenant } from '../../../../components/redux/tenantslice';
@@ -1121,135 +1121,68 @@ const PropertyInfoTenants: React.FC<TenantsProps> = ({ propertyId }) => {
 
   return (
     <div className="tenants-container">
-      <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-        <Col span={16}>
-          <Row gutter={16}>
-            <Col>
-              <Input
-                className="tenant-search-input"
-                placeholder="Search tenants"
-                value={searchText}
-                onChange={handleSearchChange}
-              />
-            </Col>
-            <Col>
-              <Select
-                className="tenant-dropdown-input"
-                placeholder="Filter by status"
-                onChange={handleFilterChange}
-                allowClear
-              >
-                <Option value="Current">Current</Option>
-                <Option value="Past">Past</Option>
-              </Select>
-            </Col>
-          </Row>
-        </Col>
-        <Col span={8} style={{ textAlign: 'right' }}>
-          <Button type="primary" className="new-tenant-button" onClick={handleNewTenantClick}>
-            <PlusOutlined /> New Tenant
-          </Button>
-        </Col>
-      </Row>
-
-      <Table
-        columns={columns}
-        dataSource={filteredTenants}
-        loading={loading}
-        onRow={(record) => ({
-          onClick: (event) => {
-            // Prevent row click when clicking on the ellipsis button
-            if ((event.target as HTMLElement).closest('.ant-dropdown-trigger')) {
-              event.stopPropagation();
-            } else {
-              handleRowClick(record);
-            }
-          },
-        })}
-      />
-
-      <Drawer
-        title="New Tenant"
-        width="50%"
-        onClose={handleDrawerClose}
-        visible={drawerVisible}
-        bodyStyle={{ paddingBottom: 80 }}
-        footer={
-          <div style={{ textAlign: 'right' }}>
-            {currentStep > 0 && (
-              <Button style={{ marginRight: 8 }} onClick={prevStep}>
-                Previous
-              </Button>
-            )}
-            {currentStep < steps.length - 1 && (
-              <Button type="primary" onClick={nextStep}>
-                Next
-              </Button>
-            )}
-            {currentStep === steps.length - 1 && (
-              <Button type="primary" onClick={handleFormSubmit}>
-                Submit
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <Steps current={currentStep} size="small" direction="horizontal" type="navigation" labelPlacement="vertical">
-          {steps.map(item => (
-            <Step key={item.title} title={item.title} description={item.content} />
-          ))}
-        </Steps>
-        <Form layout="vertical" form={form} initialValues={{ rentAmount: selectedUnitRent, leaseType, unitId: selectedUnit }} onFinish={handleFormSubmit}>
-          <div className="steps-content">
-            {renderStepContent(currentStep)}
-          </div>
-        </Form>
-      </Drawer>
-
-      <Modal
-        title="Select Tenant"
-        visible={isApplicationModalVisible}
-        onOk={handleApplicationModalOk}
-        onCancel={handleApplicationModalCancel}
-        width={800}
-      >
-        <Row gutter={16} style={{ marginBottom: '16px' }}>
-          <Col span={18}>
-            <Input
-              className='tenant-search-input'
-              placeholder="Search applications"
-              onChange={handleApplicationSearchChange}
-            />
+      <div className="tenants-box">
+        <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+          <Col xs={24} sm={24} md={12} lg={12}>
+            <Row gutter={16} wrap={false}>
+              <Col>
+                <Input
+                  className="tenant-search-input"
+                  placeholder="Search tenants"
+                  value={searchText}
+                  onChange={handleSearchChange}
+                />
+              </Col>
+              <Col>
+                <Select
+                  className="tenant-dropdown-input"
+                  placeholder="Filter by status"
+                  onChange={handleFilterChange}
+                  allowClear
+                  style={{ width: 150 }}
+                >
+                  <Option value="Active">Active</Option>
+                  <Option value="Inactive">Inactive</Option>
+                  <Option value="Pending">Pending</Option>
+                </Select>
+              </Col>
+            </Row>
           </Col>
-          <Col span={6} style={{ textAlign: 'right' }}>
-            <Button
-              className='select-tenant-reload'
-              icon={<ReloadOutlined />}
-              onClick={fetchApplications}
+          <Col 
+            xs={24} 
+            sm={24} 
+            md={12} 
+            lg={12} 
+            style={{ 
+              textAlign: 'right',
+              marginTop: 16
+            }}
+            className="new-tenant-button-container"
+          >
+            <Button 
+              className="new-tenant-button"
+              onClick={handleNewTenantClick} 
+              type="default" 
+              icon={<PlusOutlined />}
             >
-              Reload
+              Add Tenant
             </Button>
           </Col>
         </Row>
+
         <Table
-          columns={applicationColumns}
-          dataSource={filteredApplications}
-          rowClassName={(record) => (record.applicationId === selectedApplication?.applicationId ? 'selected-row' : '')}
+          columns={columns}
+          dataSource={filteredTenants}
+          loading={{
+            spinning: loading,
+            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+          }}
+          rowKey="tenantId"
           onRow={(record) => ({
-            onClick: () => {
-              setSelectedApplication(record);
-              setSelectedUnit(null);  // Reset the selected unit
-              setSelectedUnitRent(null);  // Reset the selected unit rent
-              setIsApplicationModalVisible(false);
-              form.setFieldsValue({
-                rentAmount: null,
-                unitId: null,
-              });
-            },
+            onClick: () => handleRowClick(record),
           })}
-          rowKey="applicationId"
         />
-      </Modal>
+      </div>
     </div>
   );
 };

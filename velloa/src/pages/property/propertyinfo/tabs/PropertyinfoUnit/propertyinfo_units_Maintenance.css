@@ -1,26 +1,55 @@
-.search-input {
-    height: 40px;
-    border-radius: 6px;
-  }
-  
-  .add-task-button {
-    height: 40px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .refresh-button {
-    height: 40px;
-    border-radius: 6px;
-  }
-  
-  .ant-dropdown-menu {
-    padding: 4px 0;
-  }
-  
-  .ant-dropdown-menu-item {
-    padding: 8px 16px;
-  }
+.unit-notes-container {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 6px;
+  border: 1.25px #E6E9EC solid;
+}
+
+.unit-notes-search-input {
+  height: 40px;
+  border-radius: 6px;
+  width: 200px;
+}
+
+.unit-notes-dropdown-input {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.unit-notes-new-note-button {
+  height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 150px;
+}
+
+.refresh-button {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.ant-dropdown-menu {
+  padding: 4px 0;
+}
+
+.ant-dropdown-menu-item {
+  padding: 8px 16px;
+}
+
+/* Task type filter buttons */
+.task-type-filters {
+  margin: 16px 0;
+}
+
+.task-type-filters .ant-btn {
+  width: 140px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.task-type-filters .ant-btn:last-child {
+  margin-right: 0;
+}
   

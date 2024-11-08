@@ -19,7 +19,7 @@
 }
 
 /* new note button styles */
-.unit-notes-new-note-button {
+.unit-notes-button {
   height: 40px;
   width: 150px;
 } 
@@ -94,3 +94,6 @@
     color: #8c8c8c;
     text-align: center;
   }
+
+
+  

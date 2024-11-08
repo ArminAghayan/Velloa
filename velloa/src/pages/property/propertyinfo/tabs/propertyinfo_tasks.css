@@ -1,0 +1,21 @@
+.propertyinfo-tasks-page-container{
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 6px;
+  border: 1.25px #E6E9EC solid;
+}
+
+.propertyinfo-tasks-search-input{
+  width: 200px;
+  height: 40px;
+}
+
+.propertyinfo-tasks-add-task-button{
+  height: 40px;
+  width: 150px;
+}
+
+.propertyinfo-tasks-refresh-button{
+  height: 40px;
+  width: 40px;
+}

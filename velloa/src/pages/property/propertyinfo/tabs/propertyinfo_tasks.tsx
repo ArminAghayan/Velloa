@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Table, Space, Input, Skeleton, Button, message, Dropdown, Menu, Tag, Tooltip } from 'antd';
-import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, ToolOutlined } from '@ant-design/icons';
+import { Typography, Table, Space, Input, Skeleton, Button, message, Dropdown, Menu, Tag, Tooltip, Spin, Col, Row } from 'antd';
+import { RightOutlined, ReloadOutlined, UserOutlined, DownOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, ToolOutlined, LoadingOutlined } from '@ant-design/icons';
 import { ColumnType, SortOrder } from 'antd/lib/table/interface';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, auth } from '../../../../firebase-config';
 import { collection, getDocs, query, where, Timestamp, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-
+import './propertyinfo_tasks.css';
 const { Title, Text } = Typography;
 
 export interface MaintenanceData {
@@ -456,27 +456,50 @@ const PropertyInfoTasks: React.FC<PropertyInfoTasksProps> = ({ propertyId }) => 
 
   return (
     <div>
-      <div className="property-page-container">
-        <div className="search-and-add">
-          <Input
-            placeholder="Search user or task ID"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="search-input"
-          />
+      <div className="propertyinfo-tasks-page-container">
+        <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+        <Col xs={24} sm={24} md={12} lg={12}>
+          <Row gutter={16} wrap={false}>
+            <Col>
+              <Input
+                className="propertyinfo-tasks-search-input"
+                placeholder="Search user or task ID"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </Col>
+            <Col>
+              
+            </Col>
+          </Row>
+        </Col>
+        <Col 
+          xs={24} 
+          sm={24} 
+          md={12} 
+          lg={12} 
+          style={{ 
+            textAlign: 'right',
+            marginTop: 16
+          }}
+          className="task-actions-container"
+        >
           <Space>
             <Dropdown overlay={addTaskMenu} trigger={['click']}>
-              <Button className="add-property-button">
+              <Button className="propertyinfo-tasks-add-task-button">
                 Add Task <DownOutlined />
               </Button>
             </Dropdown>
             <Button
+              className="propertyinfo-tasks-refresh-button"
               icon={<ReloadOutlined spin={isRefreshing || loadingAssignees} />}
               onClick={handleRefresh}
               disabled={isRefreshing || loadingAssignees}
+              style={{ width: '40px' }}
             />
           </Space>
-        </div>
+        </Col>
+      </Row>
 
         <div style={{ marginTop: '16px', marginBottom: '16px' }}>
           <Button 
@@ -520,6 +543,10 @@ const PropertyInfoTasks: React.FC<PropertyInfoTasksProps> = ({ propertyId }) => 
           columns={columns}
           size="middle"
           dataSource={(loading || loadingAssignees) ? createSkeletonData(5) : filteredTasks}
+          loading={{
+            spinning: loading || loadingAssignees,
+            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+          }}
           pagination={{ pageSize: 10 }}
           onRow={(record: MaintenanceData) => ({
             onClick: () => handleTaskClick(record),

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Popconfirm, Space, Typography } from 'antd';
-import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, FileWordOutlined, FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FilePptOutlined, FileOutlined, EditOutlined, PlaySquareOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Popconfirm, Space, Typography, notification, Tag } from 'antd';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, FileWordOutlined, FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FilePptOutlined, FileOutlined, EditOutlined, PlaySquareOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons';
 import { auth, db, storage } from '../../../../../firebase-config';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -23,6 +23,7 @@ export interface UnitFile {
   uploadedByName: string;
   fileUrl: string;
   companyId: string;
+  tags?: string[];
 }
 
 interface PropertyUnitFilesProps {
@@ -35,6 +36,13 @@ interface UserData {
   firstName: string;
   lastName: string;
   email?: string;
+}
+
+// Add these new interfaces
+interface NoteTag {
+  name: string;
+  createdAt: string;
+  id: string;
 }
 
 // Helper function to get a friendly file type name
@@ -71,6 +79,13 @@ interface CustomUploadFile extends AntUploadFile<any> {
 // Add this constant at the top with other constants
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
 
+// Add this interface for filter types
+interface FilterOption {
+  value: string;
+  label: string;
+  group: 'type' | 'tag';
+}
+
 const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitId }) => {
   const [files, setFiles] = useState<UnitFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<UnitFile[]>([]);
@@ -89,6 +104,25 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
   const [totalProgress, setTotalProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState(0);
   const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
+  const [availableNoteTags, setAvailableNoteTags] = useState<NoteTag[]>([]);
+
+  // Add predefined file type filters
+  const fileTypeFilters: FilterOption[] = [
+    { value: 'document', label: 'Documents', group: 'type' },
+    { value: 'image', label: 'Images', group: 'type' },
+    { value: 'video', label: 'Videos', group: 'type' },
+    { value: 'spreadsheet', label: 'Spreadsheets', group: 'type' },
+  ];
+
+  // Convert note tags to filter options
+  const tagFilters: FilterOption[] = availableNoteTags.map(tag => ({
+    value: tag.name,
+    label: tag.name,
+    group: 'tag'
+  }));
+
+  // Combine all filters
+  const allFilters = [...fileTypeFilters, ...tagFilters];
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -168,6 +202,76 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     }
   }, [propertyId, unitId]);
 
+  const fetchNoteTags = async (companyId: string) => {
+    try {
+      console.log('Fetching File tags for company:', companyId);
+      
+      const noteTagsDoc = await getDoc(doc(db, 'companies', companyId, 'settings', 'filetags'));
+      console.log('File tags doc exists:', noteTagsDoc.exists());
+      
+      if (noteTagsDoc.exists()) {
+        const data = noteTagsDoc.data();
+        console.log('Raw File tags data:', data);
+        
+        // Convert the numbered objects into an array
+        const tags = data?.tags ? Object.values(data.tags) : [];
+        
+        // Validate tags before setting them
+        const validTags = tags.filter((tag: any) => 
+          tag && 
+          typeof tag === 'object' && 
+          typeof tag.name === 'string'
+        ) as NoteTag[];
+        
+        console.log('Validated File tags:', validTags);
+        setAvailableNoteTags(validTags);
+
+        if (validTags.length === 0) {
+          notification.info({
+            message: 'No Tags Available',
+            description: 'No File tags have been configured for your company.',
+            placement: 'topRight'
+          });
+        }
+      } else {
+        notification.info({
+          message: 'No Tags Available',
+          description: 'No File tags have been configured for your company.',
+          placement: 'topRight'
+        });
+        setAvailableNoteTags([]);
+      }
+    } catch (error) {
+      console.error('Error fetching File tags:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch File tags.',
+        placement: 'topRight'
+      });
+      setAvailableNoteTags([]);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const companyId = userDoc.data().companyuid;
+            if (companyId) {
+              await fetchNoteTags(companyId);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user doc:', error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -204,8 +308,14 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     setSearchText(e.target.value);
   };
 
+  // Update the filter handling
   const handleFilterChange = (value: string) => {
-    setFilterType(value || '');
+    const selectedFilter = allFilters.find(filter => filter.value === value);
+    if (!selectedFilter) {
+      setFilterType('');
+      return;
+    }
+    setFilterType(value);
   };
 
   const handleNewFileClick = () => {
@@ -317,6 +427,25 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
       ),
     },
     { 
+      title: 'Tags', 
+      dataIndex: 'tags', 
+      key: 'tags',
+      width: 200,
+      render: (tags: string[]) => (
+        <span>
+          {tags?.length ? 
+            tags.map((tag) => (
+              <Tag key={tag} color="blue" style={{ marginBottom: '4px' }}>
+                {tag}
+              </Tag>
+            ))
+            : 
+            '--'
+          }
+        </span>
+      )
+    },
+    { 
       title: 'Type', 
       dataIndex: 'fileType', 
       key: 'fileType',
@@ -348,6 +477,7 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
       dataIndex: 'uploadedByName', 
       key: 'uploadedByName' 
     },
+   
   ];
 
   const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
@@ -398,6 +528,9 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
       setUploadedFiles(0);
       setTotalProgress(0);
 
+      // Get the selected tags from the form
+      const selectedTags = values.tags || [];
+
       // Process each file in the fileList using forEach instead of for...of
       await Promise.all(fileList.map(async (fileItem, index) => {
         const file = fileItem.originFileObj;
@@ -419,7 +552,6 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
           uploadTask.on('state_changed', 
             (snapshot) => {
               const fileProgress = (snapshot.bytesTransferred / snapshot.totalBytes);
-              // Calculate total progress including previous files
               const combinedProgress = ((index + fileProgress) / totalFiles) * 100;
               setTotalProgress(combinedProgress);
             }, 
@@ -438,7 +570,8 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
                   uploadedBy: currentUser.uid,
                   uploadedByName: userFullName,
                   fileUrl: downloadURL,
-                  companyId: companyId
+                  companyId: companyId,
+                  tags: selectedTags
                 };
 
                 const filesRef = collection(db, 'properties', propertyId, 'units', unitId, 'files');
@@ -467,36 +600,43 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     }
   };
 
+  // Update the useEffect for filtering
   useEffect(() => {
     const lowercasedSearch = searchText.toLowerCase();
     const filtered = files.filter(file => {
       const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
       let typeMatch = true;
       
-      if (filterType !== '' && file.fileType) {
-        const lowerCaseFileType = file.fileType.toLowerCase();
-        switch (filterType.toLowerCase()) {
-          case 'document':
-            typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          case 'image':
-            typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          case 'video':
-            typeMatch = ['mp4', 'mov', 'avi', 'wmv', 'webm'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          case 'spreadsheet':
-            typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          default:
-            typeMatch = true;
+      if (filterType !== '') {
+        const selectedFilter = allFilters.find(filter => filter.value === filterType);
+        
+        if (selectedFilter?.group === 'type') {
+          const lowerCaseFileType = file.fileType.toLowerCase();
+          switch (filterType.toLowerCase()) {
+            case 'document':
+              typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'image':
+              typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'video':
+              typeMatch = ['mp4', 'mov', 'avi', 'wmv', 'webm'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'spreadsheet':
+              typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            default:
+              typeMatch = true;
+          }
+        } else if (selectedFilter?.group === 'tag') {
+          typeMatch = file.tags?.includes(filterType) || false;
         }
       }
       
       return fileNameMatch && typeMatch;
     });
     setFilteredFiles(filtered);
-  }, [files, searchText, filterType]);
+  }, [files, searchText, filterType, allFilters]);
 
   // Add this function to handle file deletion
   const handleRemoveFile = (fileIndex: number) => {
@@ -690,6 +830,8 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     );
   };
 
+  const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
+
   return (
     <div className="unit-files-container">
       <div className="unit-files-box">
@@ -707,15 +849,27 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
               <Col>
                 <Select
                   className='unit-files-dropdown-input'
-                  placeholder="Filter by type"
+                  placeholder="Filter files"
                   onChange={handleFilterChange}
                   allowClear
                   style={{ width: 150 }}
                 >
-                  <Option value="Document">Document</Option>
-                  <Option value="Image">Image</Option>
-                  <Option value="Video">Video</Option>
-                  <Option value="Spreadsheet">Spreadsheet</Option>
+                  <Select.OptGroup label="Type">
+                    {fileTypeFilters.map(filter => (
+                      <Option key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </Option>
+                    ))}
+                  </Select.OptGroup>
+                  {tagFilters.length > 0 && (
+                    <Select.OptGroup label="Tags">
+                      {tagFilters.map(filter => (
+                        <Option key={filter.value} value={filter.value}>
+                          {filter.label}
+                        </Option>
+                      ))}
+                    </Select.OptGroup>
+                  )}
                 </Select>
               </Col>
             </Row>
@@ -773,7 +927,10 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredFiles}
-          loading={loading}
+          loading={{
+            spinning: loading,
+            indicator: antIcon
+          }}
           rowKey="id"
           onRow={(record) => ({
             onClick: () => handleRowClick(record),
@@ -793,6 +950,7 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
         visible={uploadModalVisible}
         onOk={form.submit}
         onCancel={handleUploadModalClose}
+        className="unit-files-upload-modal"
         footer={[
           <Button key="back" onClick={handleUploadModalClose}>
             Cancel
@@ -816,6 +974,20 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
           layout="vertical"
           onFinish={handleFormSubmit}
         >
+          <Form.Item name="tags">
+            <Select
+              mode="multiple"
+              placeholder="Select Tags"
+              style={{ width: '100%', marginBottom: '16px' }}
+              dropdownStyle={{ padding: '8px' }}
+              className="unit-files-tag-select"
+            >
+              {availableNoteTags.map(tag => (
+                <Option key={tag.id} value={tag.name}>{tag.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+
           <Form.Item
             name="file"
             valuePropName="fileList"

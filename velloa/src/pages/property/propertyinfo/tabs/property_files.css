@@ -1,8 +1,8 @@
 .file-container {
-    background-color: #ffffff;
-    padding: 24px;
-    border-radius: 12px;
-    border: 1.25px #E6E9EC solid;
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 6px;
+  border: 1.25px #E6E9EC solid;
   }
   
   .file-drawer-input .ant-input,
@@ -12,14 +12,13 @@
   
   .file-search-input {
     width: 200px;
-    height: 36px;
-    border-radius: 12px;
+    height: 40px;
   
   }
   
   .file-dropdown-input {
     width: 200px;
-    height: 36px;
+    height: 40px;
   }
   
   .file-review-item {
@@ -27,8 +26,8 @@
   }
 
   .new-file-button {
-    height: 36px; /* Same height as the search bar and dropdown */
-    font-weight: 500; /* Make the text a little more bold */
+    height: 40px; /* Same height as the search bar and dropdown */
+    width: 150px;
   }
   
 

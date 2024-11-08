@@ -37,14 +37,11 @@ import {
   MailOutlined,
   CameraOutlined,
   PictureOutlined,
-  CarOutlined,
-  FireOutlined,
-  ThunderboltOutlined,
-  AppstoreOutlined,
-  CloudOutlined,
-  BorderOuterOutlined,
+
 } from '@ant-design/icons';
-import { getFirestore, doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { IconBath,IconBed,IconRuler,IconBusinessplan } from '@tabler/icons-react';
+
+import { getFirestore, doc, getDoc, collection, getDocs, Timestamp, deleteDoc } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import './propertyinfo_units_view.css';
 import PropertyinfoUnitMaintenance from './propertyinfo_units_Maintenance';
@@ -53,6 +50,7 @@ import PropertyUnitFiles from './propertyinfo_units_files';
 import PropertyinfoUnitImages from './propertyinfo_units_images';
 import PropertyUnitNotes from './propertyinfo_units_notes';
 import PropertyInfoUnitViewListing from './propertyinfo_units_view_listing';
+import UnitListingDrawer from './UnitListingDrawer/unit_Listing_property_drawer';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -131,19 +129,46 @@ const PropertyInfoUnitView: React.FC = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [unit, setUnit] = useState<Unit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [editedUnit, setEditedUnit] = useState<Unit | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [unitImages, setUnitImages] = useState<UnitImage[]>([]);
   const [companyId, setCompanyId] = useState<string>('');
+  const [isUnitDrawerOpen, setIsUnitDrawerOpen] = useState(false);
+  const [shouldOpenUploadModal, setShouldOpenUploadModal] = useState(false);
+  const [shouldOpenNoteModal, setShouldOpenNoteModal] = useState(false);
 
-  // Menu items for the dropdown
+  const handleMenuClick: MenuProps['onClick'] = async ({ key }) => {
+    if (key === 'delete') {
+      try {
+        const db = getFirestore();
+        await deleteDoc(doc(db, 'properties', propertyId!, 'units', unitId!));
+        message.success('Unit deleted successfully');
+        navigate(-1);
+      } catch (error) {
+        console.error('Error deleting unit:', error);
+        message.error('Failed to delete unit');
+      }
+    } else if (key === 'edit') {
+      setIsUnitDrawerOpen(true);
+    }
+  };
+
+  // Update menu items
   const menuItems: MenuProps['items'] = [
+    {
+      key: 'edit',
+      label: 'Edit Unit',
+      icon: <EditOutlined />,
+    },
     {
       key: 'delete',
       label: 'Delete Unit',
+      icon: <DeleteOutlined />,
       danger: true,
     },
   ];
+
+  // Replace the existing menu with this
+  const menu = <Menu items={menuItems} onClick={handleMenuClick} />;
 
   const handleEdit = (type: string) => {
     console.log('Edit', type);
@@ -152,11 +177,12 @@ const PropertyInfoUnitView: React.FC = () => {
 
   const handleNewNote = () => {
     setActiveTab('notes');
+    setShouldOpenNoteModal(true);
   };
 
   const handleAddImage = () => {
-    console.log('Add Image');
-    // Implement image addition
+    setActiveTab('images');
+    setShouldOpenUploadModal(true);
   };
 
   const handleNewWorkOrder = () => {
@@ -251,17 +277,6 @@ const PropertyInfoUnitView: React.FC = () => {
     fetchData();
   }, [propertyId, unitId]);
 
-  const menu = (
-    <Menu>
-      <Menu.Item icon={<EditOutlined />} key="edit" >
-        Edit
-      </Menu.Item>
-      <Menu.Item key="5" icon={<DeleteOutlined />} >
-        Delete
-      </Menu.Item>
-    </Menu>
-  );
-
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -313,7 +328,7 @@ const PropertyInfoUnitView: React.FC = () => {
                 <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <Space direction="vertical" align="center" size="small">
                     <div style={{ fontSize: '32px' }}>
-                      <HomeOutlined />
+                      <IconBed size={32}/>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <strong>Beds</strong>
@@ -328,6 +343,7 @@ const PropertyInfoUnitView: React.FC = () => {
                   <Space direction="vertical" align="center" size="small">
                     <div style={{ fontSize: '32px' }}>
                     </div>
+                    <IconBath size={32} />
                     <div style={{ textAlign: 'center' }}>
                       <strong>Baths</strong>
                       <div>{unit?.baths || 'Not Set'}</div>
@@ -340,7 +356,7 @@ const PropertyInfoUnitView: React.FC = () => {
                 <Card  bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <Space direction="vertical" align="center" size="small">
                     <div style={{ fontSize: '32px' }}>
-                      <ExpandOutlined />
+                      <IconRuler size={32} />
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <strong>Size</strong>
@@ -354,7 +370,7 @@ const PropertyInfoUnitView: React.FC = () => {
                 <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <Space direction="vertical" align="center" size="small">
                     <div style={{ fontSize: '32px' }}>
-                      <DollarOutlined />
+                    <IconBusinessplan size={32} />
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <strong>Market Rent</strong>
@@ -648,131 +664,9 @@ const PropertyInfoUnitView: React.FC = () => {
               </Col>
             </Row>
 
-            {/* New Unit Information Card */}
-            <Row gutter={[16, 16]} style={{ marginTop: '16px' }}>
-              <Col span={24}>
-                <Card 
-                  title="Amenities" 
-                  hoverable
-                  onClick={() => handleEdit('unit')}
-                >
-                  <Row gutter={[24, 16]}>
-                    {/* Left Column */}
-                    <Col span={12}>
-                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        {/* Included in Rent */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <DollarOutlined style={{ color: '#1890ff' }}/>
-                            <Text strong>Included in Rent:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.includedInRent || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Interior */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <HomeOutlined style={{ color: '#1890ff' }}/>
-                            <Text strong>Interior:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.interior || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Appliances */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <AppstoreOutlined style={{ color: '#1890ff' }}/>
-                            <Text strong>Appliances:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.appliances || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Heating */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <FireOutlined style={{ color: '#1890ff' }}/>
-                            <Text strong>Heating:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.heating || '--'}</Text>
-                          </Space>
-                        </Space>
-                      </Space>
-                    </Col>
-
-                    {/* Right Column */}
-                    <Col span={12}>
-                      {/* Cooling */}
-                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <CloudOutlined style={{ color: '#52c41a' }}/>
-                            <Text strong>Cooling:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.cooling || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Laundry */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <ThunderboltOutlined style={{ color: '#52c41a' }}/>
-                            <Text strong>Laundry:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.laundry || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Parking */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <CarOutlined style={{ color: '#52c41a' }}/>
-                            <Text strong>Parking:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.parking || '--'}</Text>
-                          </Space>
-                        </Space>
-
-                        <Divider style={{ margin: '8px 0' }} />
-
-                        {/* Exterior */}
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Space>
-                            <BorderOuterOutlined style={{ color: '#52c41a' }}/>
-                            <Text strong>Exterior:</Text>
-                          </Space>
-                          <Space direction="vertical" style={{ marginLeft: '24px' }}>
-                            <Text>{unit?.exterior || '--'}</Text>
-                          </Space>
-                        </Space>
-                      </Space>
-                    </Col>
-                  </Row>
-                </Card>
-              </Col>
-            </Row>
           </>
         );
-      case 'maintenance':
+      case 'tasks':
         return (
           <PropertyinfoUnitMaintenance 
             personId={propertyId || ''} 
@@ -793,14 +687,47 @@ const PropertyInfoUnitView: React.FC = () => {
           />
         );
       case 'notes':
-        return <PropertyUnitNotes propertyId={propertyId || ''} unitId={unitId || ''} />;
+        return (
+          <PropertyUnitNotes 
+            propertyId={propertyId || ''} 
+            unitId={unitId || ''} 
+            shouldOpenNoteModal={shouldOpenNoteModal}
+            setShouldOpenNoteModal={setShouldOpenNoteModal}
+          />
+        );
       case 'images':
-        return <PropertyinfoUnitImages propertyId={propertyId || ''} unitId={unitId || ''} />;
+        return (
+          <PropertyinfoUnitImages 
+            propertyId={propertyId || ''} 
+            unitId={unitId || ''} 
+            shouldOpenUploadModal={shouldOpenUploadModal}
+            setShouldOpenUploadModal={setShouldOpenUploadModal}
+          />
+        );
       case 'files':
         return <PropertyUnitFiles propertyId={propertyId || ''} unitId={unitId || ''} />;
       default:
         return null;
     }
+  };
+
+  const handleUnitListingSubmit = async () => {
+    // Refresh the unit data after submission
+    const db = getFirestore();
+    try {
+      const unitDoc = await getDoc(doc(db, 'properties', propertyId!, 'units', unitId!));
+      if (unitDoc.exists()) {
+        setUnit({ unitId: unitDoc.id, ...unitDoc.data() } as Unit);
+      }
+    } catch (error) {
+      console.error('Error refreshing unit data:', error);
+      message.error('Failed to refresh unit data');
+    }
+  };
+
+  const handleBack = () => {
+    // Navigate back to the property page with the units tab selected
+    navigate(`/property/${propertyId}`, { state: { activeTab: 'units' } });
   };
 
   return (
@@ -815,7 +742,7 @@ const PropertyInfoUnitView: React.FC = () => {
             marginBottom: '40px',
           }}
         >
-          <Button icon={<LeftOutlined />} onClick={() => navigate(-1)}>
+          <Button icon={<LeftOutlined />} onClick={handleBack}>
             Back
           </Button>
           <Dropdown overlay={menu} trigger={['click']}>
@@ -830,9 +757,10 @@ const PropertyInfoUnitView: React.FC = () => {
                 <Title level={2} style={{ marginBottom: '0' }}>
                   Unit {unit?.unitName || 'Loading...'}
                 </Title>
-                <Text type="secondary" style={{ fontSize: '16px', color: '#188034w' }}>
+                <Text type="secondary" style={{ fontSize: '16px', color: '#28A745' }}>
                   {property?.propertyName || 'Loading...'}
                 </Text>
+                
               </Space>
             </Col>
           </Row>
@@ -843,7 +771,7 @@ const PropertyInfoUnitView: React.FC = () => {
       <div className="property-info-unit-details-menu" style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Overview" key="overview" />
-          <TabPane tab="Maintenance" key="maintenance" />
+          <TabPane tab="Tasks" key="tasks" />
           <TabPane tab="Listing Details" key="listing details" />
           <TabPane tab="Notes" key="notes" />
           <TabPane tab="Images" key="images" />
@@ -857,10 +785,14 @@ const PropertyInfoUnitView: React.FC = () => {
       </div>
 
       {/* Drawers */}
-      {propertyId && (
-        <>
-         
-        </>
+      {isUnitDrawerOpen && (
+        <UnitListingDrawer 
+          open={isUnitDrawerOpen}
+          onClose={() => setIsUnitDrawerOpen(false)}
+          propertyId={propertyId || ''}
+          unitId={unitId || ''}
+          onSubmit={handleUnitListingSubmit}
+        />
       )}
     </div>
   );

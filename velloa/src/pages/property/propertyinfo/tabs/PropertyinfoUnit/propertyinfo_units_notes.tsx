@@ -16,6 +16,8 @@ import {
   Upload,
   UploadFile as AntUploadFile,
   Space,
+  Empty,
+  Spin,
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -23,16 +25,11 @@ import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   UploadOutlined,
-  LoadingOutlined,
   FileOutlined,
   EditOutlined,
   DeleteOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  PlaySquareOutlined,
   PaperClipOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import { 
   collection, 
@@ -73,6 +70,8 @@ interface Note {
 interface PropertyUnitNotesProps {
   propertyId: string;
   unitId: string;
+  shouldOpenNoteModal?: boolean;
+  setShouldOpenNoteModal?: (value: boolean) => void;
 }
 
 interface CustomUploadFile extends AntUploadFile<any> {
@@ -109,7 +108,12 @@ const getFileType = (file: File): string => {
   return `File (${extension.toUpperCase()})`;
 };
 
-const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitId }) => {
+const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({
+  propertyId,
+  unitId,
+  shouldOpenNoteModal,
+  setShouldOpenNoteModal
+}) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>('');
@@ -117,7 +121,7 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editNoteContent, setEditNoteContent] = useState('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState('');
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -126,12 +130,12 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
   const [fileList, setFileList] = useState<CustomUploadFile[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState<string>('');
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [totalProgress, setTotalProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState(0);
   const [fileData, setFileData] = useState<{ [key: string]: any }>({});
   const [filterType, setFilterType] = useState('');
   const [availableNoteTags, setAvailableNoteTags] = useState<NoteTag[]>([]);
+
 
   const fetchNoteTags = async (companyId: string) => {
     try {
@@ -619,26 +623,8 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
     setEditingName('');
   };
 
-  const getFileIcon = (fileType: string) => {
-    const type = fileType.toLowerCase();
-    if (type.includes('pdf')) {
-      return <FilePdfOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-    } else if (type.includes('word') || type.includes('doc')) {
-      return <FileWordOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-    } else if (type.includes('excel') || type.includes('spreadsheet')) {
-      return <FileExcelOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-    } else if (type.includes('image')) {
-      return <FileImageOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-    } else if (type.includes('video')) {
-      return <PlaySquareOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-    }
-    return <FileOutlined style={{ fontSize: '16px', color: '#168033' }} />;
-  };
 
-  const handleFileClick = (e: React.MouseEvent, fileUrl: string) => {
-    e.stopPropagation(); // Prevent note row click
-    window.open(fileUrl, '_blank');
-  };
+
 
   useEffect(() => {
     const lowercasedSearch = searchText.toLowerCase();
@@ -664,6 +650,13 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
   const handleFilterChange = (value: string) => {
     setFilterType(value || '');
   };
+
+  useEffect(() => {
+    if (shouldOpenNoteModal) {
+      setIsModalVisible(true);
+      setShouldOpenNoteModal?.(false); // Reset the flag after opening
+    }
+  }, [shouldOpenNoteModal, setShouldOpenNoteModal]);
 
   if (!currentUser) {
     return <div>Please log in to view and add notes.</div>;
@@ -712,7 +705,7 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
             className="new-note-button-container"
           >
             <Button
-              className='unit-notes-new-note-button'
+              className='unit-notes-button'
               onClick={handleNewNoteClick}
               type="default"
               icon={<PlusOutlined />}
@@ -722,10 +715,6 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
           </Col>
         </Row>
         <Table
-          loading={{
-            indicator: <LoadingOutlined style={{ fontSize: 24 }} spin />,
-            spinning: loading
-          }}
           columns={[
             {
               title: 'Note',
@@ -831,7 +820,7 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
               )
             }
           ]}
-          dataSource={loading ? [] : filteredNotes}
+          dataSource={filteredNotes}
           rowKey="id"
           pagination={{ 
             pageSize: 5,
@@ -842,7 +831,14 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
             style: { cursor: 'pointer' }
           })}
           locale={{
-            emptyText: loading ? ' ' : 'No Data'
+            emptyText: loading ? (
+              <Spin indicator={<LoadingOutlined spin />} size="large" />
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="No notes found"
+              />
+            )
           }}
         />
       </div>
@@ -1042,8 +1038,8 @@ const PropertyUnitNotes: React.FC<PropertyUnitNotesProps> = ({ propertyId, unitI
               dropdownStyle={{ padding: '8px' }}
               className="unit-notes-tag-select"
             >
-              {availableTags.map(tag => (
-                <Option key={tag} value={tag}>{tag}</Option>
+              {availableNoteTags.map(tag => (
+                <Option key={tag.id} value={tag.name}>{tag.name}</Option>
               ))}
             </Select>
           </Form.Item>

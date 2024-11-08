@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Space, message, Input, Tag, Tooltip, Typography, Skeleton, Dropdown, MenuProps } from 'antd';
+import { Table, Button, Space, message, Input, Tag, Tooltip, Typography, Skeleton, Dropdown, MenuProps, Row, Col, Select} from 'antd';
 import { ReloadOutlined, RightOutlined, ClockCircleOutlined, CheckCircleOutlined, ProfileOutlined, UserOutlined, ToolOutlined, DownOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../../../../../firebase-config';
 import { useNavigate } from 'react-router-dom';
 import './propertyinfo_units_Maintenance.css';
 const { Text } = Typography;
+const { Option } = Select;
+
 
 interface TasksTabProps {
   personId: string | undefined;
@@ -228,7 +230,7 @@ const PropertyinfoUnitMaintenance: React.FC<TasksTabProps> = ({ personId, compan
   };
 
   const handleTaskTypeFilter = (value: string) => {
-    setTaskTypeFilter(value);
+    setTaskTypeFilter(value || 'All');
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -236,7 +238,9 @@ const PropertyinfoUnitMaintenance: React.FC<TasksTabProps> = ({ personId, compan
       (task.taskRefId?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
       task.assignees?.some((assignee: Assignee) => (assignee.name?.toLowerCase() || '').includes(searchText.toLowerCase())) || false;
 
-    const matchesTaskType = taskTypeFilter === 'All' || (task.taskType?.toLowerCase() || '') === taskTypeFilter.toLowerCase();
+    const taskType = (task.taskType || '').toLowerCase();
+    const filterType = taskTypeFilter.toLowerCase();
+    const matchesTaskType = taskTypeFilter === 'All' || taskType === filterType;
 
     return matchesSearch && matchesTaskType;
   });
@@ -360,65 +364,100 @@ const PropertyinfoUnitMaintenance: React.FC<TasksTabProps> = ({ personId, compan
   ];
 
   return (
-    <div className="property-page-container">
-      <div className="search-and-add">
-        <Input
-          placeholder="Search user or task ID"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          className="search-input"
-        />
-        <Space>
-          <Dropdown 
-            menu={{ items }} 
-            placement="bottomRight"
-            trigger={['click']}
-          >
-            <Button className="add-task-button">
-              Add New <DownOutlined />
-            </Button>
-          </Dropdown>
-          <Button
-            icon={<ReloadOutlined spin={isRefreshing} />}
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="refresh-button"
-            style={{width: '40px'}}
-          />
-        </Space>
-      </div>
+      <div className="unit-notes-container">
+        <div className="unit-notes-box">
+          <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+            <Col xs={24} sm={24} md={12} lg={12}>
+              <Row gutter={16} wrap={false}>
+                <Col>
+                  <Input
+                    className='unit-notes-search-input'
+                    placeholder="Search user or task ID"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                  />
+                </Col>
+                <Col>
+                  <Select
+                    className='unit-notes-dropdown-input'
+                    placeholder="Filter by type"
+                    onChange={handleTaskTypeFilter}
+                    allowClear
+                    style={{ width: 150 }}
+                  >
+                    <Option value="">All</Option>
+                    <Option value="task">Task</Option>
+                    <Option value="owner request">Owner Request</Option>
+                    <Option value="tenant request">Tenant Request</Option>
+                    <Option value="work order">Work Order</Option>
+                  </Select>
+                </Col>
+              </Row>
+            </Col>
+            <Col 
+              xs={24} 
+              sm={24} 
+              md={12} 
+              lg={12} 
+              style={{ 
+                textAlign: 'right',
+                marginTop: 16
+              }}
+              className="new-note-button-container"
+            >
+              <Space>
+                <Dropdown 
+                  menu={{ items }} 
+                  placement="bottomRight"
+                  trigger={['click']}
+                >
+                  <Button className='unit-notes-new-note-button'>
+                    Add New <DownOutlined />
+                  </Button>
+                </Dropdown>
+                <Button
+                  icon={<ReloadOutlined spin={isRefreshing} />}
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="refresh-button"
+                  style={{width: '40px'}}
+                />
+              </Space>
+            </Col>
+          </Row>
 
-      {loading ? (
-        <Table
-          columns={columns}
-          dataSource={createSkeletonData(3)} // Show 3 skeleton rows
-          rowKey="key"
-          components={{
-            body: {
-              cell: () => (
-                <td style={{ padding: '16px' }}>
-                  <Skeleton.Input active size="small" style={{ width: '100%' }} />
-                </td>
-              ),
-            },
-          }}
-          pagination={false}
-        />
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={filteredTasks}
-          rowKey="key"
-          onRow={(record) => ({
-            onClick: () => handleTaskClick(record),
-            style: { cursor: 'pointer' },
-          })}
-          locale={{
-            emptyText: 'No tasks found',
-          }}
-        />
-      )}
-    </div>
+          {loading ? (
+            <Table
+              columns={columns}
+              dataSource={createSkeletonData(3)} // Show 3 skeleton rows
+              rowKey="key"
+              components={{
+                body: {
+                  cell: () => (
+                    <td style={{ padding: '16px' }}>
+                      <Skeleton.Input active size="small" style={{ width: '100%' }} />
+                    </td>
+                  ),
+                },
+              }}
+              pagination={false}
+            />
+          ) : (
+            <Table
+              columns={columns}
+              dataSource={filteredTasks}
+              rowKey="key"
+              onRow={(record) => ({
+                onClick: () => handleTaskClick(record),
+                style: { cursor: 'pointer' },
+              })}
+              locale={{
+                emptyText: 'No tasks found',
+              }}
+            />
+          )}
+        </div>
+      </div>
   );
 };
 

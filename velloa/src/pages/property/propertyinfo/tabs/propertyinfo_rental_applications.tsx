@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input,Divider , Tag, Carousel, DatePicker, Steps, Typography, Select, Dropdown, Menu, InputNumber, Card, Modal, App as AntdApp } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input,Divider , Tag, Carousel, DatePicker, Steps, Typography, Select, Dropdown, Menu, InputNumber, Card, Modal, App as AntdApp, notification, Spin } from 'antd';
 import { db } from '../../../../firebase-config';
-import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc, query, getDocs, where } from 'firebase/firestore';
-import { PlusOutlined, EllipsisOutlined, LinkOutlined,ReloadOutlined,CheckCircleOutlined  } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { doc, getDoc, onSnapshot, collection, addDoc, updateDoc, query, getDocs } from 'firebase/firestore';
+import { PlusOutlined, EllipsisOutlined, ShareAltOutlined,CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import './propertyinfo_rental_applications.css';
@@ -79,8 +77,6 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<RentalApplication | null>(null);
   const [unitImages, setUnitImages] = useState<{ [key: string]: string[] }>({});
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
   const [spinning, setSpinning] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
 
@@ -429,18 +425,21 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
   };
 
   const handleSendLinkClick = () => {
-    message.success('Link sent successfully');
+    notification.success({
+      message: 'Success',
+      description: 'Link successfully copied',
+      placement: 'topRight'
+    });
   };
 
   console.log('Rendering component. Current step:', currentStep, 'Visible steps:', visibleSteps);
 
   return (
-    <AntdApp>
       <div className="applications-container">
         <div className="applications-box">
           <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-            <Col span={16}>
-              <Row gutter={16}>
+            <Col xs={24} sm={24} md={12} lg={12}>
+              <Row gutter={16} wrap={false}>
                 <Col>
                   <Input
                     className="application-search-input"
@@ -455,28 +454,52 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
                     placeholder="Filter by status"
                     onChange={handleFilterChange}
                     allowClear
+                    style={{ width: 150 }}
                   >
                     <Option value="Approved">Approved</Option>
                     <Option value="Pending">Pending</Option>
-                    <Option value="Rejected">Rejected</Option>
+                    <Option value="Denied">Denied</Option>
                   </Select>
                 </Col>
               </Row>
             </Col>
-            <Col span={8} style={{ textAlign: 'right' }}>
-              <Button type="primary" className="new-application-button" onClick={handleNewApplicationClick} style={{ marginRight: '8px' }}>
-                <PlusOutlined /> New Application
+            <Col 
+              xs={24} 
+              sm={24} 
+              md={12} 
+              lg={12} 
+              style={{ 
+                textAlign: 'right',
+                marginTop: 16
+              }}
+              className="application-actions-container"
+            >
+              <Button 
+                className="new-application-button"
+                onClick={handleNewApplicationClick} 
+                type="default" 
+                icon={<PlusOutlined />}
+                style={{ marginRight: '8px' }}
+              >
+                New Application
               </Button>
-              <Button type="default" className="send-link-button" onClick={handleSendLinkClick}>
-                <LinkOutlined /> Send Link
-              </Button>
+              <Button 
+                className="send-link-button"
+                onClick={handleSendLinkClick}
+                type="primary"
+                icon={<ShareAltOutlined />}
+                style={{ width: '40px' }}
+              />
             </Col>
           </Row>
 
           <Table
-            key={Date.now()}
             columns={columns}
             dataSource={filteredApplications}
+            loading={{
+              spinning: loading,
+              indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+            }}
             rowKey="applicationId"
             onRow={(record) => ({
               onClick: () => showModal(record),
@@ -676,9 +699,11 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
             <Title level={4}></Title>
           </Col>
           <Col span={8} style={{ textAlign: 'right' }}>
-            <Button className='new-unit-app-refresh'
-              icon={<ReloadOutlined style={{ transform: spinning ? 'rotate(360deg)' : 'rotate(0deg)', transition: 'transform 0.5s' }} />}
+            <Button 
+              className='new-unit-app-refresh'
+              icon={<LoadingOutlined style={{ transform: spinning ? 'rotate(360deg)' : 'rotate(0deg)', transition: 'transform 0.5s' }} spin={spinning} />}
               onClick={handleFetchUnits}
+              disabled={spinning}
             >
               Refresh
             </Button>
@@ -986,7 +1011,6 @@ const RentalApplications: React.FC<RentalApplicationsProps> = ({ propertyId }) =
 
 
       </div>
-    </AntdApp>
   );
 };
 

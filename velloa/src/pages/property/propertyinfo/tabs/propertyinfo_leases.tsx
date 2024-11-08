@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Select, Typography } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input, DatePicker, Select, Typography, Spin } from 'antd';
 import { db } from '../../../../firebase-config';
 import { collection, getDocs, addDoc, updateDoc } from 'firebase/firestore';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, LoadingOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import './propertyinfo_leases.css';
 
@@ -129,8 +129,8 @@ const PropertyInfoLeases: React.FC = () => {
     <div className="leases-container">
       <div className="leases-box">
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-          <Col span={16}>
-            <Row gutter={16}>
+          <Col xs={24} sm={24} md={12} lg={12}>
+            <Row gutter={16} wrap={false}>
               <Col>
                 <Input
                   className="lease-search-input"
@@ -153,68 +153,90 @@ const PropertyInfoLeases: React.FC = () => {
               </Col>
             </Row>
           </Col>
-          <Col span={4} style={{ textAlign: 'right' }}>
-            <Button className="new-lease-button" onClick={handleNewLeaseClick} type="default" icon={<PlusOutlined />}>
+          <Col 
+            xs={24} 
+            sm={24} 
+            md={12} 
+            lg={12} 
+            style={{ 
+              textAlign: 'right',
+              marginTop: 16
+            }}
+            className="new-lease-button-container"
+          >
+            <Button 
+              className="new-lease-button" 
+              onClick={handleNewLeaseClick} 
+              type="default" 
+              icon={<PlusOutlined />}
+            >
               New Lease
             </Button>
           </Col>
         </Row>
+
         <Table
           columns={columns}
           dataSource={filteredLeases}
-          loading={loading}
+          loading={{
+            spinning: loading,
+            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+          }}
           onRow={(record) => ({
             onClick: () => handleRowClick(record),
           })}
           rowKey="leaseId"
         />
-      </div>
 
-      <Drawer
-        title="Add New Lease"
-        width={720}
-        onClose={handleDrawerClose}
-        visible={drawerVisible}
-        bodyStyle={{ paddingBottom: 80 }}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFormSubmit}
+        <Drawer
+          title="Add New Lease"
+          width={720}
+          onClose={handleDrawerClose}
+          visible={drawerVisible}
+          bodyStyle={{ paddingBottom: 80 }}
         >
-          <Form.Item
-            name="unit"
-            label="Unit Number"
-            rules={[{ required: true, message: 'Please enter the unit number' }]}
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleFormSubmit}
           >
-            <Input placeholder="Unit Number" />
-          </Form.Item>
-          <Form.Item
-            name="tenant"
-            label="Tenant Name"
-            rules={[{ required: true, message: 'Please enter the tenant name' }]}
-          >
-            <Input placeholder="Tenant Name" />
-          </Form.Item>
-          <Form.Item
-            name="startDate"
-            label="Start Date"
-            rules={[{ required: true, message: 'Please select the start date' }]}
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item
-            name="endDate"
-            label="End Date"
-            rules={[{ required: true, message: 'Please select the end date' }]}
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Button type="primary" htmlType="submit">
-            Submit
-          </Button>
-        </Form>
-      </Drawer>
+            <Form.Item
+              name="unit"
+              label="Unit Number"
+              rules={[{ required: true, message: 'Please enter the unit number' }]}
+            >
+              <Input placeholder="Unit Number" />
+            </Form.Item>
+            <Form.Item
+              name="tenant"
+              label="Tenant Name"
+              rules={[{ required: true, message: 'Please enter the tenant name' }]}
+            >
+              <Input placeholder="Tenant Name" />
+            </Form.Item>
+            <Form.Item
+              name="startDate"
+              label="Start Date"
+              rules={[{ required: true, message: 'Please select the start date' }]}
+            >
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="endDate"
+              label="End Date"
+              rules={[{ required: true, message: 'Please select the end date' }]}
+            >
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Button 
+              type="primary" 
+              htmlType="submit"
+            >
+              Submit
+            </Button>
+          </Form>
+        </Drawer>
+      </div>
     </div>
   );
 };

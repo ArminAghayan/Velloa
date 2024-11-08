@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, message, Button, Row, Col, Drawer, Form, Input, InputNumber, Steps, Upload, Typography, Select } from 'antd';
+import { Table, message, Button, Row, Col, Drawer, Form, Input, InputNumber, Steps, Upload, Typography, Select, Space, Spin } from 'antd';
 import { db } from '../../../../firebase-config';
 import { collection, getDocs, addDoc, updateDoc } from 'firebase/firestore';
-import { UploadOutlined, PlusOutlined } from '@ant-design/icons';
+import { UploadOutlined, PlusOutlined, HomeOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setSelectedUnit } from '../../../../components/redux/unitslice';
@@ -48,11 +48,33 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
     const unitsRef = collection(db, 'properties', propertyId, 'units');
     try {
       const unitsSnapshot = await getDocs(unitsRef);
-      const fetchedUnits: Unit[] = unitsSnapshot.docs.map(doc => ({
-        ...(doc.data() as Unit),
-        unitId: doc.id,
-        occupancy: doc.data().tenant || 'Vacant'
-      }));
+      const fetchedUnits: Unit[] = await Promise.all(
+        unitsSnapshot.docs.map(async (doc) => {
+          const unitData = doc.data();
+          let occupancyStatus = 'Vacant';
+          
+          // If there's a tenantId, fetch tenant details from people collection
+          if (unitData.tenantId) {
+            try {
+              const tenantDoc = await getDocs(collection(db, 'people')).then(
+                snapshot => snapshot.docs.find(doc => doc.id === unitData.tenantId)
+              );
+              if (tenantDoc) {
+                const tenantData = tenantDoc.data();
+                occupancyStatus = `${tenantData.firstName} ${tenantData.lastName}`;
+              }
+            } catch (error) {
+              console.error("Error fetching tenant details: ", error);
+            }
+          }
+
+          return {
+            ...(unitData as Unit),
+            unitId: doc.id,
+            occupancy: occupancyStatus
+          };
+        })
+      );
       setUnits(fetchedUnits);
       setFilteredUnits(fetchedUnits);
     } catch (error) {
@@ -97,12 +119,54 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
   }, [units, searchText, filterStatus]);
 
   const columns = [
-    { title: 'Unit Number', dataIndex: 'unitName', key: 'unitName' },
+    { 
+      title: 'Unit Name', 
+      dataIndex: 'unitName', 
+      key: 'unitName',
+      render: (text: string) => (
+        <Space align="center">
+          <div style={{
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#D8E6D9',
+            borderRadius: '4px',
+            marginRight: '12px'
+          }}>
+            <HomeOutlined style={{ fontSize: '24px', color: '#168033' }} />
+          </div>
+          <Text 
+            strong 
+            style={{ 
+              maxWidth: '300px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+            title={text} // Shows full name on hover
+          >
+            {text.length > 40 ? `${text.substring(0, 40)}...` : text}
+          </Text>
+        </Space>
+      ),
+    },
     { title: 'Tenant', dataIndex: 'occupancy', key: 'occupancy' },
     { title: 'Beds', dataIndex: 'beds', key: 'beds' },
     { title: 'Baths', dataIndex: 'baths', key: 'baths' },
-    { title: 'Market Rent', dataIndex: 'marketRent', key: 'marketRent' },
-    { title: 'Size', dataIndex: 'size', key: 'size' },
+    { 
+      title: 'Market Rent ($)', 
+      dataIndex: 'marketRent', 
+      key: 'marketRent',
+      render: (value: number) => `$${value.toLocaleString()}` 
+    },
+    { 
+      title: 'Size (sq ft)', 
+      dataIndex: 'size', 
+      key: 'size',
+      render: (value: number) => `${value.toLocaleString()} sq ft` 
+    },
   ];
 
   const handleRowClick = (unit: Unit) => {
@@ -322,11 +386,11 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
     <div className="units-container">
       <div className="units-box">
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-          <Col span={16}>
-            <Row gutter={16}>
+          <Col xs={24} sm={24} md={12} lg={12}>
+            <Row gutter={16} wrap={false}>
               <Col>
                 <Input
-                  className='unit-search-input'
+                  className="unit-search-input"
                   placeholder="Search units"
                   value={searchText}
                   onChange={handleSearchChange}
@@ -334,7 +398,7 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
               </Col>
               <Col>
                 <Select
-                  className='unit-dropdown-input'
+                  className="unit-dropdown-input"
                   placeholder="Filter by status"
                   onChange={handleFilterChange}
                   allowClear
@@ -346,20 +410,35 @@ const PropertyInfoUnits: React.FC<PropertyInfoUnitsProps> = ({ propertyId }) => 
               </Col>
             </Row>
           </Col>
-          <Col span={4} style={{ textAlign: 'right' }}>
+          <Col 
+            xs={24} 
+            sm={24} 
+            md={12} 
+            lg={12} 
+            style={{ 
+              textAlign: 'right',
+              marginTop: 16
+            }}
+            className="new-unit-button-container"
+          >
             <Button 
-            className='new-unit-button'
-            onClick={handleNewUnitClick} 
-            type="primary" 
-            icon={<PlusOutlined />}>
+              className="new-unit-button"
+              onClick={handleNewUnitClick} 
+              type="default" 
+              icon={<PlusOutlined />}
+            >
               New Unit
             </Button>
           </Col>
         </Row>
+
         <Table
           columns={columns}
           dataSource={filteredUnits}
-          loading={loading}
+          loading={{
+            spinning: loading,
+            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+          }}
           onRow={(record) => ({
             onClick: () => handleRowClick(record),
           })}

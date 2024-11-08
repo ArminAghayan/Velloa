@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Progress, Popconfirm } from 'antd';
-import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined } from '@ant-design/icons';
+import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Progress, Popconfirm, Spin } from 'antd';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { db, storage } from '../../../../firebase-config';
 import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -250,8 +250,8 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
     <div className="file-container">
       <div className="files-box">
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-          <Col span={16}>
-            <Row gutter={16}>
+          <Col xs={24} sm={24} md={12} lg={12}>
+            <Row gutter={16} wrap={false}>
               <Col>
                 <Input
                   className='file-search-input'
@@ -275,7 +275,17 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
               </Col>
             </Row>
           </Col>
-          <Col span={8} style={{ textAlign: 'right' }}>
+          <Col 
+            xs={24} 
+            sm={24} 
+            md={12} 
+            lg={12} 
+            style={{ 
+              textAlign: 'right',
+              marginTop: 16
+            }}
+            className="file-actions-container"
+          >
             {selectedRowKeys.length > 0 && (
               <>
                 <Popconfirm
@@ -314,18 +324,19 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
             </Button>
           </Col>
         </Row>
+
         <Table
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredFiles}
-          loading={loading}
+          loading={{
+            spinning: loading,
+            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+          }}
           rowKey="fileId"
           onRow={(record) => ({
             onClick: () => handleRowClick(record),
           })}
-          onChange={(pagination, filters, sorter) => {
-            console.log('Table change:', sorter);
-          }}
         />
       </div>
 
@@ -372,7 +383,10 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
             </Upload.Dragger>
           </Form.Item>
           {uploadProgress > 0 && uploadProgress < 100 && (
-            <Progress percent={Math.round(uploadProgress)} status="active" />
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <Spin indicator={<LoadingOutlined spin />} />
+              <Progress percent={Math.round(uploadProgress)} status="active" />
+            </div>
           )}
         </Form>
       </Modal>

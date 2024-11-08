@@ -92,3 +92,23 @@
   font-size: 14px;
 } 
 
+
+
+.unit-files-tag-select .ant-select-item {
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  padding: 0 11px !important;
+}
+
+.unit-files-upload-modal{
+  height: 40px;
+
+}
+
+
+.unit-files-upload-modal .ant-form-item-control-input-content > div {
+  width: 100%;
+  display: block;
+
+}

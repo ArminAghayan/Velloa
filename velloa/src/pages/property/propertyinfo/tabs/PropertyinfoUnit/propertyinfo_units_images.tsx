@@ -61,6 +61,10 @@ interface UnitImage {
 interface PropertyUnitImagesProps {
   propertyId: string;
   unitId: string;
+  isModalOpen?: boolean;
+  setIsModalOpen?: (isOpen: boolean) => void;
+  shouldOpenUploadModal?: boolean;
+  setShouldOpenUploadModal?: (value: boolean) => void;
 }
 
 interface UserData {
@@ -73,14 +77,20 @@ interface CustomUploadFile extends AntUploadFile<any> {
   originFileObj: RcFile;
 }
 
-const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, unitId }) => {
+const PropertyinfoUnitImages: React.FC<PropertyUnitImagesProps> = ({
+  propertyId,
+  unitId,
+  isModalOpen,
+  setIsModalOpen,
+  shouldOpenUploadModal,
+  setShouldOpenUploadModal
+}) => {
   const [images, setImages] = useState<UnitImage[]>([]);
   const [filteredImages, setFilteredImages] = useState<UnitImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState<UnitImage | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [fileList, setFileList] = useState<CustomUploadFile[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState<string>('');
@@ -295,9 +305,6 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
     }
   };
 
-  const handleCancelSelection = () => {
-    setSelectedRowKeys([]);
-  };
 
   const handleRemoveFile = (fileIndex: number) => {
     const newFileList = fileList.filter((_, index) => index !== fileIndex);
@@ -485,6 +492,21 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
       }
     }
   };
+
+  // Use the props to control the modal visibility
+  useEffect(() => {
+    if (isModalOpen) {
+      // Open your image upload modal here
+      // ... your modal opening logic
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    if (shouldOpenUploadModal) {
+      setUploadModalVisible(true);
+      setShouldOpenUploadModal?.(false); // Reset the flag after opening
+    }
+  }, [shouldOpenUploadModal, setShouldOpenUploadModal]);
 
   return (
     <div className="unit-images-container">
@@ -908,4 +930,4 @@ const PropertyUnitImages: React.FC<PropertyUnitImagesProps> = ({ propertyId, uni
   );
 };
 
-export default PropertyUnitImages;
+export default PropertyinfoUnitImages;

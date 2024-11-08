@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, message, Button, Row, Col, Modal, Form, Input, Select, Dropdown, Menu } from 'antd';
+import { Table, message, Button, Row, Col, Modal, Form, Input, Select, Dropdown, Menu, Spin } from 'antd';
 import { MenuInfo } from 'rc-menu/lib/interface';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../../firebase-config';
-import { PlusOutlined, MoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, MoreOutlined, LoadingOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import './propertyinfo_notes.css';
 
@@ -32,6 +32,7 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Fetch notes from Firestore
   const fetchNotes = useCallback(async () => {
@@ -163,6 +164,7 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
 
   const handleFormSubmit = async () => {
     try {
+      setSubmitting(true);
       const values = await form.validateFields();
       const newNote: Note = {
         noteId: uuidv4(),
@@ -186,14 +188,16 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
     } catch (error) {
       console.error("Error adding note: ", error);
       message.error(`Failed to add note: ${(error as Error).message || 'Unknown error'}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="notes-container">
       <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-        <Col span={16}>
-          <Row gutter={16}>
+        <Col xs={24} sm={24} md={12} lg={12}>
+          <Row gutter={16} wrap={false}>
             <Col>
               <Input
                 placeholder="Search notes"
@@ -208,6 +212,7 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
                 onChange={handleFilterChange}
                 allowClear
                 className='note-dropdown-input'
+                style={{ width: 150 }}
               >
                 <Option value="General">General</Option>
                 <Option value="Maintenance">Maintenance</Option>
@@ -217,14 +222,24 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
             </Col>
           </Row>
         </Col>
-        <Col span={4} style={{ textAlign: 'right' }}>
+        <Col 
+          xs={24} 
+          sm={24} 
+          md={12} 
+          lg={12} 
+          style={{ 
+            textAlign: 'right',
+            marginTop: 16
+          }}
+          className="new-note-button-container"
+        >
           <Button 
             onClick={handleNewNoteClick} 
             className='new-note-button'
-            type="primary" 
+            type="default" 
             icon={<PlusOutlined />}
           >
-            New Note
+            Add New
           </Button>
         </Col>
       </Row>
@@ -232,10 +247,13 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
       <Table
         columns={columns}
         dataSource={filteredNotes}
-        loading={loading}
+        loading={{
+          spinning: loading,
+          indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+        }}
         rowKey="noteId"
         onRow={(record) => ({
-          onClick: () => handleRowClick(record), // Make the row clickable to view the note
+          onClick: () => handleRowClick(record),
         })}
       />
 
@@ -293,7 +311,12 @@ const NotesTable: React.FC<NotesTableProps> = ({ propertyId }) => {
           <Row justify="end">
             <Col>
               <Form.Item className="notes-table-button-container">
-                <Button type="primary" htmlType="submit" className="notes-table-add-button">
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  className="notes-table-add-button"
+                  loading={submitting}
+                >
                   {selectedNote ? 'Update Note' : 'Add Note'}
                 </Button>
               </Form.Item>

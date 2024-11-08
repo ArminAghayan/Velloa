@@ -1,6 +1,6 @@
 // PropertyInfo.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Typography, Button, Tabs, message, Form, Skeleton,Row, Col, Space } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import { db } from '../../../firebase-config';
@@ -37,7 +37,9 @@ const PropertyInfo: React.FC = () => {
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(
+    (useLocation().state as { activeTab?: string })?.activeTab || 'overview'
+  );
 
   const handleBackClick = () => {
     navigate('/property');
@@ -131,7 +133,10 @@ const PropertyInfo: React.FC = () => {
     </div>
 
       <div className="property-info-menu">
-        <Tabs defaultActiveKey="overview" onChange={key => setActiveTab(key as string)} >
+        <Tabs 
+          activeKey={activeTab}
+          onChange={key => setActiveTab(key as string)}
+        >
           <TabPane tab="Overview" key="overview" />
           <TabPane tab="Reports" key="reports" />
           <TabPane tab="Units" key="units" />

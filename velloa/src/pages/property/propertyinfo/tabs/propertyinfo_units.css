@@ -1,9 +1,10 @@
 
 .units-box {
-  background-color: #ffffff; /* White background */
+  background-color: #ffffff;
   padding: 24px;
-  border-radius: 12px; /* Rounded corners */
-  border: 1.25px #E6E9EC solid ; /* Black border */
+  border-radius: 6px;
+  border: 1.25px #E6E9EC solid;
+
 }
 
 .unitdrawerinput .ant-input,
@@ -12,13 +13,12 @@
 }
 .unit-search-input{
   width: 200px;
-  height: 36px; /* Ensuring consistent height */
-  border-radius: 12px;
+  height: 40px;
 
 }
 .unit-dropdown-input {
   width: 150px;
-  height: 36px; /* Ensuring consistent height */
+  height: 40px;
 }
 
 .review-item {
@@ -26,7 +26,8 @@
 }
 
 .new-unit-button {
-  height: 36px; /* Same height as the search bar and dropdown */
-  font-weight: 500; /* Make the text a little more bold */
-
+  height: 40px; 
+  width: 150px;
 }
+
+
