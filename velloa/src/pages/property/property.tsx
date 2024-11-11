@@ -7,6 +7,7 @@ import { db, auth } from '../../firebase-config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import './property.css';
+import { IconHome, IconBuilding } from '@tabler/icons-react';
 
 const { Title } = Typography;
 
@@ -111,7 +112,31 @@ const PropertyPage: React.FC = () => {
       key: 'propertyName',
       defaultSortOrder: 'ascend' as SortOrder,
       sorter: (a: PropertyData, b: PropertyData) => a.propertyName.localeCompare(b.propertyName),
-      render: (text: PropertyData['propertyName']) => (loading ? <Skeleton.Input style={{ width: '100px' }} active size="small" /> : text),
+      render: (text: PropertyData['propertyName'], record: PropertyData) => (
+        loading ? (
+          <Skeleton.Input style={{ width: '100px' }} active size="small" />
+        ) : (
+          <Space>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#D8E6D9',
+              borderRadius: '4px',
+              marginRight: '12px'
+            }}>
+              {record.propertyType.toLowerCase() === 'residential' ? (
+                <IconHome size={24} style={{ color: '#168033' }} />
+              ) : (
+                <IconBuilding size={24} style={{ color: '#168033' }} />
+              )}
+            </div>
+            {text}
+          </Space>
+        )
+      ),
     },
     {
       title: 'Property Type',
@@ -157,7 +182,7 @@ const PropertyPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '64px 36px' }}>
+    <div style={{ padding: '64px 24px' }}>
       <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
         Property
       </Title>
@@ -170,14 +195,16 @@ const PropertyPage: React.FC = () => {
             className="search-input"
           />
           <Space>
+            
+            <Button style={{ height: '40px' }} type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
+              Add Property
+            </Button>
             <Button
               icon={<ReloadOutlined spin={isRefreshing} />}
               onClick={handleRefresh}
               disabled={isRefreshing}
+              style={{ height: '40px', width: '40px' }}
             />
-            <Button type="default" onClick={handleAddPropertyClick} icon={<PlusOutlined />} className="add-property-button">
-              Add Property
-            </Button>
           </Space>
         </div>
         <Table

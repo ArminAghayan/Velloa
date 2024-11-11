@@ -1,64 +1,300 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Progress, Popconfirm, Spin } from 'antd';
-import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { db, storage } from '../../../../firebase-config';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Popconfirm, Space, Typography, Tag } from 'antd';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, FileWordOutlined, FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FilePptOutlined, FileOutlined, EditOutlined, PlaySquareOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { auth, db, storage } from '../../../../firebase-config';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import { v4 as uuidv4 } from 'uuid';
 import './property_files.css';
+import { UploadFile as AntUploadFile, UploadChangeParam, RcFile } from 'antd/lib/upload';
+
+const { Text } = Typography;
 
 const { Option } = Select;
 
-export interface PropertyFile {
-  fileId: string;
+export interface UnitFile {
+  id?: string;
   fileName: string;
   fileType: string;
-  uploadDate: string;
+  uploadDate: Timestamp;
   size: number;
   uploadedBy: string;
+  uploadedByName: string;
   fileUrl: string;
-  unitId?: string;
+  companyId: string;
+  tags?: string[];
 }
 
-interface PropertyFilesProps {
+interface PropertyinfoFilesProps {
   propertyId: string;
 }
 
-const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
-  const [files, setFiles] = useState<PropertyFile[]>([]);
-  const [filteredFiles, setFilteredFiles] = useState<PropertyFile[]>([]);
+// Add interface for user data
+interface UserData {
+  firstName: string;
+  lastName: string;
+  email?: string;
+}
+
+// Add these new interfaces
+interface NoteTag {
+  name: string;
+  createdAt: string;
+  id: string;
+}
+
+// Helper function to get a friendly file type name
+const getFileType = (file: File): string => {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  
+  // Document types
+  if (extension === 'doc') return 'DOC';
+  if (extension === 'docx') return 'DOCX';
+  if (extension === 'pdf') return 'PDF';
+  if (['xls', 'xlsx'].includes(extension)) return 'Excel Spreadsheet';
+  if (['ppt', 'pptx'].includes(extension)) return 'PowerPoint';
+  if (extension === 'txt') return 'Text Document';
+
+  // Image types
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+    return `Image (${extension.toUpperCase()})`;
+  }
+
+  // Video types
+  if (['mp4', 'mov', 'avi', 'wmv'].includes(extension)) {
+    return `Video (${extension.toUpperCase()})`;
+  }
+
+  return `File (${extension.toUpperCase()})`;
+};
+
+
+
+interface CustomUploadFile extends AntUploadFile<any> {
+  originFileObj: RcFile;
+}
+
+// Add this constant at the top with other constants
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+
+// Add this interface for filter types
+interface FilterOption {
+  value: string;
+  label: string;
+  group: 'type' | 'tag';
+}
+
+const PropertyinfoFiles: React.FC<PropertyinfoFilesProps> = ({ propertyId }) => {
+  const [files, setFiles] = useState<UnitFile[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<UnitFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [previewFile, setPreviewFile] = useState<PropertyFile | null>(null);
+  const [previewFile, setPreviewFile] = useState<UnitFile | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [fileList, setFileList] = useState<CustomUploadFile[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+  const [totalProgress, setTotalProgress] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState(0);
+  const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
+  const [availableNoteTags, setAvailableNoteTags] = useState<NoteTag[]>([]);
+
+  // 1. Memoize fileTypeFilters
+  const fileTypeFilters = useMemo(() => [
+    { value: 'document', label: 'Documents', group: 'type' as const },
+    { value: 'image', label: 'Images', group: 'type' as const },
+    { value: 'video', label: 'Videos', group: 'type' as const },
+    { value: 'spreadsheet', label: 'Spreadsheets', group: 'type' as const },
+  ] as FilterOption[], []); // Empty dependency array as this never changes
+
+  // 2. Memoize tagFilters
+  const tagFilters = useMemo(() => 
+    availableNoteTags.map(tag => ({
+      value: tag.name,
+      label: tag.name,
+      group: 'tag' as const
+    })) as FilterOption[]
+  , [availableNoteTags]);
+
+  // 3. Memoize allFilters
+  const allFilters = useMemo(() => 
+    [...fileTypeFilters, ...tagFilters]
+  , [fileTypeFilters, tagFilters]);
+
+  // 4. Memoize fetchNoteTags callback
+  const fetchNoteTags = useCallback(async (companyId: string) => {
+    try {
+      const noteTagsDoc = await getDoc(doc(db, 'companies', companyId, 'settings', 'filetags'));
+      if (noteTagsDoc.exists()) {
+        const data = noteTagsDoc.data();
+        const tags = data?.tags ? Object.values(data.tags) : [];
+        const validTags = tags.filter((tag: any) => 
+          tag && 
+          typeof tag === 'object' && 
+          typeof tag.name === 'string'
+        ) as NoteTag[];
+        
+        setAvailableNoteTags(validTags);
+      } else {
+        setAvailableNoteTags([]);
+      }
+    } catch (error) {
+      console.error('Error fetching File tags:', error);
+      setAvailableNoteTags([]);
+    }
+  }, []); // No dependencies as it doesn't use any external values
+
+  // 5. Memoize the filtered files calculation
+  const getFilteredFiles = useCallback((
+    files: UnitFile[],
+    searchText: string,
+    filterType: string,
+    allFilters: FilterOption[]
+  ) => {
+    const lowercasedSearch = searchText.toLowerCase();
+    return files.filter(file => {
+      const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
+      let typeMatch = true;
+      
+      if (filterType !== '') {
+        const selectedFilter = allFilters.find(filter => filter.value === filterType);
+        
+        if (selectedFilter?.group === 'type') {
+          const lowerCaseFileType = file.fileType.toLowerCase();
+          switch (filterType.toLowerCase()) {
+            case 'document':
+              typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'image':
+              typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'video':
+              typeMatch = ['mp4', 'mov', 'avi', 'wmv', 'webm'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            case 'spreadsheet':
+              typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
+              break;
+            default:
+              typeMatch = true;
+          }
+        } else if (selectedFilter?.group === 'tag') {
+          typeMatch = file.tags?.includes(filterType) || false;
+        }
+      }
+      
+      return fileNameMatch && typeMatch;
+    });
+  }, []);
+
+  // 6. Update the filtering useEffect
+  useEffect(() => {
+    const filtered = getFilteredFiles(files, searchText, filterType, allFilters);
+    setFilteredFiles(filtered);
+  }, [files, searchText, filterType, allFilters, getFilteredFiles]);
+
+  // 7. Update the auth state listener
+  useEffect(() => {
+    let mounted = true;
+    
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (!mounted) return;
+      
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (!mounted) return;
+          
+          if (userDoc.exists()) {
+            const companyId = userDoc.data().companyuid;
+            if (companyId) {
+              await fetchNoteTags(companyId);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user doc:', error);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [fetchNoteTags]);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
-    const filesRef = collection(db, 'properties', propertyId, 'files');
+    
+    if (!auth.currentUser) {
+      console.error('No authenticated user');
+      message.error('Please login to view files');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // First get the property's companyId
+      const propertyDocRef = doc(db, 'properties', propertyId);
+      const propertyDoc = await getDoc(propertyDocRef);
+      if (!propertyDoc.exists()) {
+        throw new Error('Property not found');
+      }
+      const companyId = propertyDoc.data().companyuid;
+
+      const filesRef = collection(db, 'properties', propertyId, 'files');
       const filesSnapshot = await getDocs(filesRef);
-      const fetchedFiles: PropertyFile[] = await Promise.all(
-        filesSnapshot.docs.map(async (doc) => {
-          const data = doc.data() as PropertyFile;
-          try {
-            const freshUrl = await getDownloadURL(ref(storage, data.fileUrl));
-            return { ...data, fileId: doc.id, fileUrl: freshUrl };
-          } catch (error) {
-            console.error("Error refreshing download URL: ", error);
-            return { ...data, fileId: doc.id };
+
+      if (filesSnapshot.empty) {
+        console.log('No files found');
+        setFiles([]);
+        setFilteredFiles([]);
+        setLoading(false);
+        return;
+      }
+
+      const fetchedFiles: UnitFile[] = await Promise.all(
+        filesSnapshot.docs.map(async (docSnapshot) => {
+          const data = docSnapshot.data() as Omit<UnitFile, 'id'>;
+          
+          // Use existing uploadedByName if available, otherwise use a default
+          let uploadedByName = data.uploadedByName || 'Unknown User';
+          
+          // Only try to fetch user details if uploadedByName is not already set
+          if (data.uploadedBy && !data.uploadedByName) {
+            try {
+              const userDocRef = doc(db, 'users', data.uploadedBy);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data() as UserData;
+                uploadedByName = `${userData.firstName} ${userData.lastName}`;
+              }
+            } catch (error) {
+              // If there's a permission error, just use the email or default name
+              console.log('Unable to fetch user details, using default name');
+              uploadedByName = data.uploadedBy || 'Unknown User';
+            }
           }
+          
+          return {
+            ...data,
+            id: docSnapshot.id,
+            uploadedByName,
+            companyId: data.companyId || companyId
+          };
         })
       );
+
+      console.log('Processed files:', fetchedFiles);
       setFiles(fetchedFiles);
       setFilteredFiles(fetchedFiles);
     } catch (error) {
-      console.error("Error fetching files: ", error);
+      console.error("Error fetching files:", error);
       message.error("Failed to fetch files. Please check your permissions.");
     } finally {
       setLoading(false);
@@ -69,26 +305,38 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
     fetchFiles();
   }, [fetchFiles]);
 
-  const handleFileChange = (info: any) => {
-    const { fileList } = info;
-    let lastFile = fileList[fileList.length - 1];
+  const handleFileChange = (info: UploadChangeParam<AntUploadFile<any>>) => {
+    const { fileList: newFileList } = info;
+    
+    // Filter out files with unsupported types
+    const filteredNewFiles = newFileList
+      .filter((file) => file.originFileObj && isFileTypeAllowed(file.originFileObj))
+      // Only process files that aren't already in the list
+      .filter((newFile) => 
+        !fileList.some(existingFile => existingFile.name === newFile.name)
+      );
 
-    if (lastFile && lastFile.originFileObj) {
-      form.setFieldsValue({
-        file: [lastFile],
-        fileName: lastFile.name,
-      });
-    } else {
-      form.resetFields(['file', 'fileName']);
-    }
+    // Combine existing files with new files
+    const updatedFileList = [...fileList, ...filteredNewFiles] as CustomUploadFile[];
+    
+    setFileList(updatedFileList);
+    form.setFieldsValue({
+      file: updatedFileList
+    });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
+  // Update the filter handling
   const handleFilterChange = (value: string) => {
-    setFilterType(value || '');
+    const selectedFilter = allFilters.find(filter => filter.value === value);
+    if (!selectedFilter) {
+      setFilterType('');
+      return;
+    }
+    setFilterType(value);
   };
 
   const handleNewFileClick = () => {
@@ -97,40 +345,116 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
   };
 
   const handleUploadModalClose = () => {
+    if (uploadProgress > 0 && uploadProgress < 100) {
+      // Don't allow closing during upload
+      return;
+    }
     setUploadModalVisible(false);
     form.resetFields();
+    setFileList([]);
     setUploadProgress(0);
   };
 
   const handlePreviewModalClose = () => {
+    // Stop video if it exists
+    if (videoRef) {
+      videoRef.pause();
+      videoRef.currentTime = 0;
+    }
     setPreviewModalVisible(false);
     setPreviewFile(null);
   };
 
-  const handleRowClick = (file: PropertyFile) => {
+  const handleRowClick = (file: UnitFile) => {
     setPreviewFile(file);
     setPreviewModalVisible(true);
   };
 
   const handleDeleteSelected = async () => {
+    if (!auth.currentUser) {
+      message.error('You must be logged in to delete files');
+      return;
+    }
+
     try {
-      for (const key of selectedRowKeys) {
-        const fileToDelete = files.find(file => file.fileId === key);
-        if (fileToDelete) {
-          await deleteDoc(doc(db, 'properties', propertyId, 'files', fileToDelete.fileId));
-          const storageRef = ref(storage, fileToDelete.fileUrl);
-          await deleteObject(storageRef);
-        }
+      // Show loading message
+      const loadingMessage = message.loading('Deleting files...', 0);
+
+      // Delete files one by one and track success/failure
+      const deleteResults = await Promise.allSettled(
+        selectedRowKeys.map(async (key) => {
+          const fileToDelete = files.find(file => file.id === key);
+          if (!fileToDelete?.id) return;
+
+          try {
+            // Delete from Firestore
+            const fileDocRef = doc(db, 'properties', propertyId, 'files', fileToDelete.id);
+            await deleteDoc(fileDocRef);
+            
+            // Delete from Storage if URL exists
+            if (fileToDelete.fileUrl) {
+              try {
+                const storageRef = ref(storage, fileToDelete.fileUrl);
+                await deleteObject(storageRef);
+              } catch (storageError: any) {
+                // If file doesn't exist in storage, continue anyway
+                if (storageError.code !== 'storage/object-not-found') {
+                  throw storageError;
+                }
+              }
+            }
+            return fileToDelete.id;
+          } catch (error) {
+            console.error(`Error deleting file ${fileToDelete.fileName}:`, error);
+            throw error;
+          }
+        })
+      );
+
+      // Close loading message
+      loadingMessage();
+
+      // Count successful and failed deletions
+      const successful = deleteResults.filter(result => result.status === 'fulfilled').length;
+      const failed = deleteResults.filter(result => result.status === 'rejected').length;
+
+      // Update UI state
+      if (successful > 0) {
+        // Remove successfully deleted files from state
+        const successfulIds = deleteResults
+          .filter((result): result is PromiseFulfilledResult<string | undefined> => 
+            result.status === 'fulfilled' && result.value !== undefined
+          )
+          .map(result => result.value);
+
+        setFiles(prevFiles => prevFiles.filter(file => 
+          file.id && !successfulIds.includes(file.id)
+        ));
+        
+        setFilteredFiles(prevFiltered => prevFiltered.filter(file => 
+          file.id && !successfulIds.includes(file.id)
+        ));
+
+        // Refresh the file list to ensure sync with server
+        fetchFiles();
       }
-      
-      setFiles(prevFiles => prevFiles.filter(file => !selectedRowKeys.includes(file.fileId)));
-      setFilteredFiles(prevFiltered => prevFiltered.filter(file => !selectedRowKeys.includes(file.fileId)));
+
+      // Show appropriate message
+      if (failed === 0) {
+        message.success(`Successfully deleted ${successful} file${successful !== 1 ? 's' : ''}`);
+      } else if (successful === 0) {
+        message.error('Failed to delete files. Please check your permissions.');
+      } else {
+        message.warning(`Deleted ${successful} file${successful !== 1 ? 's' : ''}, but ${failed} failed`);
+      }
+
+      // Clear selection
       setSelectedRowKeys([]);
-      
-      message.success('Selected files deleted successfully');
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("Error deleting files: ", error);
-      message.error('Failed to delete selected files');
+      message.error('Failed to delete files. Please check your permissions.');
+      setSelectedRowKeys([]);
     }
   };
 
@@ -138,19 +462,99 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
     setSelectedRowKeys([]);
   };
 
+
+
+  const getFileIcon = (fileType: string) => {
+    const type = fileType.toLowerCase();
+    if (type === 'doc' || type === 'docx') {
+      return <FileWordOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+    } else if (type.includes('pdf')) {
+      return <FilePdfOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+    } else if (type.includes('image') || type.includes('jpg') || type.includes('png')) {
+      return <FileImageOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+    } else if (type.includes('excel') || type.includes('spreadsheet') || type.includes('xlsx')) {
+      return <FileExcelOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+    } else if (type.includes('powerpoint') || type.includes('pptx')) {
+      return <FilePptOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+    }
+    return <FileOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+  };
+
   const columns = [
-    { title: 'File Name', dataIndex: 'fileName', key: 'fileName' },
-    { title: 'File Type', dataIndex: 'fileType', key: 'fileType' },
+    {
+      title: 'File',
+      dataIndex: 'fileName',
+      key: 'fileName',
+      render: (text: string, record: UnitFile) => (
+        <Space align="center">
+          <div style={{
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#D8E6D9',
+            borderRadius: '4px',
+            marginRight: '12px'
+          }}>
+            {getFileIcon(record.fileType)}
+          </div>
+          <Text strong>{text}</Text>
+        </Space>
+      ),
+    },
+    { 
+      title: 'Tags', 
+      dataIndex: 'tags', 
+      key: 'tags',
+      width: 200,
+      render: (tags: string[]) => (
+        <span>
+          {tags?.length ? 
+            tags.map((tag) => (
+              <Tag key={tag} color="blue" style={{ marginBottom: '4px' }}>
+                {tag}
+              </Tag>
+            ))
+            : 
+            '--'
+          }
+        </span>
+      )
+    },
+    { 
+      title: 'Type', 
+      dataIndex: 'fileType', 
+      key: 'fileType',
+      render: (text: string) => <Text>{text}</Text>
+    },
+    { 
+      title: 'Size', 
+      dataIndex: 'size', 
+      key: 'size',
+      render: (size: number) => <Text>{size} KB</Text>
+    },
     { 
       title: 'Upload Date', 
       dataIndex: 'uploadDate', 
       key: 'uploadDate', 
-      render: (text: string) => new Date(text).toLocaleDateString(),
-      sorter: (a: PropertyFile, b: PropertyFile) => new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime(),
+      render: (uploadDate: Timestamp) => {
+        const date = uploadDate instanceof Timestamp ? uploadDate.toDate() : new Date(uploadDate);
+        return date.toLocaleDateString();
+      },
+      sorter: (a: UnitFile, b: UnitFile) => {
+        const dateA = a.uploadDate instanceof Timestamp ? a.uploadDate.toDate() : new Date(a.uploadDate);
+        const dateB = b.uploadDate instanceof Timestamp ? b.uploadDate.toDate() : new Date(b.uploadDate);
+        return dateA.getTime() - dateB.getTime();
+      },
       sortDirections: ['descend', 'ascend'] as ['descend', 'ascend'],
     },
-    { title: 'Size', dataIndex: 'size', key: 'size', render: (size: number) => `${size} KB` },
-    { title: 'Uploaded By', dataIndex: 'uploadedBy', key: 'uploadedBy' }
+    { 
+      title: 'Uploaded By', 
+      dataIndex: 'uploadedByName', 
+      key: 'uploadedByName' 
+    },
+   
   ];
 
   const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
@@ -165,96 +569,356 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
 
   const handleFormSubmit = async (values: any) => {
     try {
-      if (!values.file || values.file.length === 0) {
-        throw new Error('No file selected');
+      if (!auth.currentUser?.uid) {
+        message.error('User is not authenticated');
+        return;
       }
 
-      const file = values.file[0].originFileObj;
+      const currentUser = auth.currentUser;
 
-      if (!file) {
-        throw new Error('File object is not available');
+      // First get the user's full name
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('User document not found');
       }
+      const userData = userDoc.data() as UserData;
+      const userFullName = `${userData.firstName} ${userData.lastName}` || currentUser.email || 'Unknown User';
 
-      const fileType = file.type || 'Unknown/Unsupported';
-      const fileName = values.fileName || file.name;
-      const storageRef = ref(storage, `properties/${propertyId}/files/${uuidv4()}-${fileName}`);
+      // Get the property's companyId
+      const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+      if (!propertyDoc.exists()) {
+        throw new Error('Property not found');
+      }
       
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const companyId = propertyDoc.data().companyuid;
+      
+      if (!companyId) {
+        throw new Error('Company ID not found for this property');
+      }
 
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        }, 
-        (error) => {
-          console.error("Upload error: ", error);
-          message.error(`Upload failed: ${error.message}`);
-        }, 
-        async () => {
-          const fileUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          const newFile: PropertyFile = {
-            fileId: uploadTask.snapshot.metadata.fullPath,
-            fileName: fileName,
-            fileType: fileType,
-            uploadDate: new Date().toISOString(),
-            size: Math.round((file.size / 1024) * 100) / 100,
-            uploadedBy: 'Current User',
-            fileUrl: fileUrl
-          };
+      if (!fileList || fileList.length === 0) {
+        throw new Error('No files selected');
+      }
 
-          const filesRef = collection(db, 'properties', propertyId, 'files');
-          await addDoc(filesRef, newFile);
+      const totalFiles = fileList.length;
+      setUploadedFiles(0);
+      setTotalProgress(0);
 
-          setFiles(prevFiles => [...prevFiles, newFile]);
-          setFilteredFiles(prevFiltered => [...prevFiltered, newFile]);
-          message.success('File added successfully');
-          setUploadProgress(0);
-          handleUploadModalClose();
-        }
-      );
+      // Get the selected tags from the form
+      const selectedTags = values.tags || [];
+
+      // Process each file in the fileList using forEach instead of for...of
+      await Promise.all(fileList.map(async (fileItem, index) => {
+        const file = fileItem.originFileObj;
+        const fileName = fileItem.name;
+        const storageFileName = `${uuidv4()}-${fileName}`;
+        const storageRef = ref(storage, `properties/${propertyId}/files/${storageFileName}`);
+        
+        const metadata = {
+          customMetadata: {
+            uploadedBy: currentUser.uid,
+            uploadedByEmail: currentUser.email || 'unknown',
+            companyId: companyId
+          }
+        };
+        
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+        await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const fileProgress = (snapshot.bytesTransferred / snapshot.totalBytes);
+              const combinedProgress = ((index + fileProgress) / totalFiles) * 100;
+              setTotalProgress(combinedProgress);
+            }, 
+            (error) => {
+              reject(error);
+            }, 
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                
+                const newFile: UnitFile = {
+                  fileName: fileName,
+                  fileType: getFileType(file),
+                  uploadDate: Timestamp.now(),
+                  size: Math.round((file.size / 1024) * 100) / 100,
+                  uploadedBy: currentUser.uid,
+                  uploadedByName: userFullName,
+                  fileUrl: downloadURL,
+                  companyId: companyId,
+                  tags: selectedTags
+                };
+
+                const filesRef = collection(db, 'properties', propertyId,'files');
+                await addDoc(filesRef, newFile);
+                setUploadedFiles(prev => prev + 1);
+                resolve(null);
+              } catch (error) {
+                reject(error);
+              }
+            }
+          );
+        });
+      }));
+      
+      setTotalProgress(0);
+      setUploadedFiles(0);
+      message.success('All files uploaded successfully');
+      handleUploadModalClose();
+      await fetchFiles();
+      
     } catch (error: any) {
-      console.error("Error adding file: ", error);
-      message.error(`Failed to add file: ${error.message}`);
+      console.error("Error adding files: ", error);
+      message.error(`Failed to upload files: ${error.message}`);
+      setTotalProgress(0);
+      setUploadedFiles(0);
     }
   };
 
-  useEffect(() => {
-    const lowercasedSearch = searchText.toLowerCase();
-    const filtered = files.filter(file => {
-      const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
-      let typeMatch = true;
-      
-      if (filterType !== '' && file.fileType) {
-        const lowerCaseFileType = file.fileType.toLowerCase();
-        switch (filterType.toLowerCase()) {
-          case 'document':
-            typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          case 'image':
-            typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp','webp','mp4'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          case 'spreadsheet':
-            typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
-            break;
-          default:
-            typeMatch = true;
-        }
-      }
-      
-      return fileNameMatch && typeMatch;
+  // Add this function to handle file deletion
+  const handleRemoveFile = (fileIndex: number) => {
+    const newFileList = fileList.filter((_, index) => index !== fileIndex);
+    setFileList(newFileList);
+    form.setFieldsValue({
+      file: newFileList
     });
-    setFilteredFiles(filtered);
-  }, [files, searchText, filterType]);
+  };
+
+  const handleEditName = (index: number, currentName: string) => {
+    setEditingIndex(index);
+    setEditingName(currentName);
+  };
+
+  const handleSaveEdit = (index: number) => {
+    if (editingName.trim()) {
+      const newFileList = [...fileList];
+      const fileExtension = newFileList[index].name.split('.').pop();
+      newFileList[index] = {
+        ...newFileList[index],
+        name: `${editingName.trim()}.${fileExtension}`
+      };
+      setFileList(newFileList);
+      form.setFieldsValue({
+        file: newFileList
+      });
+    }
+    setEditingIndex(null);
+    setEditingName('');
+  };
+
+  // Add this helper function to get file extension
+  const getFileExtension = (filename: string): string => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+  };
+
+  // Update the isFileTypeAllowed function
+  const isFileTypeAllowed = (file: File): boolean => {
+    // Check file size first
+    if (file.size > MAX_FILE_SIZE) {
+      message.error(`File ${file.name} is too large. Maximum size is 50MB`);
+      return false;
+    }
+
+    const extension = getFileExtension(file.name);
+    const allAllowedTypes = [
+      'doc', 'docx', 'pdf', 'xls', 'xlsx',  // documents
+      'jpg', 'jpeg', 'png', 'gif', 'svg',   // images
+      'mp4', 'webm', 'avi', 'wmv', 'mpeg', 'm4v', 'mov', 'video'  // videos
+    ];
+    
+    if (!allAllowedTypes.includes(extension)) {
+      message.error(`File type .${extension} is not allowed`);
+      return false;
+    }
+    return true;
+  };
+
+  // Update the ALLOWED_FILE_TYPES constant if you're using it for the accept prop
+  const ALLOWED_FILE_TYPES = {
+    documents: ['.doc', '.docx', '.pdf', '.xls', '.xlsx'],
+    images: ['.jpg', '.jpeg', '.png', '.gif', '.svg'],
+    videos: ['.mp4', '.webm', '.avi', '.wmv', '.mpeg', '.m4v', '.mov', '.video']
+  };
+
+  const renderPreviewContent = (file: UnitFile) => {
+    const fileExtension = getFileExtension(file.fileName).toLowerCase();
+    const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(fileExtension);
+    const isVideo = ['mp4', 'webm', 'avi', 'wmv', 'mpeg', 'm4v', 'mov'].includes(fileExtension);
+    const isPdf = fileExtension === 'pdf';
+
+    if (isVideo) {
+      return (
+        <video
+          ref={(el) => setVideoRef(el)}
+          controls
+          style={{ 
+            maxWidth: '100%', 
+            maxHeight: 'calc(90vh - 100px)',
+            margin: '0 auto',
+            display: 'block'
+          }}
+          src={file.fileUrl}
+        >
+          Your browser does not support the video tag.
+        </video>
+      );
+    }
+
+    if (isOfficeDoc) {
+      return (
+        <div style={{ 
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          textAlign: 'center',
+          backgroundColor: '#f5f5f5'
+        }}>
+          <div style={{ marginBottom: '1rem' }}>
+            {getFileIcon(file.fileType)}
+          </div>
+          <Typography.Title level={4} style={{ margin: '1rem 0' }}>
+            This file type cannot be previewed directly
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ marginBottom: '2rem' }}>
+            Please download the file to view its contents
+          </Typography.Text>
+          <Button 
+            type="primary"
+            icon={<DownloadOutlined />}
+            size="large"
+            onClick={() => window.open(file.fileUrl, '_blank')}
+          >
+            Download File
+          </Button>
+        </div>
+      );
+    }
+
+    if (isPdf) {
+      return (
+        <DocViewer
+          documents={[{ 
+            uri: file.fileUrl,
+            fileName: file.fileName 
+          }]}
+          pluginRenderers={[DocViewerRenderers[0]]}
+          config={{
+            header: {
+              disableHeader: true,
+              disableFileName: true,
+            },
+            pdfZoom: {
+              defaultZoom: 0.5,
+              zoomJump: 0.2,
+            },
+            pdfVerticalScrollByDefault: true
+          }}
+          theme={{
+            primary: '#f0f0f0',
+            secondary: '#ffffff',
+            tertiary: '#dddddd',
+            textPrimary: '#000000',
+            textSecondary: '#666666',
+            disableThemeScrollbar: false
+          }}
+          style={{ 
+            height: '100%',
+            width: '100%',
+            backgroundColor: '#f0f0f0',
+            overflow: 'auto'
+          }}
+        />
+      );
+    }
+
+    // For all other file types, show download button
+    return (
+      <div style={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
+        textAlign: 'center',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <div style={{ marginBottom: '1rem' }}>
+          {getFileIcon(file.fileType)}
+        </div>
+        <Typography.Title level={4} style={{ margin: '1rem 0' }}>
+          Preview not available
+        </Typography.Title>
+        <Typography.Text type="secondary" style={{ marginBottom: '2rem' }}>
+          Please download the file to view its contents
+        </Typography.Text>
+        <Button 
+          type="primary"
+          icon={<DownloadOutlined />}
+          size="large"
+          onClick={() => window.open(file.fileUrl, '_blank')}
+        >
+          Download File
+        </Button>
+      </div>
+    );
+  };
+
+  const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
+
+  // Add this helper function to check if user is a company member
+  const isUserCompanyMember = async (companyId: string): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) return false;
+      
+      return userDoc.data().companyuid === companyId;
+    } catch (error) {
+      console.error('Error checking company membership:', error);
+      return false;
+    }
+  };
+
+  // Update the file deletion confirmation to include permission check
+  const handleDeleteConfirm = async () => {
+    if (!auth.currentUser) {
+      message.error('You must be logged in to delete files');
+      return;
+    }
+
+    // Get the company ID from the first selected file
+    const firstFile = files.find(file => file.id === selectedRowKeys[0]);
+    if (!firstFile?.companyId) {
+      message.error('Unable to verify permissions');
+      return;
+    }
+
+    const hasPermission = await isUserCompanyMember(firstFile.companyId);
+    if (!hasPermission) {
+      message.error('You do not have permission to delete these files');
+      return;
+    }
+
+    handleDeleteSelected();
+  };
 
   return (
-    <div className="file-container">
-      <div className="files-box">
+    <div className="unit-files-container">
+      <div className="unit-files-box">
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
           <Col xs={24} sm={24} md={12} lg={12}>
             <Row gutter={16} wrap={false}>
               <Col>
                 <Input
-                  className='file-search-input'
+                  className='unit-files-search-input'
                   placeholder="Search files"
                   value={searchText}
                   onChange={handleSearchChange}
@@ -262,15 +926,28 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
               </Col>
               <Col>
                 <Select
-                  className='file-dropdown-input'
-                  placeholder="Filter by type"
+                  className='unit-files-dropdown-input'
+                  placeholder="Filter files"
                   onChange={handleFilterChange}
                   allowClear
                   style={{ width: 150 }}
                 >
-                  <Option value="Document">Document</Option>
-                  <Option value="Image">Image</Option>
-                  <Option value="Spreadsheet">Spreadsheet</Option>
+                  <Select.OptGroup label="Type">
+                    {fileTypeFilters.map(filter => (
+                      <Option key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </Option>
+                    ))}
+                  </Select.OptGroup>
+                  {tagFilters.length > 0 && (
+                    <Select.OptGroup label="Tags">
+                      {tagFilters.map(filter => (
+                        <Option key={filter.value} value={filter.value}>
+                          {filter.label}
+                        </Option>
+                      ))}
+                    </Select.OptGroup>
+                  )}
                 </Select>
               </Col>
             </Row>
@@ -284,59 +961,65 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
               textAlign: 'right',
               marginTop: 16
             }}
-            className="file-actions-container"
+            className="new-file-button-container"
           >
-            {selectedRowKeys.length > 0 && (
-              <>
-                <Popconfirm
-                  title="Are you sure you want to delete these files?"
-                  onConfirm={handleDeleteSelected}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  <Button
-                    className='delete-files-button'
-                    type="primary"
-                    danger
-                    icon={<DeleteOutlined />}
-                    style={{ marginRight: '8px' }}
+            <Space>
+              {selectedRowKeys.length > 0 && (
+                <>
+                  <Popconfirm
+                    title="Are you sure you want to delete these files?"
+                    onConfirm={handleDeleteConfirm}
+                    okText="Yes"
+                    cancelText="No"
                   >
-                    Delete Selected
+                    <Button
+                      className='unit-files-delete-files-button'
+                      type="primary"
+                      danger
+                      icon={<DeleteOutlined />}
+                    >
+                      Delete Selected
+                    </Button>
+                  </Popconfirm>
+                  <Button
+                    className='unit-files-cancel-selection-button'
+                    onClick={handleCancelSelection}
+                    icon={<CloseOutlined />}
+                  >
+                    Cancel Selection
                   </Button>
-                </Popconfirm>
-                <Button
-                  className='cancel-selection-button'
-                  onClick={handleCancelSelection}
-                  icon={<CloseOutlined />}
-                  style={{ marginRight: '8px' }}
-                >
-                  Cancel Selection
-                </Button>
-              </>
-            )}
-            <Button
-              className='new-file-button'
-              onClick={handleNewFileClick}
-              type="default"
-              icon={<PlusOutlined />}
-            >
-              New File
-            </Button>
+                </>
+              )}
+              <Button
+                className='unit-files-new-file-button'
+                onClick={handleNewFileClick}
+                type="default"
+                icon={<PlusOutlined />}
+              >
+                New File
+              </Button>
+            </Space>
           </Col>
         </Row>
-
         <Table
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredFiles}
           loading={{
             spinning: loading,
-            indicator: <Spin indicator={<LoadingOutlined spin />} size="large" />
+            indicator: antIcon
           }}
-          rowKey="fileId"
+          rowKey="id"
           onRow={(record) => ({
             onClick: () => handleRowClick(record),
           })}
+          pagination={{ 
+            pageSize: 5,
+            showSizeChanger: false 
+          }}
+          onChange={(pagination, filters, sorter) => {
+            console.log('Table change:', sorter);
+          }}
         />
       </div>
 
@@ -345,86 +1028,222 @@ const PropertyFiles: React.FC<PropertyFilesProps> = ({ propertyId }) => {
         visible={uploadModalVisible}
         onOk={form.submit}
         onCancel={handleUploadModalClose}
+        className="unit-files-upload-modal"
         footer={[
           <Button key="back" onClick={handleUploadModalClose}>
             Cancel
           </Button>,
-          <Button key="submit" type="primary" onClick={form.submit}>
-            Submit
+          <Button 
+            key="submit" 
+            type="primary" 
+            onClick={form.submit}
+            loading={uploadProgress > 0 && uploadProgress < 100}
+          >
+            Upload
           </Button>,
         ]}
       >
+        <p style={{ color: '#8c8c8c', marginBottom: '24px' }}>
+          Here, you can upload files to this unit.
+        </p>
+        
         <Form
           form={form}
           layout="vertical"
           onFinish={handleFormSubmit}
         >
-          <Form.Item
-            name="fileName"
-            label="File Name"
-            rules={[{ required: true, message: 'Please enter a file name' }]}
-          >
-            <Input placeholder="Enter file name" className="full-width-input" />
+          <Form.Item name="tags">
+            <Select
+              mode="multiple"
+              placeholder="Select Tags"
+              style={{ width: '100%', marginBottom: '16px' }}
+              dropdownStyle={{ padding: '8px' }}
+              className="unit-files-tag-select"
+            >
+              {availableNoteTags.map(tag => (
+                <Option key={tag.id} value={tag.name}>{tag.name}</Option>
+              ))}
+            </Select>
           </Form.Item>
+
           <Form.Item
             name="file"
-            label="File"
             valuePropName="fileList"
             getValueFromEvent={(e) => e && e.fileList}
             rules={[{ required: true, message: 'Please upload a file' }]}
+            style={{ width: '100%', marginTop: 0 }}
           >
-            <Upload.Dragger 
-              beforeUpload={() => false} 
-              onChange={handleFileChange}
-              className="full-width-upload"
-            >
-              <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-              <p className="ant-upload-text">Click or drag file to this area to upload</p>
-            </Upload.Dragger>
-          </Form.Item>
-          {uploadProgress > 0 && uploadProgress < 100 && (
-            <div style={{ textAlign: 'center', marginTop: '16px' }}>
-              <Spin indicator={<LoadingOutlined spin />} />
-              <Progress percent={Math.round(uploadProgress)} status="active" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+              {/* Display uploaded files */}
+              {fileList.map((file: any, index: number) => (
+                <div key={index} style={{ 
+                  padding: '12px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #e8e8e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  backgroundColor: '#fff'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    {/* Show appropriate icon based on file extension */}
+                    {(() => {
+                      const extension = getFileExtension(file.name);
+                      if (ALLOWED_FILE_TYPES.documents.includes(`.${extension}`)) {
+                        if (extension === 'pdf') return <FilePdfOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                        if (['doc', 'docx'].includes(extension)) return <FileWordOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                        if (['xls', 'xlsx'].includes(extension)) return <FileExcelOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                      }
+                      if (ALLOWED_FILE_TYPES.images.includes(`.${extension}`)) {
+                        return <FileImageOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                      }
+                      if (ALLOWED_FILE_TYPES.videos.includes(`.${extension}`)) {
+                        return <PlaySquareOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                      }
+                      return <FileOutlined style={{ fontSize: '24px', color: '#168033' }} />;
+                    })()}
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      flex: 1,
+                      overflow: 'hidden'
+                    }}>
+                      {editingIndex === index ? (
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onPressEnter={() => handleSaveEdit(index)}
+                          onBlur={() => handleSaveEdit(index)}
+                          autoFocus
+                          style={{ 
+                            flex: 1,
+                            height: '24px',
+                            padding: '0 8px',
+                            lineHeight: '24px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <span style={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '40ch'
+                          }} title={file.name}>
+                            {file.name}
+                          </span>
+                          <span style={{ color: '#8c8c8c', flexShrink: 0 }}>
+                            ({((file.size || 0) / 1024).toFixed(2)} kB)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {editingIndex !== index && (
+                      <Button 
+                        type="text" 
+                        icon={<EditOutlined />} 
+                        size="small"
+                        onClick={() => handleEditName(index, file.name.split('.')[0])}
+                        style={{ color: '#1890ff' }}
+                      />
+                    )}
+                    <Button 
+                      type="text" 
+                      icon={<DeleteOutlined />} 
+                      size="small"
+                      onClick={() => handleRemoveFile(index)}
+                      style={{ color: '#ff4d4f' }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {/* Drag and drop area with reduced height */}
+              <Upload.Dragger 
+                multiple={true}
+                beforeUpload={(file) => {
+                  const isAllowed = isFileTypeAllowed(file);
+                  if (!isAllowed) {
+                    return Upload.LIST_IGNORE;
+                  }
+                  return false;
+                }}
+                onChange={handleFileChange}
+                className="full-width-upload"
+                style={{ 
+                  padding: '8px',
+                  height: '100px'
+                }}
+                fileList={[]}
+                showUploadList={false}
+                accept={ALLOWED_FILE_TYPES.documents.concat(
+                  ALLOWED_FILE_TYPES.images,
+                  ALLOWED_FILE_TYPES.videos
+                ).join(',')}
+              >
+                <p style={{ marginBottom: '2px' }}>
+                  <UploadOutlined style={{ fontSize: '20px', color: '#28A744' }} />
+                </p>
+                <p style={{ marginBottom: '2px' }}>
+                  Drag multiple files here or <Button type="link" style={{ padding: '0' }}>click to upload</Button>
+                </p>
+                <p style={{ color: '#8c8c8c', fontSize: '12px', margin: 0 }}>
+                  (Max upload size of 50MB)
+                </p>
+              </Upload.Dragger>
+
+              {/* Upload progress bar with info */}
+              {totalProgress > 0 && (
+                <div className="upload-progress-container">
+                  <div className="upload-progress-bar-bg">
+                    <div 
+                      className="upload-progress-bar"
+                      style={{
+                        width: `${totalProgress}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="upload-progress-text">
+                    {`Uploading ${uploadedFiles}/${fileList.length} files (${Math.round(totalProgress)}%)`}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="Preview File"
+        title={
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            {previewFile && getFileIcon(previewFile.fileType)}
+            <span>{previewFile?.fileName}</span>
+          </div>
+        }
         visible={previewModalVisible}
         onCancel={handlePreviewModalClose}
         footer={null}
-        width="60%"
-        bodyStyle={{ height: '70vh', overflow: 'auto' }}
+        width="80%"
+        style={{ top: 20 }}
+        bodyStyle={{ 
+          height: 'calc(90vh - 100px)',
+          padding: '0px',
+          overflow: 'auto'
+        }}
       >
-        {previewFile && (
-          <DocViewer
-            documents={[{ uri: previewFile.fileUrl }]}
-            pluginRenderers={DocViewerRenderers}
-            config={{
-              header: {
-                disableHeader: false,
-                disableFileName: false,
-                retainURLParams: false
-              },
-              csvDelimiter: ",",
-              pdfZoom: {
-                defaultZoom: 1.1,
-                zoomJump: 0.2,
-              },
-              pdfVerticalScrollByDefault: true,
-              loadingRenderer: {
-                showLoadingTimeout: 1000
-              }
-            }}
-            style={{ height: '100%', width: '100%' }}
-          />
-        )}
+        {previewFile && renderPreviewContent(previewFile)}
       </Modal>
     </div>
   );
 };
 
-export default PropertyFiles;
+export default PropertyinfoFiles;

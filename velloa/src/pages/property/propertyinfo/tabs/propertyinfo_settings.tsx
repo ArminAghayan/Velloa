@@ -2,18 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  Row, Col, Typography, Menu, notification
+  Row, Col, Typography, Card, Modal, Button,
+  Divider,
 } from 'antd';
 import { 
   IconSettings, IconPhoto, IconBuildingBank, IconHome2, IconUserCircle, 
   IconPigMoney, IconFileDollar, IconFiles, IconMailbox, IconDeviceFloppy, 
-  IconPencil, IconPlus, IconTrash, IconX, IconStarFilled
+  IconPencil
 } from '@tabler/icons-react';
 import './propertyinfo_settings.css';
 import PropertyTypeSelection from './propertySettingstabs/PropertyTypeSelection';
 import PhotosComponent from './propertySettingstabs/PropertyPhotosComponent';
-import GeneralInfoForm from './propertySettingstabs/PropertyGeneralInfoForm'; // Import the new component
+import GeneralInfoForm from './propertySettingstabs/PropertyGeneralInfoForm';
 import LateFees from './propertySettingstabs/propertyLateFees';
+
 const { Text } = Typography;
 
 interface Property {
@@ -23,7 +25,6 @@ interface Property {
   numberOfUnits: number;
   status: string;
   photos?: string[];
-  // Add other relevant fields as needed
 }
 
 interface PropertySettingsProps {
@@ -32,11 +33,46 @@ interface PropertySettingsProps {
 }
 
 const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updatePropertyName }) => {
-  const [selectedMenu, setSelectedMenu] = useState('general');
+  const [selectedMenu, setSelectedMenu] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleMenuClick = ({ key }: { key: string }) => {
+  useEffect(() => {
+    const handleShowPhotos = () => {
+      setSelectedMenu('photos');
+      setIsModalOpen(true);
+    };
+
+    window.addEventListener('showPhotosSection', handleShowPhotos);
+    return () => window.removeEventListener('showPhotosSection', handleShowPhotos);
+  }, []);
+
+  const handleCardClick = (key: string) => {
     setSelectedMenu(key);
+    setIsModalOpen(true);
   };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedMenu('');
+  };
+
+  const menuItems = [
+    { key: 'general', icon: <IconSettings size={20} />, title: 'General Information' },
+    { key: 'photos', icon: <IconPhoto size={20} />, title: 'Photos' },
+    { key: 'type', icon: <IconHome2 size={20} />, title: 'Property Type' },
+    { key: 'bank', icon: <IconBuildingBank size={20} />, title: 'Bank Accounts' },
+    { key: 'owners', icon: <IconUserCircle size={20} />, title: 'Owners' },
+    { key: 'reserve', icon: <IconPigMoney size={20} />, title: 'Reserve Funds' },
+    { key: 'lateFees', icon: <IconFileDollar size={20} />, title: 'Late Fees' },
+    { key: 'portal', icon: <IconFiles size={20} />, title: 'Tenant Portal' },
+    { key: 'notifications', icon: <IconMailbox size={20} />, title: 'Rent & Payment Notifications' },
+    { key: 'requests', icon: <IconPencil size={20} />, title: 'Tenant Requests' },
+    { key: 'applications', icon: <IconDeviceFloppy size={20} />, title: 'Rental Applications' },
+    { key: 'paymentInstructions', icon: <IconFiles size={20} />, title: 'Payment Instructions' },
+    { key: 'managementFees', icon: <IconFileDollar size={20} />, title: 'Management Fees' },
+    { key: 'paymentAllocation', icon: <IconFiles size={20} />, title: 'Payment Allocation' },
+    { key: 'customAllocations', icon: <IconPencil size={20} />, title: 'Custom Allocations' }
+  ];
 
   const renderContent = () => {
     switch (selectedMenu) {
@@ -48,7 +84,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
           />
         );
       case 'photos':
-        return <PhotosComponent propertyKey={property.key} />;
+        return <PhotosComponent propertyId={property.key} />;
       case 'type':
         return <PropertyTypeSelection propertyId={property.key} />;
       case 'bank':
@@ -76,72 +112,56 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
       case 'customAllocations':
         return <Text>Custom Allocations content goes here.</Text>;
       default:
-        return <Text>Select an item from the menu.</Text>;
+        return null;
     }
   };
 
   return (
-    <Row className="settings-row">
-      <Col span={6} className="sidebar-container">
-        <Menu 
-          onClick={handleMenuClick} 
-          selectedKeys={[selectedMenu]} 
-          mode="vertical" 
-          className="settings-menu"
-        >
-          <Menu.Item key="general" icon={<IconSettings size={20} />}>
-            General Information
-          </Menu.Item>
-          <Menu.Item key="photos" icon={<IconPhoto size={20} />}>
-            Photos
-          </Menu.Item>
-          <Menu.Item key="bank" icon={<IconBuildingBank size={20} />}>
-            Bank Accounts
-          </Menu.Item>
-          <Menu.Item key="type" icon={<IconHome2 size={20} />}>
-            Property Type
-          </Menu.Item>
-          <Menu.Item key="owners" icon={<IconUserCircle size={20} />}>
-            Owners
-          </Menu.Item>
-          <Menu.Item key="reserve" icon={<IconPigMoney size={20} />}>
-            Reserve Funds
-          </Menu.Item>
-          <Menu.Item key="lateFees" icon={<IconFileDollar size={20} />}>
-            Late Fees
-          </Menu.Item>
-          <Menu.Item key="portal" icon={<IconFiles size={20} />}>
-            Tenant Portal
-          </Menu.Item>
-          <Menu.Item key="notifications" icon={<IconMailbox size={20} />}>
-            Rent & Payment Notifications
-          </Menu.Item>
-          <Menu.Item key="requests" icon={<IconPencil size={20} />}>
-            Tenant Requests
-          </Menu.Item>
-          <Menu.Item key="applications" icon={<IconDeviceFloppy size={20} />}>
-            Rental Applications
-          </Menu.Item>
-          <Menu.Item key="paymentInstructions" icon={<IconFiles size={20} />}>
-            Payment Instructions
-          </Menu.Item>
-          <Menu.Item key="managementFees" icon={<IconFileDollar size={20} />}>
-            Management Fees
-          </Menu.Item>
-          <Menu.Item key="paymentAllocation" icon={<IconFiles size={20} />}>
-            Payment Allocation
-          </Menu.Item>
-          <Menu.Item key="customAllocations" icon={<IconPencil size={20} />}>
-            Custom Allocations
-          </Menu.Item>
-        </Menu>
-      </Col>
-      <Col span={18}>
-        <div className="content-container">
-          {renderContent()}
-        </div>
-      </Col>
-    </Row>
+    <div className="settings-container">
+      <Row gutter={[24, 24]} className="settings-row">
+        {menuItems.map((item) => (
+          <Col xs={24} sm={12} md={8} lg={6} key={item.key}>
+            <Card
+              hoverable
+              className="settings-card"
+              onClick={() => handleCardClick(item.key)}
+            >
+              <div className="settings-card-content">
+                <div className="settings-card-icon">
+                  {React.cloneElement(item.icon, { 
+                    size: 24,
+                    stroke: 1.5,
+                    className: 'settings-icon'
+                  })}
+                </div>
+                <Text className="settings-card-title">{item.title}</Text>
+              </div>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Modal
+       title={
+        <>
+          <Typography.Title level={4} style={{ color: '#28A745', margin: 0 }}>
+            {menuItems.find(item => item.key === selectedMenu)?.title}
+          </Typography.Title>
+          <Divider style={{ margin: '16px 0 8px 0' }} />
+        </>
+      }
+        open={isModalOpen}
+        onCancel={handleModalClose}
+        width={1200}
+        footer={selectedMenu === 'general' ? (
+          <Button type="primary" style={{ width: '150px', height: '40px' }}>
+            Save Changes
+          </Button>
+        ) : null}
+      >
+        {renderContent()}
+      </Modal>
+    </div>
   );
 };
 

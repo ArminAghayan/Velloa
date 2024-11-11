@@ -1388,7 +1388,7 @@ const PeoplePage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '64px 36px' }}>
+    <div style={{ padding: '64px 24px' }}>
       <Title level={1} style={{ textAlign: 'left', marginTop: '0px', marginBottom: '20px' }}>
         People
       </Title>

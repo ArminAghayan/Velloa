@@ -32,18 +32,17 @@ import UnitInfoPage from './pages/property/propertyinfo/unitinfo';
 import ForgotPassword from './pages/Auth/forgotpassword';
 import Applicationviewer from './pages/Tools/toolapplication/newapplications/applicationviewer/applicationviewer';
 import AddNewProperty from './pages/applications/newproperty/addnewproperty';
-import PropertyInfo from './pages/property/propertyinfo/propertyinfo';
 import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/PropertyinfoUnit/propertyinfo_units_view';
 import ProspectsDetailsPage from './pages/people/peopledashboard/PeopleDashboarddetails';
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
 import MainSettings from './components/Settings/MainSettings';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppDispatch, RootState } from './components/redux/store';
-import RentalApplication from './components/Settings/settingsPages/PropertySettings/SettingsRentalApplication';
 import RentalApplicationForm from './components/UserApplication/RentalApplicationForm';
 import UserListingsPage from './components/UserApplication/UserListingPage/ListingPage';
 import UserAboutPage from './components/UserApplication/UserAboutPage/UserAboutPage';
 import UserHomePage from './components/UserApplication/UserHomePage/UserHomePage';
+import PropertyOverview from './pages/property/propertyinfo/tabs/propertyinfo_overview';
 
 // Define the theme object
 const theme = {
@@ -203,7 +202,7 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="/unitinfo" element={<AnimatedPage><UnitInfoPage /></AnimatedPage>} />
           <Route path="/applicationviewer" element={<AnimatedPage><Applicationviewer /></AnimatedPage>} />
           <Route path="/addnewproperty" element={<AnimatedPage><AddNewProperty /></AnimatedPage>} />
-          <Route path="property/:uid" element={<AnimatedPage><PropertyInfo /></AnimatedPage>} />
+          <Route path="property/:uid" element={<AnimatedPage><PropertyOverview /></AnimatedPage>} />
           <Route path="property/:propertyId/unit/:unitId" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
         </Route>
 

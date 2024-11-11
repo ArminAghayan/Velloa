@@ -1,63 +1,114 @@
-.file-container {
+/* container styles */
+
+.unit-files-container {
   background-color: #ffffff;
   padding: 24px;
   border-radius: 6px;
   border: 1.25px #E6E9EC solid;
-  }
-  
-  .file-drawer-input .ant-input,
-  .file-drawer-input .ant-input-number {
-    width: 100%;
-  }
-  
-  .file-search-input {
-    width: 200px;
-    height: 40px;
-  
-  }
-  
-  .file-dropdown-input {
-    width: 200px;
-    height: 40px;
-  }
-  
-  .file-review-item {
-    margin-bottom: 12px;
-  }
+}
 
-  .new-file-button {
-    height: 40px; /* Same height as the search bar and dropdown */
-    width: 150px;
-  }
-  
+/* search input styles */
 
-  .full-width-input {
-    width: 100%;
-  }
-  
-  .full-width-upload {
-    width: 100% !important;
-  }
-  
-  .full-width-upload .ant-upload {
-    width: 100% !important;
-  }
-  
-  .ant-form-item-control-input-content {
-    width: 100%;
-  }
+.unit-files-search-input {
+  width: 250px;
+  height: 40px;
+}
 
-  .cancel-selection-button {
-    height: 36px; /* Same height as the search bar and dropdown */
-    border: 1px solid #d9d9d9; /* Bordered style */
-    font-weight: 500; /* Make the text a little more bold */
+/* dropdown input styles */
 
-  }
+.unit-files-dropdown-input {
+  width: 200px;
+  height: 40px;
+}
+
+/* new file button styles */
+
+.unit-files-new-file-button {
+  height: 40px;
+  width: 150px;
+} 
+
+/* cancel selection button styles */
+
+.unit-files-cancel-selection-button {
+  height: 40px;
+} 
+
+/* delete files button styles */
+
+.unit-files-delete-files-button {
+  height: 40px;
+} 
 
 
-  .delete-files-button {
-    height: 36px; /* Same height as the search bar and dropdown */
-    font-weight: 500; /* Make the text a little more bold */
+/* upload styles */
 
 
-  }
+.full-width-upload {
+  width: 100% !important;
+}
+
+.full-width-upload .ant-upload.ant-upload-drag {
+  width: 100% !important;
+  padding: 24px;
+}
+
+/* Optional: Add some hover effects */
+.full-width-upload .ant-upload.ant-upload-drag:hover {
+  border-color: #28A744;
+}
+
+/* Make sure the modal content is full width */
+.ant-modal-body {
+  padding: 24px;
+  width: 100%;
+}
+
+.ant-form-item {
+  width: 100%;
+}
+
+/* New specific progress bar styles */
+.upload-progress-container {
+  width: 100%;
+}
+
+.upload-progress-bar-bg {
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  height: 4px;
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  background-color: #28A744;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+  text-align: center;
+  color: #8c8c8c;
+  font-size: 14px;
+} 
+
+
+
+.unit-files-tag-select .ant-select-item {
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  padding: 0 11px !important;
+}
+
+.unit-files-upload-modal{
+  height: 40px;
+
+}
+
+
+.unit-files-upload-modal .ant-form-item-control-input-content > div {
+  width: 100%;
+  display: block;
+
+}

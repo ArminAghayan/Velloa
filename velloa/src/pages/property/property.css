@@ -14,11 +14,11 @@
   
   .search-input {
     width: 250px;
-    height: 36px;
+    height: 40px;
   }
   
   .add-property-button {
-    height: 36px;
-    font-weight: 500; /* Make the text a little more bold */
+    height: 40px;
 
   }
+

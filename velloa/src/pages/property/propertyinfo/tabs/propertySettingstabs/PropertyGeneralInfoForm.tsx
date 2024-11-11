@@ -1,11 +1,9 @@
 // propertySettingstabs/GeneralInfoForm.tsx
 
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Row, Col, Typography, notification,Divider } from 'antd';
+import { Form, Input, Row, Col, notification } from 'antd';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import './PropertyGeneralInfoForm.css'
-
-const { Title, Text } = Typography;
 
 interface GeneralInfoFormProps {
   propertyKey: string;
@@ -112,71 +110,73 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
   };
 
   return (
-    <div className="general-container">
-    <Title level={2} style={{ color: '#4CAF50' }}>General Info</Title>
-    <Divider/>
-    <Form form={form} layout="vertical">
-      <Form.Item 
-        label={<span className="generalinfo_label">Property Name</span>} 
-        name="propertyName"
-        rules={[{ required: true, message: 'Please enter the property name' }]}
-      >
-        <Input value={propertyName} onChange={(e) => setPropertyName(e.target.value)} />
-      </Form.Item>
-      <Form.Item 
-        label={<span className="generalinfo_label">Street 1</span>} 
-        name="street1"
-        rules={[{ required: true, message: 'Please enter the street address' }]}
-      >
-        <Input value={street1} onChange={(e) => setStreet1(e.target.value)} />
-      </Form.Item>
-      <Form.Item label={<span className="generalinfo_label">Street 2</span>} name="street2">
-        <Input value={street2} onChange={(e) => setStreet2(e.target.value)} />
-      </Form.Item>
-      <Row gutter={16}>
-        <Col span={6}>
-          <Form.Item 
-            label={<span className="generalinfo_label">City</span>} 
-            name="city"
-            rules={[{ required: true, message: 'Please enter the city' }]}
-          >
-            <Input value={city} onChange={(e) => setCity(e.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item 
-            label={<span className="generalinfo_label">State</span>} 
-            name="state"
-            rules={[{ required: true, message: 'Please enter the state' }]}
-          >
-            <Input value={state} onChange={(e) => setState(e.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item 
-            label={<span className="generalinfo_label">Zip code</span>} 
-            name="zip"
-            rules={[{ required: true, message: 'Please enter the zip code' }]}
-          >
-            <Input value={zip} onChange={(e) => setZip(e.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item 
-            label={<span className="generalinfo_label">Country</span>} 
-            name="country"
-            rules={[{ required: true, message: 'Please enter the country' }]}
-          >
-            <Input value={country} onChange={(e) => setCountry(e.target.value)} />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Form.Item label={<span className="generalinfo_label">Detailed description of this property</span>} name="propertyDescription">
-        <Input.TextArea value={propertyDescription} onChange={handleDescriptionChange} />
-      </Form.Item>
-      <div className="character-count">{characterCount}/800 characters</div>
-      <Button type="primary" onClick={handleSave}>Save</Button>
-    </Form>
+    <div className="general-container" style={{ border: 'none' }}>
+      <Form form={form} layout="vertical">
+        <Form.Item 
+          label={<span className="generalinfo_label">Property Name</span>} 
+          name="propertyName"
+          rules={[{ required: true, message: 'Please enter the property name' }]}
+        >
+          <Input value={propertyName} onChange={(e) => setPropertyName(e.target.value)} />
+        </Form.Item>
+        <Form.Item 
+          label={<span className="generalinfo_label">Street 1</span>} 
+          name="street1"
+          rules={[{ required: true, message: 'Please enter the street address' }]}
+        >
+          <Input value={street1} onChange={(e) => setStreet1(e.target.value)} />
+        </Form.Item>
+        <Form.Item label={<span className="generalinfo_label">Street 2</span>} name="street2">
+          <Input value={street2} onChange={(e) => setStreet2(e.target.value)} />
+        </Form.Item>
+        <Row gutter={16}>
+          <Col span={6}>
+            <Form.Item 
+              label={<span className="generalinfo_label">City</span>} 
+              name="city"
+              rules={[{ required: true, message: 'Please enter the city' }]}
+            >
+              <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item 
+              label={<span className="generalinfo_label">State</span>} 
+              name="state"
+              rules={[{ required: true, message: 'Please enter the state' }]}
+            >
+              <Input value={state} onChange={(e) => setState(e.target.value)} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item 
+              label={<span className="generalinfo_label">Zip code</span>} 
+              name="zip"
+              rules={[{ required: true, message: 'Please enter the zip code' }]}
+            >
+              <Input value={zip} onChange={(e) => setZip(e.target.value)} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item 
+              label={<span className="generalinfo_label">Country</span>} 
+              name="country"
+              rules={[{ required: true, message: 'Please enter the country' }]}
+            >
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item label={<span className="generalinfo_label">Description:</span>} name="propertyDescription">
+          <Input.TextArea 
+            value={propertyDescription} 
+            onChange={handleDescriptionChange}
+            showCount
+            maxLength={800}
+            style={{ height: 120 }}
+          />
+        </Form.Item>
+      </Form>
     </div>
   );
 };

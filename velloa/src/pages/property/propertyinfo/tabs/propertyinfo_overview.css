@@ -1,21 +1,128 @@
-.property-card-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-  }
+.property-info-overview-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f0f2f5;
+}
 
-  .icon-circle-dashed-check-property-info {
-    color: #188034;
-  }
+.property-info-overview-top-container {
+  background-color: white;
+  padding: 36px;
+  border-bottom: 1px solid #e8e8e8;
+}
 
-  .icon-building-estate-property-info {
-    color: #188034;
-  }
+.property-info-overview-back-button {
+  margin-bottom: 40px;
+}
 
-  .icon-circle-key-property-info {
-    color: #188034;
-    
-  }
-  
+.property-info-overview-page .property-info-overview-menu .ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+
+.property-info-overview-page .property-info-overview-menu .ant-tabs-nav-wrap {
+  padding-left: 24px;
+}
+
+.property-info-overview-menu {
+  background-color: white;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.property-info-overview-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background-color: transparent;
+}
+
+/* Common class for all cards */
+.property-info-overview-card {
+  margin-bottom: 10px;
+}
+
+/* Common class for all buttons */
+.property-info-overview-button {
+  margin-bottom: 10px;
+}
+
+.property-info-overview-info-content {
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.property-info-overview-info-content .icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.property-info-overview-info-content .text {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.property-info-overview-info-content .date {
+  font-size: 14px;
+  color: #555;
+}
+
+/* Quick actions styling */
+.property-info-overview-quick-actions-card {
+  margin-bottom: 24px;
+}
+
+.property-info-overview-quick-actions-text {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.property-info-overview-quick-actions-text-container {
+  padding-bottom: 10px;
+  padding-top: 10px;
+}
+
+/* Tall button styling */
+.property-info-overview-tall-button {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.property-info-overview-tall-button .anticon {
+  font-size: 18px;
+}
+
+/* Description padding */
+.property-info-overview-description-padding-top {
+  padding-top: 15px;
+}
+
+/* Table styling */
+.property-info-overview-table {
+  box-shadow: none;
+}
+
+.property-info-overview-table .ant-table {
+  border-bottom: none;
+}
+
+/* Vendor info styling */
+.property-info-overview-vendor-info {
+  padding: 0 24px 16px;
+}
+
+.property-info-overview-vendor-info .ant-descriptions-item {
+  padding-bottom: 8px;
+}
+
+.property-info-overview-vendor-info .ant-descriptions-item-label,
+.property-info-overview-vendor-info .ant-descriptions-item-content {
+  line-height: 1.5;
+}
+

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Modal, Table, Button, Row, Col, Form, Input, Upload, Select, message, Popconfirm, Space, Typography, notification, Tag } from 'antd';
-import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, FileWordOutlined, FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FilePptOutlined, FileOutlined, EditOutlined, PlaySquareOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CloseOutlined, FileWordOutlined, FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FilePptOutlined, FileOutlined, EditOutlined, PlaySquareOutlined, DownloadOutlined } from '@ant-design/icons';
 import { auth, db, storage } from '../../../../../firebase-config';
 import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -79,13 +79,6 @@ interface CustomUploadFile extends AntUploadFile<any> {
 // Add this constant at the top with other constants
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
 
-// Add this interface for filter types
-interface FilterOption {
-  value: string;
-  label: string;
-  group: 'type' | 'tag';
-}
-
 const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitId }) => {
   const [files, setFiles] = useState<UnitFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<UnitFile[]>([]);
@@ -106,36 +99,48 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
   const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
   const [availableNoteTags, setAvailableNoteTags] = useState<NoteTag[]>([]);
 
-  // Add predefined file type filters
-  const fileTypeFilters: FilterOption[] = [
-    { value: 'document', label: 'Documents', group: 'type' },
-    { value: 'image', label: 'Images', group: 'type' },
-    { value: 'video', label: 'Videos', group: 'type' },
-    { value: 'spreadsheet', label: 'Spreadsheets', group: 'type' },
-  ];
-
-  // Convert note tags to filter options
-  const tagFilters: FilterOption[] = availableNoteTags.map(tag => ({
-    value: tag.name,
-    label: tag.name,
-    group: 'tag'
-  }));
-
-  // Combine all filters
-  const allFilters = [...fileTypeFilters, ...tagFilters];
+  const getFilteredFiles = useCallback((
+    files: UnitFile[],
+    searchText: string,
+    filterType: string
+  ) => {
+    const lowercasedSearch = searchText.toLowerCase();
+    return files.filter(file => {
+      const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
+      let typeMatch = true;
+      
+      if (filterType !== '') {
+        const lowerCaseFileType = file.fileType.toLowerCase();
+        switch (filterType.toLowerCase()) {
+          case 'document':
+            typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
+            break;
+          case 'image':
+            typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => lowerCaseFileType.includes(ext));
+            break;
+          case 'video':
+            typeMatch = ['mp4', 'mov', 'avi', 'wmv', 'webm'].some(ext => lowerCaseFileType.includes(ext));
+            break;
+          case 'spreadsheet':
+            typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
+            break;
+          default:
+            typeMatch = true;
+        }
+      }
+      
+      return fileNameMatch && typeMatch;
+    });
+  }, []);
 
   const fetchFiles = useCallback(async () => {
-    setLoading(true);
-    
-    if (!auth.currentUser) {
-      console.error('No authenticated user');
-      message.error('Please login to view files');
-      setLoading(false);
+    if (!propertyId || !unitId || !auth.currentUser) {
+      console.error('Missing propertyId, unitId, or user not authenticated');
       return;
     }
 
+    setLoading(true);
     try {
-      // First get the property's companyId
       const propertyDocRef = doc(db, 'properties', propertyId);
       const propertyDoc = await getDoc(propertyDocRef);
       if (!propertyDoc.exists()) {
@@ -147,10 +152,8 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
       const filesSnapshot = await getDocs(filesRef);
 
       if (filesSnapshot.empty) {
-        console.log('No files found');
         setFiles([]);
         setFilteredFiles([]);
-        setLoading(false);
         return;
       }
 
@@ -273,16 +276,10 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
   }, []);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        fetchFiles();
-      } else {
-        // Redirect to login or show an error
-      }
-    });
-
-    return () => unsubscribe();
-  }, [fetchFiles]);
+    if (propertyId && unitId) {
+      fetchFiles();
+    }
+  }, [propertyId, unitId, fetchFiles]);
 
   const handleFileChange = (info: UploadChangeParam<AntUploadFile<any>>) => {
     const { fileList: newFileList } = info;
@@ -308,14 +305,8 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     setSearchText(e.target.value);
   };
 
-  // Update the filter handling
   const handleFilterChange = (value: string) => {
-    const selectedFilter = allFilters.find(filter => filter.value === value);
-    if (!selectedFilter) {
-      setFilterType('');
-      return;
-    }
-    setFilterType(value);
+    setFilterType(value || '');
   };
 
   const handleNewFileClick = () => {
@@ -344,10 +335,10 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     setPreviewFile(null);
   };
 
-  const handleRowClick = (file: UnitFile) => {
-    setPreviewFile(file);
+  const handleRowClick = useCallback((record: UnitFile) => {
+    setPreviewFile(record);
     setPreviewModalVisible(true);
-  };
+  }, []);
 
   const handleDeleteSelected = async () => {
     try {
@@ -600,43 +591,10 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     }
   };
 
-  // Update the useEffect for filtering
   useEffect(() => {
-    const lowercasedSearch = searchText.toLowerCase();
-    const filtered = files.filter(file => {
-      const fileNameMatch = file.fileName.toLowerCase().includes(lowercasedSearch);
-      let typeMatch = true;
-      
-      if (filterType !== '') {
-        const selectedFilter = allFilters.find(filter => filter.value === filterType);
-        
-        if (selectedFilter?.group === 'type') {
-          const lowerCaseFileType = file.fileType.toLowerCase();
-          switch (filterType.toLowerCase()) {
-            case 'document':
-              typeMatch = ['pdf', 'doc', 'docx', 'txt'].some(ext => lowerCaseFileType.includes(ext));
-              break;
-            case 'image':
-              typeMatch = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => lowerCaseFileType.includes(ext));
-              break;
-            case 'video':
-              typeMatch = ['mp4', 'mov', 'avi', 'wmv', 'webm'].some(ext => lowerCaseFileType.includes(ext));
-              break;
-            case 'spreadsheet':
-              typeMatch = ['xls', 'xlsx', 'csv'].some(ext => lowerCaseFileType.includes(ext));
-              break;
-            default:
-              typeMatch = true;
-          }
-        } else if (selectedFilter?.group === 'tag') {
-          typeMatch = file.tags?.includes(filterType) || false;
-        }
-      }
-      
-      return fileNameMatch && typeMatch;
-    });
+    const filtered = getFilteredFiles(files, searchText, filterType);
     setFilteredFiles(filtered);
-  }, [files, searchText, filterType, allFilters]);
+  }, [files, searchText, filterType, getFilteredFiles]);
 
   // Add this function to handle file deletion
   const handleRemoveFile = (fileIndex: number) => {
@@ -830,8 +788,6 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
     );
   };
 
-  const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
-
   return (
     <div className="unit-files-container">
       <div className="unit-files-box">
@@ -849,27 +805,16 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
               <Col>
                 <Select
                   className='unit-files-dropdown-input'
-                  placeholder="Filter files"
+                  placeholder="Filter by type"
                   onChange={handleFilterChange}
                   allowClear
                   style={{ width: 150 }}
                 >
-                  <Select.OptGroup label="Type">
-                    {fileTypeFilters.map(filter => (
-                      <Option key={filter.value} value={filter.value}>
-                        {filter.label}
-                      </Option>
-                    ))}
-                  </Select.OptGroup>
-                  {tagFilters.length > 0 && (
-                    <Select.OptGroup label="Tags">
-                      {tagFilters.map(filter => (
-                        <Option key={filter.value} value={filter.value}>
-                          {filter.label}
-                        </Option>
-                      ))}
-                    </Select.OptGroup>
-                  )}
+                  {availableNoteTags.map(tag => (
+                    <Option key={tag.id} value={tag.name}>
+                      {tag.name}
+                    </Option>
+                  ))}
                 </Select>
               </Col>
             </Row>
@@ -927,10 +872,7 @@ const PropertyUnitFiles: React.FC<PropertyUnitFilesProps> = ({ propertyId, unitI
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredFiles}
-          loading={{
-            spinning: loading,
-            indicator: antIcon
-          }}
+          loading={loading}
           rowKey="id"
           onRow={(record) => ({
             onClick: () => handleRowClick(record),

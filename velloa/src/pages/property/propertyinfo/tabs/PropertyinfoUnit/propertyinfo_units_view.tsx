@@ -726,7 +726,7 @@ const PropertyInfoUnitView: React.FC = () => {
   };
 
   const handleBack = () => {
-    // Navigate back to the property page with the units tab selected
+    // Navigate back to the Property Overview page with activeTab set to 'units'
     navigate(`/property/${propertyId}`, { state: { activeTab: 'units' } });
   };
 

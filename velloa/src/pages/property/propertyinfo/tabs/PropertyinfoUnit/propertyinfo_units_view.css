@@ -124,6 +124,17 @@
 
 }   
 
+.custom-carousel-dots li button {
+  background: black !important;
+}
+.ant-carousel .slick-prev,
+.ant-carousel .slick-next {
+  color: black !important;
+}
+
+
+
+
 .image-star-button {
   position: absolute !important;
   top: 16px !important;
