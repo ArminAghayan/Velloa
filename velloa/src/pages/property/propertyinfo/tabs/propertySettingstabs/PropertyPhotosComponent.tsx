@@ -32,7 +32,7 @@ import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, Timestamp } from '
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { UploadFile as AntUploadFile, UploadChangeParam, RcFile } from 'antd/lib/upload';
-
+import './PropertyPhotosComponent.css';
 const { Option } = Select;
 
 // Constants
@@ -533,14 +533,14 @@ const PropertyPhotosComponent: React.FC<PropertyUnitImagesProps> = ({
   }, [shouldOpenUploadModal, setShouldOpenUploadModal]);
 
   return (
-    <div className="unit-images-container">
-      <div className="unit-images-box">
+    <div className="property-photos-container">
+      <div className="property-photos-box">
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
           <Col xs={24} sm={24} md={12} lg={12}>
             <Row gutter={16} wrap={false}>
               <Col>
                 <Select
-                  className='unit-images-dropdown-input'
+                  className='property-photos-dropdown-input'
                   placeholder="Filter by type"
                   onChange={handleFilterChange}
                   allowClear
@@ -572,14 +572,14 @@ const PropertyPhotosComponent: React.FC<PropertyUnitImagesProps> = ({
                     danger
                     disabled={selectedItems.length === 0}
                     icon={<DeleteOutlined />}
-                    className="unit-images-delete-selected-button"
+                    className="property-photos-delete-selected-button"
                   >
                     Delete Selected ({selectedItems.length})
                   </Button>
                   <Button
                     onClick={toggleSelectionMode}
                     icon={<CloseOutlined />}
-                    className="unit-images-cancel-selection-button"
+                    className="property-photos-cancel-selection-button"
                   >
                     Cancel
                   </Button>
@@ -589,12 +589,12 @@ const PropertyPhotosComponent: React.FC<PropertyUnitImagesProps> = ({
                   <Button
                     onClick={toggleSelectionMode}
                     icon={<SelectOutlined />}
-                    className="unit-images-select-button"
+                    className="property-photos-select-button"
                   >
                     Select
                   </Button>
                   <Button
-                    className='unit-images-new-image-button'
+                    className='property-photos-new-image-button'
                     onClick={handleNewImageClick}
                     type="default"
                     icon={<PlusOutlined />}
@@ -898,16 +898,16 @@ const PropertyPhotosComponent: React.FC<PropertyUnitImagesProps> = ({
 
               {/* Upload progress */}
               {totalProgress > 0 && (
-                <div className="upload-progress-container">
-                  <div className="upload-progress-bar-bg">
+                <div className="property-photos-progress-container">
+                  <div className="property-photos-progress-bar-bg">
                     <div 
-                      className="upload-progress-bar"
+                      className="property-photos-progress-bar"
                       style={{
                         width: `${totalProgress}%`,
                       }}
                     />
                   </div>
-                  <div className="upload-progress-text">
+                  <div className="property-photos-progress-text">
                     {`Uploading ${uploadedFiles}/${fileList.length} files (${Math.round(totalProgress)}%)`}
                   </div>
                 </div>

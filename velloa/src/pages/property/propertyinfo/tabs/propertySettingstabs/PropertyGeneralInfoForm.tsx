@@ -1,16 +1,18 @@
 // propertySettingstabs/GeneralInfoForm.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { Form, Input, Row, Col, notification } from 'antd';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, writeBatch, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import './PropertyGeneralInfoForm.css'
+import { auth, db } from '../../../../../firebase-config';
 
 interface GeneralInfoFormProps {
   propertyKey: string;
   updatePropertyName: (newName: string) => void;
 }
 
-const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePropertyName }) => {
+const GeneralInfoForm = forwardRef<{ handleSave: () => Promise<void> }, GeneralInfoFormProps>(
+  ({ propertyKey, updatePropertyName }, ref) => {
   const [propertyName, setPropertyName] = useState('');
   const [street1, setStreet1] = useState('');
   const [street2, setStreet2] = useState('');
@@ -28,33 +30,74 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
   }, [propertyKey]);
 
   const fetchPropertyInfo = async () => {
-    const db = getFirestore();
-    const docRef = doc(db, 'properties', propertyKey);
-    const docSnap = await getDoc(docRef);
+    try {
+      // Get the general settings document
+      const settingsDocRef = doc(db, 'properties', propertyKey, 'propertySettings', 'general');
+      const docSnap = await getDoc(settingsDocRef);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      setPropertyName(data.propertyName || '');
-      setStreet1(data.address?.street1 || '');
-      setStreet2(data.address?.street2 || '');
-      setCity(data.address?.city || '');
-      setState(data.address?.state || '');
-      setZip(data.address?.zip || '');
-      setCountry(data.address?.country || '');
-      setPropertyDescription(data.description || '');
-      setCharacterCount((data.description || '').length);
-      form.setFieldsValue({
-        propertyName: data.propertyName || '',
-        street1: data.address?.street1 || '',
-        street2: data.address?.street2 || '',
-        city: data.address?.city || '',
-        state: data.address?.state || '',
-        zip: data.address?.zip || '',
-        country: data.address?.country || '',
-        propertyDescription: data.description || '',
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Set all the form values
+        setPropertyName(data.propertyName || '');
+        setPropertyDescription(data.propertyDescription || '');
+        setCharacterCount((data.propertyDescription || '').length);
+        
+        // Set address values from the general document
+        setStreet1(data.address?.street1 || '');
+        setStreet2(data.address?.street2 || '');
+        setCity(data.address?.city || '');
+        setState(data.address?.state || '');
+        setZip(data.address?.zip || '');
+        setCountry(data.address?.country || '');
+
+        // Update form with all values
+        form.setFieldsValue({
+          propertyName: data.propertyName || '',
+          propertyDescription: data.propertyDescription || '',
+          street1: data.address?.street1 || '',
+          street2: data.address?.street2 || '',
+          city: data.address?.city || '',
+          state: data.address?.state || '',
+          zip: data.address?.zip || '',
+          country: data.address?.country || '',
+        });
+      } else {
+        // If no general document exists yet, try to get data from the main property document
+        const propertyDocRef = doc(db, 'properties', propertyKey);
+        const propertyDocSnap = await getDoc(propertyDocRef);
+        
+        if (propertyDocSnap.exists()) {
+          const propertyData = propertyDocSnap.data();
+          
+          // Set values from the main property document
+          setPropertyName(propertyData.propertyName || '');
+          setStreet1(propertyData.address?.street1 || '');
+          setStreet2(propertyData.address?.street2 || '');
+          setCity(propertyData.address?.city || '');
+          setState(propertyData.address?.state || '');
+          setZip(propertyData.address?.zip || '');
+          setCountry(propertyData.address?.country || '');
+
+          // Update form with available values
+          form.setFieldsValue({
+            propertyName: propertyData.propertyName || '',
+            street1: propertyData.address?.street1 || '',
+            street2: propertyData.address?.street2 || '',
+            city: propertyData.address?.city || '',
+            state: propertyData.address?.state || '',
+            zip: propertyData.address?.zip || '',
+            country: propertyData.address?.country || '',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching property info:', error);
+      notification.error({
+        message: 'Error',
+        description: 'Failed to fetch property information.',
+        placement: 'topRight'
       });
-    } else {
-      console.log('No such document!');
     }
   };
 
@@ -67,22 +110,81 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
     }
   };
 
-  const updateDatabase = async (updates: any) => {
-    const db = getFirestore();
-    const docRef = doc(db, 'properties', propertyKey);
+  const handleFormSubmit = async (values: any) => {
+    let propertyDoc;
+    
     try {
-      await updateDoc(docRef, updates);
+      // First get the property document to get companyuid
+      propertyDoc = await getDoc(doc(db, 'properties', propertyKey));
+      if (!propertyDoc.exists()) {
+        notification.error({
+          message: 'Error',
+          description: 'Property not found',
+          placement: 'topRight'
+        });
+        return;
+      }
+
+      const companyuid = propertyDoc.data().companyuid;
+      if (!companyuid) {
+        notification.error({
+          message: 'Error',
+          description: 'Company ID not found',
+          placement: 'topRight'
+        });
+        return;
+      }
+
+      // Create the general settings document with all data
+      const generalData = {
+        propertyName: values.propertyName || '',
+        propertyDescription: values.propertyDescription || '',
+        lastUpdated: Timestamp.now(),
+        companyuid: companyuid,
+        address: {
+          street1: values.street1 || '',
+          street2: values.street2 || '',
+          city: values.city || '',
+          state: values.state || '',
+          zip: values.zip || '',
+          country: values.country || ''
+        }
+      };
+
+      // Create the general document in propertySettings
+      const settingsDocRef = doc(db, 'properties', propertyKey, 'propertySettings', 'general');
+      await setDoc(settingsDocRef, generalData);
+
+      // Only update the property name in the parent component if we got this far
+      if (updatePropertyName) {
+        updatePropertyName(values.propertyName);
+      }
+
       notification.success({
-        message: 'Database Updated',
-        description: 'The property information has been successfully updated.',
-        placement: 'top',
+        message: 'Success',
+        description: 'Property settings updated successfully',
+        placement: 'topRight'
       });
+
     } catch (error) {
-      console.error("Error updating document: ", error);
+      console.error('Error updating settings:', error);
+      let errorMessage = 'Failed to update property settings.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          errorMessage = 'You do not have permission to update this property.';
+          console.log('Debug info:', {
+            propertyKey,
+            companyuid: propertyDoc?.data()?.companyuid,
+            currentUser: auth.currentUser?.uid
+          });
+        }
+      }
+      
       notification.error({
-        message: 'Update Failed',
-        description: 'There was an error updating the property information.',
-        placement: 'top',
+        message: 'Error',
+        description: errorMessage,
+        placement: 'topRight'
       });
     }
   };
@@ -90,24 +192,26 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      await updateDatabase({
-        propertyName: values.propertyName,
-        description: values.propertyDescription,
-        address: {
-          street1: values.street1,
-          street2: values.street2,
-          city: values.city,
-          state: values.state,
-          zip: values.zip,
-          country: values.country,
-        },
-      });
-
-      updatePropertyName(values.propertyName);
+      await handleFormSubmit(values);
+      if (updatePropertyName) {
+        updatePropertyName(values.propertyName);
+      }
     } catch (error) {
-      console.error('Validation Failed:', error);
+      if (error instanceof Error) {
+        console.error('Form validation failed:', error);
+        notification.error({
+          message: 'Validation Error',
+          description: 'Please check all required fields are filled correctly.',
+          placement: 'topRight'
+        });
+      }
     }
   };
+
+  // Expose handleSave to parent
+  useImperativeHandle(ref, () => ({
+    handleSave
+  }));
 
   return (
     <div className="general-container" style={{ border: 'none' }}>
@@ -179,6 +283,6 @@ const GeneralInfoForm: React.FC<GeneralInfoFormProps> = ({ propertyKey, updatePr
       </Form>
     </div>
   );
-};
+});
 
 export default GeneralInfoForm;

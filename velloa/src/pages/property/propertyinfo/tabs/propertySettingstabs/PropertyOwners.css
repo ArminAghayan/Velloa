@@ -1,0 +1,65 @@
+.property-owners {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.owners-header {
+  margin-bottom: 8px;
+}
+
+.learn-more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  text-decoration: underline;
+}
+
+.add-owner-button {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 150px;
+  height: 40px;
+
+}
+
+.owners-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .owner-card {
+    border-radius: 6px;
+  }
+  
+
+.owner-card:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.owner-card-content {
+    padding-top: 16px;
+  }
+  
+.owner-card .ant-card-actions {
+border-top: 1px solid #f0f0f0;
+}
+
+.owner-name-input {
+  flex: 2;
+}
+
+.owner-percentage-input {
+  flex: 1;
+  max-width: 150px;
+}
+
+.delete-owner-button {
+  padding: 4px 8px;
+}
+

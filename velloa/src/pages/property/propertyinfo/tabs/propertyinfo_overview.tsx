@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Typography, Card, Row, Col, Skeleton, message, Button, Space, Empty, Avatar, Tabs } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import { db } from '../../../../firebase-config';
-import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp, query, where } from 'firebase/firestore';
 import { IconUserCircle, IconBuildingEstate, IconKey, IconCircleDashedCheck, IconClipboardList } from '@tabler/icons-react';
 import { CameraOutlined, PictureOutlined } from '@ant-design/icons';
 import './propertyinfo_overview.css';
@@ -101,15 +101,22 @@ const PropertyOverview: React.FC = () => {
     try {
       const propertyRef = doc(db, 'properties', uid);
       const propertySettingsSnapshot = await getDocs(collection(db, 'properties', uid, 'propertySettings'));
+      const settingsDoc = propertySettingsSnapshot.docs[0];
+      const settingsData = settingsDoc?.data() || {};
+
+      // Fetch owners from the specific owners document
+      const ownersDocRef = doc(db, 'properties', uid, 'propertySettings', 'owners');
+      const ownersDoc = await getDoc(ownersDocRef);
+      const ownersData = ownersDoc.exists() ? ownersDoc.data().owners : [];
       
+      console.log('Owners Data:', ownersData);
+
       const [propertyDoc] = await Promise.all([
         getDoc(propertyRef),
       ]);
 
       if (propertyDoc.exists()) {
         const data = propertyDoc.data();
-        const settingsDoc = propertySettingsSnapshot.docs[0];
-        const settingsData = settingsDoc?.data() || {};
         
         const fetchedProperty: Property = {
           key: propertyDoc.id,
@@ -121,9 +128,17 @@ const PropertyOverview: React.FC = () => {
         };
         setProperty(fetchedProperty);
         
-        const ownersList = data.ownership || [];
+        // Transform owners data to match our interface
+        const ownersList = ownersData.map((owner: any) => ({
+          ownerId: owner.peopleId,
+          percentage: owner.ownershipPercentage || 0,
+          name: '' // This will be populated by fetchOwnerDetails
+        }));
+        
         setOwners(ownersList);
-        await fetchOwnerDetails(ownersList);
+        if (ownersList.length > 0) {
+          await fetchOwnerDetails(ownersList);
+        }
       } else {
         message.error("Property not found.");
         navigate('/property');

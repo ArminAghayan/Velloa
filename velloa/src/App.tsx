@@ -10,7 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase-config';
 import { setAuthenticated, fetchUserDetails } from './components/redux/authSlice';
-import { ConfigProvider, Spin } from 'antd';
+import { ConfigProvider } from 'antd';
 import LoginPage from './pages/Auth/loginpage';
 import HomePage from './pages/Home/home';
 import Toolspage from './pages/Tools/toolspage';
@@ -20,7 +20,6 @@ import Leasingpage from './pages/leasing/leasingPage';
 import Peoplepage from './pages/people/peoplePage';
 import Accountingpage from './pages/Accounting/accounting';
 import Analyticsspage from './pages/Analytics/analytics';
-import ProtectedRoute from './pages/Auth/PrivateRoute';
 import SignupPage from './pages/Auth/signup';
 import SideBarPage from './components/sidebar';
 import MessagesPage from './pages/Tools/toolapplication/messages/messagespage';
@@ -238,8 +237,16 @@ const App: React.FC = () => {
         alignItems: 'center',
         height: '100vh',
         width: '100vw',
+        backgroundColor: '#ffffff'
       }}>
-        <Spin size="large" />
+        <img 
+          src="/assets/light_mode_velloa_logo.png"
+          alt="Velloa Logo"
+          style={{
+            maxWidth: '150px',
+            height: 'auto'
+          }}
+        />
       </div>
     );
   }

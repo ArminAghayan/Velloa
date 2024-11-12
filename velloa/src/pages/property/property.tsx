@@ -4,7 +4,7 @@ import { RightOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { SortOrder } from 'antd/lib/table/interface';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase-config';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import './property.css';
 import { IconHome, IconBuilding } from '@tabler/icons-react';
@@ -18,6 +18,27 @@ interface PropertyData {
   propertyDescription: string;
   address: string;
   numberOfUnits: number;
+}
+
+interface Address {
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
+interface GeneralData {
+  propertyName: string;
+  propertyType: string;
+  address: Address;
+}
+
+interface PropertyTypeData {
+  propertyType: string;
+  propertyKind: string;
+  lastUpdated: string;
 }
 
 const PropertyPage: React.FC = () => {
@@ -41,22 +62,44 @@ const PropertyPage: React.FC = () => {
       const propertiesQuery = query(collection(db, 'properties'), where('companyuid', 'in', companyIds));
       const querySnapshot = await getDocs(propertiesQuery);
       
-      const propertiesData: PropertyData[] = await Promise.all(querySnapshot.docs.map(async (doc) => {
-        const data = doc.data();
-        const unitsSnapshot = await getDocs(collection(db, 'properties', doc.id, 'units'));
-        
-        const propertySettingsSnapshot = await getDocs(collection(db, 'properties', doc.id, 'propertySettings'));
-        const propertySettings = propertySettingsSnapshot.docs[0]?.data();
-        const propertyName = propertySettings?.propertyName || data.propertyName || '';
+      const propertiesData: PropertyData[] = await Promise.all(querySnapshot.docs.map(async (propertyDoc) => {
+        try {
+          const propertyData = propertyDoc.data();
+          
+          // Fetch from propertySettings/general
+          const generalDocRef = doc(db, 'properties', propertyDoc.id, 'propertySettings', 'general');
+          const generalSnapshot = await getDoc(generalDocRef);
+          const generalData = generalSnapshot.data() as GeneralData | undefined;
 
-        return {
-          key: doc.id,
-          propertyName: propertyName,
-          propertyType: data.propertyType || '',
-          propertyDescription: data.propertyDescription || '',
-          address: `${data.address.street1 || ''}, ${data.address.city || ''}, ${data.address.state || ''}, ${data.address.zip || ''}`,
-          numberOfUnits: unitsSnapshot.size,
-        };
+          // Fetch from propertySettings/propertyType
+          const propertyTypeRef = doc(db, 'properties', propertyDoc.id, 'propertySettings', 'propertyType');
+          const propertyTypeSnapshot = await getDoc(propertyTypeRef);
+          const propertyTypeData = propertyTypeSnapshot.data() as PropertyTypeData | undefined;
+
+          // Fetch units count
+          const unitsRef = collection(db, 'properties', propertyDoc.id, 'units');
+          const unitsSnapshot = await getDocs(unitsRef);
+
+          return {
+            key: propertyDoc.id,
+            propertyName: generalData?.propertyName || '',
+            propertyType: propertyTypeData?.propertyType || '',
+            propertyDescription: propertyTypeData?.propertyKind || '',
+            address: generalData?.address ? 
+              `${generalData.address.street1 || ''}, ${generalData.address.city || ''}, ${generalData.address.state || ''}, ${generalData.address.zip || ''}` : '',
+            numberOfUnits: unitsSnapshot.size,
+          };
+        } catch (error) {
+          console.error(`Error fetching details for property ${propertyDoc.id}:`, error);
+          return {
+            key: propertyDoc.id,
+            propertyName: 'Error loading property',
+            propertyType: '',
+            propertyDescription: '',
+            address: '',
+            numberOfUnits: 0,
+          };
+        }
       }));
       
       setProperties(propertiesData);

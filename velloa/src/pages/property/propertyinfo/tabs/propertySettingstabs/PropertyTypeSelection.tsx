@@ -1,194 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import { Typography, Button, Row, Col, notification, Spin, Divider } from 'antd';
-import { getFirestore, doc, setDoc, collection, query, getDocs, addDoc } from 'firebase/firestore';
+import React, { useState, useEffect, useImperativeHandle } from 'react';
+import { Button, Divider, notification, Typography } from 'antd';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../../../../../firebase-config';
 import './PropertyTypeSelection.css';
-
-const { Title, Text } = Typography;
+import { InfoCircleOutlined } from '@ant-design/icons';
 
 interface PropertyTypeSelectionProps {
   propertyId: string;
+  ref?: React.RefObject<{ handleSave: () => Promise<boolean> }>;
 }
 
-const PropertyTypeSelection: React.FC<PropertyTypeSelectionProps> = ({ propertyId }) => {
-  const [propertyKind, setPropertyKind] = useState<string | null>(null);
-  const [propertyType, setPropertyType] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [settingsDocId, setSettingsDocId] = useState<string | null>(null);
+const PropertyTypeSelection = React.forwardRef<{ handleSave: () => Promise<boolean> }, PropertyTypeSelectionProps>(
+  ({ propertyId }, ref) => {
+    const [selectedKind, setSelectedKind] = useState<string>('');
+    const [selectedType, setSelectedType] = useState<string>('');
 
-  const propertyTypesByKind: { [key: string]: string[] } = {
-    Residential: ['House', 'Apartment', 'Townhouse', 'Other'],
-    Commercial: ['Office', 'Retail', 'Industrial', 'Storage', 'Other'],
-    Industrial: ['Factory', 'Plant', 'Mill', 'Other'],
-    Land: ['Agricultural', 'Residential Land', 'Commercial Land', 'Other'],
-  };
+    const propertyTypesByKind: { [key: string]: string[] } = {
+      Residential: [
+        'House',
+        'Apartment',
+        'Condo',
+        'Co-op',
+        'Townhouse',
+        'Multi-Family',
+        'Duplex/Triplex',
+        'Other'
+      ],
+      Commercial: ['Office', 'Retail', 'Industrial', 'Storage', 'Other'],
+      Industrial: ['Factory', 'Plant', 'Mill', 'Other'],
+      Land: ['Agricultural', 'Residential Land', 'Commercial Land', 'Other'],
+    };
 
-  const fetchPropertyTypeInfo = async () => {
-    const db = getFirestore();
-    const propertySettingsRef = collection(doc(db, 'properties', propertyId), 'propertySettings');
-    try {
-      const querySnapshot = await getDocs(query(propertySettingsRef));
-      if (!querySnapshot.empty) {
-        const settingsDoc = querySnapshot.docs[0];
-        setSettingsDocId(settingsDoc.id);
-        const data = settingsDoc.data();
-        const fetchedKind = data.propertyKind || null;
-        const fetchedType = data.propertyType || null;
-        
-        if (fetchedKind && Object.keys(propertyTypesByKind).includes(fetchedKind)) {
-          setPropertyKind(fetchedKind);
-          if (fetchedType && propertyTypesByKind[fetchedKind].includes(fetchedType)) {
-            setPropertyType(fetchedType);
-          } else {
-            setPropertyType(null);
-          }
-        } else {
-          setPropertyKind(null);
-          setPropertyType(null);
+    useEffect(() => {
+      fetchPropertyType();
+    }, [propertyId]);
+
+    const fetchPropertyType = async () => {
+      try {
+        const typeDocRef = doc(db, 'properties', propertyId, 'propertySettings', 'propertyType');
+        const docSnap = await getDoc(typeDocRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSelectedKind(data.propertyKind || '');
+          setSelectedType(data.propertyType || '');
         }
-      } else {
-        console.warn('No propertySettings document found!');
+      } catch (error) {
+        console.error('Error fetching property type:', error);
       }
-    } catch (error) {
-      console.error('Error fetching property data:', error);
-      notification.error({
-        message: 'Fetch Failed',
-        description: 'There was an error fetching the property information.',
-        placement: 'top',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    fetchPropertyTypeInfo();
-  }, [propertyId]);
+    const handleSave = async () => {
+      try {
+        if (!selectedKind || !selectedType) {
+          notification.error({
+            message: 'Validation Error',
+            description: 'Please select both property kind and type',
+            placement: 'topRight'
+          });
+          return false;
+        }
 
-  const handleSave = async () => {
-    if (!propertyKind || !propertyType) {
-      notification.warning({
-        message: 'Incomplete Selection',
-        description: 'Please select both property kind and type before saving.',
-        placement: 'top',
-      });
-      return;
-    }
-  
-    setSaving(true);
-    const db = getFirestore();
-    const propertySettingsRef = collection(doc(db, 'properties', propertyId), 'propertySettings');
-    try {
-      if (settingsDocId) {
-        await setDoc(doc(propertySettingsRef, settingsDocId), {
-          propertyKind,
-          propertyType,
-        }, { merge: true });
-      } else {
-        const newDocRef = await addDoc(propertySettingsRef, {
-          propertyKind,
-          propertyType,
+        const typeDocRef = doc(db, 'properties', propertyId, 'propertySettings', 'propertyType');
+        await setDoc(typeDocRef, {
+          propertyKind: selectedKind,
+          propertyType: selectedType,
+          lastUpdated: Timestamp.now()
         });
-        setSettingsDocId(newDocRef.id);
+
+        notification.success({
+          message: 'Success',
+          description: 'Property type updated successfully',
+          placement: 'topRight'
+        });
+        return true;
+      } catch (error) {
+        console.error('Error saving property type:', error);
+        notification.error({
+          message: 'Error',
+          description: 'Failed to update property type',
+          placement: 'topRight'
+        });
+        return false;
       }
-      notification.success({
-        message: 'Property Type Updated',
-        description: 'The property type has been successfully updated.',
-        placement: 'top',
-      });
-    } catch (error) {
-      console.error('Error updating document:', error);
-      notification.error({
-        message: 'Update Failed',
-        description: 'There was an error updating the property type.',
-        placement: 'top',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+    };
 
-  const handleKindSelect = (kind: string) => {
-    if (kind !== propertyKind) {
-      setPropertyKind(kind);
-      setPropertyType(null);
-    }
-  };
+    useImperativeHandle(ref, () => ({
+      handleSave
+    }));
 
-  const handleTypeSelect = (type: string) => {
-    setPropertyType(type);
-  };
-
-  if (loading) {
     return (
-      <div className="loading-spinner">
-        <Spin tip="Loading property information..." />
-      </div>
-    );
-  }
-
-  return (
-    <div className="property-selection">
-      <Title style={{ color: '#4CAF50' }}level={2} className="main-title">Property Type</Title>
-      <Divider />
-      
-      <div className="property-kind-selection">
-        <Title  level={5}>Which kind of property do you manage?</Title>
-        <Row gutter={[16, 16]} className="mb-4">
-          {Object.keys(propertyTypesByKind).map((kind) => (
-            <Col key={kind}>
+      <div className="property-selection">
+       <div style={{ marginBottom: '12px', marginTop: '12px' }}>
+          <Typography.Link 
+            href="https://velloaapp.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              display: 'inline-flex',
+              alignItems: 'center', 
+              gap: '8px',
+              color: 'rgba(0, 0, 0, 0.45)',
+              textDecoration: 'underline'
+            }}
+          >
+            <InfoCircleOutlined />
+            Learn about different types of properties
+          </Typography.Link>
+        </div>
+        
+        <div className="property-kind-selection">
+          <h3>Property Kind</h3>
+          <div className="button-grid">
+            {Object.keys(propertyTypesByKind).map((kind) => (
               <Button
-                type={propertyKind === kind ? 'primary' : 'default'}
-                onClick={() => handleKindSelect(kind)}
-                className={`kind-button ${propertyKind === kind ? 'selected' : ''}`}
-                aria-pressed={propertyKind === kind}
+                key={kind}
+                type={selectedKind === kind ? 'primary' : 'default'}
+                onClick={() => {
+                  setSelectedKind(kind);
+                  setSelectedType('');
+                }}
+                className="selection-button"
               >
                 {kind}
               </Button>
-            </Col>
-          ))}
-        </Row>
-      </div>
-
-      <Divider />
-
-      <div className="property-type-selection">
-        <Title level={5}>Which type best describes your property?</Title>
-        {propertyKind ? (
-          <div className="type-group">
-            <Title level={5}>{propertyKind} Types</Title>
-            <Row gutter={[16, 16]} className="mb-4">
-              {propertyTypesByKind[propertyKind].map((type) => (
-                <Col key={type} xs={12} sm={8} md={6}>
-                  <Button
-                    type={propertyType === type ? 'primary' : 'default'}
-                    onClick={() => handleTypeSelect(type)}
-                    className={`type-button ${propertyType === type ? 'selected' : ''}`}
-                    aria-pressed={propertyType === type}
-                    block
-                  >
-                    {type}
-                  </Button>
-                </Col>
-              ))}
-            </Row>
+            ))}
           </div>
-        ) : (
-          <Text type="secondary">Please select a property kind to choose the type.</Text>
-        )}
-      </div>
+        </div>
 
-      <Button
-        type="primary"
-        onClick={handleSave}
-        style={{ marginTop: '20px' }}
-        loading={saving}
-        disabled={saving || !propertyKind || !propertyType}
-      >
-        Save
-      </Button>
-    </div>
-  );
-};
+        <Divider />
+
+        <div className="property-type-selection">
+          <h3>Property Type</h3>
+          <div className="button-grid">
+            {selectedKind && propertyTypesByKind[selectedKind].map((type) => (
+              <Button
+                key={type}
+                type={selectedType === type ? 'primary' : 'default'}
+                onClick={() => setSelectedType(type)}
+                className="selection-button"
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
 
 export default PropertyTypeSelection;

@@ -1,0 +1,141 @@
+/* Search and Filter Styles */
+.property-photos-search-input {
+  width: 250px;
+  height: 40px;
+}
+
+.property-photos-dropdown-input {
+  min-width: 150px;
+  height: 40px;
+}
+
+/* Button Styles */
+.property-photos-new-image-button {
+  height: 40px;
+  width: 150px;
+}
+
+.property-photos-delete-images-button {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.property-photos-cancel-selection-button {
+  color: #6c757d;
+  border-color: #6c757d;
+  height: 40px;
+}
+
+/* List and Card Styles */
+.property-photos-container .ant-list-items {
+  width: 100%;
+}
+
+.property-photos-container .ant-list-item {
+  display: flex !important;
+}
+
+.property-photos-container .ant-card {
+  width: 100% !important;
+  transition: all 0.3s ease;
+}
+
+.property-photos-container .ant-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.property-photos-container .ant-card-body {
+  padding: 12px;
+}
+
+.property-photos-container .ant-card-cover {
+  width: 100%;
+  margin: 0 !important;
+}
+
+.property-photos-container .ant-card-cover img {
+  width: 100%;
+  display: block;
+}
+
+.property-photos-container .ant-image {
+  display: block;
+  width: 100%;
+}
+
+/* Upload Modal Styles */
+.full-width-upload {
+  width: 100%;
+}
+
+.property-photos-progress-container {
+  margin-top: 16px;
+}
+
+.property-photos-progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  background-color: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.property-photos-progress-bar {
+  height: 100%;
+  background-color: #28A744;
+  transition: width 0.3s ease;
+}
+
+.property-photos-progress-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+/* Preview Modal Styles */
+.custom-mask {
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.custom-mask:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.property-photos-container .ant-card.selected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.property-photos-container .selection-checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  padding: 4px;
+}
+
+.property-photos-select-button {
+  height: 40px;
+}   
+
+.property-photos-delete-selected-button {
+  height: 40px;
+}       
+.property-photos-cancel-selection-button {
+  height: 40px;
+}
+
+.skeleton-node-full-width {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  
+  .skeleton-node-full-width::before {
+    width: 100% !important;
+    min-width: 100% !important;
+  } 

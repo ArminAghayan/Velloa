@@ -1,12 +1,8 @@
 /* Parent Container */
 .late-fees-box {
-  background-color: #ffffff; /* White background */
-  padding: 24px;
-  border-radius: 12px; /* Rounded corners */
-  border: 1.25px #E6E9EC solid; /* Light gray border */
   display: flex;
   flex-direction: column;
-  height: 67vh; /* Set fixed height as per original code */
+  height: 100%; /* Set fixed height as per original code */
   box-sizing: border-box; /* Include padding and border in height calculations */
   overflow: hidden; /* Hide overflow to manage scrolling within inner containers */
 }
@@ -26,16 +22,18 @@
 
 /* Main Content Section */
 .main-content {
-  flex: 1; /* Allow main content to grow and fill available space */
-  display: flex; /* Arrange children side by side */
-  overflow: hidden; /* Prevent overflow, handled by child elements */
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
 }
 
 /* Left Column: Scrollable */
 .left-column {
-  flex: 2; /* Takes up twice the space of the right column */
-  overflow-y: auto; /* Enable vertical scrolling */
-  padding-right: 16px; /* Space for scrollbar */
+  flex: 2;
+  overflow-y: auto;
+  padding-right: 16px;
+  max-height: calc(67vh - 120px);
 }
 
 /* Customize scrollbar appearance for the left column */
@@ -54,9 +52,11 @@
 
 /* Right Column: Fixed */
 .right-column {
-  flex: 1; /* Takes up half the space of the left column */
-  overflow: hidden; /* Prevent scrolling */
-  margin-left: 24px; /* Space between columns */
+  flex: 1;
+  position: sticky;
+  top: 0;
+  height: fit-content;
+  margin-left: 24px;
 }
 
 /* Additional Layout Styles */
@@ -88,11 +88,30 @@
 /* Custom Button Styling */
 .fixed-width-button {
   width: 150px; /* Fixed width */
-  background-color: #4CAF50; /* Green background */
-  border-color: #4CAF50;     /* Green border */
+  height: 40px;
 }
 
-/* Optional: Ensure Buttons with Icons Align Properly */
-.fixed-width-button .anticon {
-  margin-right: 8px; /* Space between icon and text */
+/* Add these styles */
+.fee-limitations {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 0;
 }
+
+.limitation-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 16px;
+}
+
+.limitation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.limitation-header .ant-typography {
+  margin-bottom: 4px;
+}
+
