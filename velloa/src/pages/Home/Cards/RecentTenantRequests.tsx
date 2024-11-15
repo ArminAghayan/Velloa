@@ -19,32 +19,32 @@ interface TenantRequest {
 const RecentTenantRequests: React.FC<CardProps> = ({ onCustomize, onDelete }) => {
   const recentTenantRequests: TenantRequest[] = [
     { 
-      title: 'AC #2', 
-      location: '705 Uribia Lane - 27', 
+      title: 'A/C Repair', 
+      location: '705 Uribia Lane - Unit27', 
       status: 'Overdue', 
       daysAgo: 2 
     },
     { 
-      title: 'AC Repair', 
-      location: '705 Uribia Lane - 27', 
+      title: 'Leak in the kitchen', 
+      location: '705 Uribia Lane - Unit 34', 
       status: 'Overdue', 
       daysAgo: 2 
     },
     { 
-      title: 'test', 
-      location: 'Sderot Bat Galim - 10', 
+      title: 'Laundry machine not working', 
+      location: '16 Bathurst St - Unit 10', 
       status: 'Not Started', 
       daysAgo: 8 
     },
     { 
-      title: 'test', 
-      location: 'Sderot Bat Galim - 10', 
+      title: 'Facuet not working', 
+      location: '234 Yonge St - Unit 10', 
       status: 'Not Started', 
       daysAgo: 8 
     },
     { 
-      title: 'test', 
-      location: 'Sderot Bat Galim - 10', 
+      title: 'Lock not working', 
+      location: '16 Bathurst St - Unit 10', 
       status: 'Not Started', 
       daysAgo: 8 
     },

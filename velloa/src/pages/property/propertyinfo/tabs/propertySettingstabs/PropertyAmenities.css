@@ -1,0 +1,7 @@
+.learn-more-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(0, 0, 0, 0.45);
+    text-decoration: underline;
+  }

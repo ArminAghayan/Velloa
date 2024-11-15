@@ -16,6 +16,8 @@ import PropertyRentalApplications from './propertyinfo_rental_applications';
 import PropertyinfoNotes from './propertyinfo_notes';
 import PropertyinfoFiles from './propertyinfo_files';
 import PropertyInfoTasks from './propertyinfo_tasks';
+import PropertyListings from './propertyinfo_listings';
+import PropertySignatures from './propertyinfo_signatures';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -100,11 +102,10 @@ const PropertyOverview: React.FC = () => {
     setLoading(true);
     try {
       const propertyRef = doc(db, 'properties', uid);
-      const propertySettingsSnapshot = await getDocs(collection(db, 'properties', uid, 'propertySettings'));
-      const settingsDoc = propertySettingsSnapshot.docs[0];
-      const settingsData = settingsDoc?.data() || {};
+      const generalSettingsRef = doc(db, 'properties', uid, 'propertySettings', 'general');
+      const generalSettingsDoc = await getDoc(generalSettingsRef);
+      const generalSettings = generalSettingsDoc.exists() ? generalSettingsDoc.data() : {};
 
-      // Fetch owners from the specific owners document
       const ownersDocRef = doc(db, 'properties', uid, 'propertySettings', 'owners');
       const ownersDoc = await getDoc(ownersDocRef);
       const ownersData = ownersDoc.exists() ? ownersDoc.data().owners : [];
@@ -120,19 +121,18 @@ const PropertyOverview: React.FC = () => {
         
         const fetchedProperty: Property = {
           key: propertyDoc.id,
-          propertyName: settingsData.propertyName || 'Unnamed Property',
-          imageUrl: settingsData.imageUrl || '',
-          propertyType: settingsData.propertyType || '',
+          propertyName: generalSettings.propertyName || 'Unnamed Property',
+          imageUrl: generalSettings.imageUrl || '',
+          propertyType: generalSettings.propertyType || '',
           numberOfUnits: data.numberOfUnits || 0,
           status: data.status || '',
         };
         setProperty(fetchedProperty);
         
-        // Transform owners data to match our interface
         const ownersList = ownersData.map((owner: any) => ({
           ownerId: owner.peopleId,
           percentage: owner.ownershipPercentage || 0,
-          name: '' // This will be populated by fetchOwnerDetails
+          name: ''
         }));
         
         setOwners(ownersList);
@@ -164,7 +164,6 @@ const PropertyOverview: React.FC = () => {
         uploadDate: doc.data().uploadDate || Timestamp.now()
       })) as PropertyPhoto[];
 
-      // Sort by upload date, newest first
       const sortedPhotos = photos.sort((a, b) => 
         b.uploadDate.seconds - a.uploadDate.seconds
       );
@@ -193,9 +192,7 @@ const PropertyOverview: React.FC = () => {
 
   const handlePhotoCardClick = () => {
     setActiveTab('settings');
-    // Use setTimeout to ensure the settings component is mounted before trying to access its state
     setTimeout(() => {
-      // Dispatch a custom event that the settings component will listen for
       const event = new CustomEvent('showPhotosSection');
       window.dispatchEvent(event);
     }, 100);
@@ -215,10 +212,9 @@ const PropertyOverview: React.FC = () => {
       case 'overview':
         return (
           <div style={{ overflowY: 'hidden', overflowX: 'hidden' }}>
-            {/* Quick Actions Card */}
             <Card title="Quick Actions" size="small" className="property-info-unit-quick-actions-card" style={{ marginBottom: '24px' }}>
               {loading ? (
-                <Skeleton active paragraph={{ rows: 1 }} />
+                <Skeleton active paragraph={{ rows: 0 }} />
               ) : (
                 <Text>What would you like to do next?</Text>
               )}
@@ -271,7 +267,6 @@ const PropertyOverview: React.FC = () => {
               </Row>
             </Card>
 
-            {/* Property Stats Cards */}
             <Row gutter={[16, 16]}>
               {loading ? (
                 <>
@@ -333,7 +328,6 @@ const PropertyOverview: React.FC = () => {
               )}
             </Row>
 
-            {/* Photos and Owners Cards */}
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Card 
@@ -350,7 +344,6 @@ const PropertyOverview: React.FC = () => {
                     height: '100%',
                     maxHeight: '304px'
                   }}>
-                    {/* Main Large Image */}
                     <div style={{ 
                       gridColumn: '1 / 2',
                       gridRow: '1 / 3',
@@ -390,7 +383,6 @@ const PropertyOverview: React.FC = () => {
                       )}
                     </div>
                     
-                    {/* Second Image */}
                     <div style={{ 
                       background: '#f5f5f5',
                       borderRadius: '4px',
@@ -414,7 +406,6 @@ const PropertyOverview: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Grid of Remaining Images */}
                     <div style={{ 
                       background: '#f5f5f5',
                       borderRadius: '4px',
@@ -453,7 +444,6 @@ const PropertyOverview: React.FC = () => {
                         ))}
                       </div>
 
-                      {/* Overlay Text */}
                       {propertyPhotos.length > 0 && (
                         <div style={{
                           position: 'absolute',
@@ -565,6 +555,10 @@ const PropertyOverview: React.FC = () => {
         return property && <PropertyTenants propertyId={property.key} />;
       case 'rental_applications':
         return property && <PropertyRentalApplications propertyId={property.key} />;
+      case 'listings':
+        return property && <PropertyListings />;
+      case 'signatures':
+        return property && <PropertySignatures />;
       case 'tasks':
         return property && <PropertyInfoTasks propertyId={property.key} />;
       case 'files':
@@ -585,7 +579,6 @@ const PropertyOverview: React.FC = () => {
 
   return (
     <div className="property-info-overview-page" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Section */}
       <div className="property-info-overview-top-container" style={{ flexShrink: 0 }}>
         <div
           style={{
@@ -614,7 +607,6 @@ const PropertyOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs Menu */}
       <div className="property-info-overview-menu" style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onChange={key => setActiveTab(key)}>
           <TabPane tab="Overview" key="overview" />
@@ -632,7 +624,6 @@ const PropertyOverview: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Content Area */}
       <div className="property-info-content" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
         {renderContent()}
       </div>

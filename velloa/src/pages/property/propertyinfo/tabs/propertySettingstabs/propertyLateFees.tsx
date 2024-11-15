@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { 
   Switch, Button, Typography, Space, Card, Select, Form, InputNumber, Input, Divider, Row, Col, Dropdown, Radio
 } from 'antd';
 import { PlusOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import './propertyLateFees.css';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../../firebase-config';
+import { notification } from 'antd';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -34,7 +37,30 @@ interface FeeLimitations {
   };
 }
 
-const LateFees: React.FC = () => {
+interface LateFeeConfig {
+  automaticLateFees: boolean;
+  feeStructureType: 'company' | 'property';
+  lateFees: Array<{
+    amount: number;
+    type: string;
+    frequency: string;
+    gracePeriod: number;
+    maxOccurrences?: number;
+  }>;
+  feeLimitations: FeeLimitations;
+}
+
+// Define the ref interface
+export interface LateFeesRef {
+  handleSave: () => Promise<boolean>;
+  loadSettings: () => Promise<void>;
+}
+
+interface LateFeesProps {
+  propertyId: string;
+}
+
+const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) => {
   const [automaticLateFees, setAutomaticLateFees] = useState(true);
   const [showAddFeeForm, setShowAddFeeForm] = useState(false);
   const [lateFees, setLateFees] = useState<any[]>([]);
@@ -63,6 +89,55 @@ const LateFees: React.FC = () => {
 
   // Add new state for fee structure type
   const [feeStructureType, setFeeStructureType] = useState<'company' | 'property'>('company');
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load saved settings whenever modal opens
+  useEffect(() => {
+    const loadLateFeeSettings = async () => {
+      try {
+        setIsLoading(true);
+        const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
+        const lateFeesDoc = await getDoc(lateFeesRef);
+        
+        if (lateFeesDoc.exists()) {
+          const data = lateFeesDoc.data();
+          setAutomaticLateFees(data.automaticLateFees ?? true);
+          // Reset to saved type
+          setFeeStructureType(data.type === 'default' ? 'company' : 'property');
+          
+          if (data.type === 'custom') {
+            setLateFees(data.lateFees || []);
+            setFeeLimitations(data.feeLimitations || {
+              maximumDailyFees: { enabled: false, amount: 0 },
+              maximumMonthlyFees: { enabled: false, amount: 0 },
+              minimumBalance: { enabled: false, amount: 0 },
+              onlyMostRecent: false,
+              specificCharges: { enabled: false, selectedCharges: [] }
+            });
+          }
+        } else {
+          // Set defaults if no data exists
+          setFeeStructureType('company');
+          setAutomaticLateFees(true);
+          setLateFees([]);
+          setFeeLimitations({
+            maximumDailyFees: { enabled: false, amount: 0 },
+            maximumMonthlyFees: { enabled: false, amount: 0 },
+            minimumBalance: { enabled: false, amount: 0 },
+            onlyMostRecent: false,
+            specificCharges: { enabled: false, selectedCharges: [] }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading late fees settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadLateFeeSettings();
+  }, [propertyId]);
 
   // Calculate late fees based on configuration
   const calculateLateFees = (amount: number, daysLate: number) => {
@@ -131,6 +206,11 @@ const LateFees: React.FC = () => {
 
   const handleAddLateFee = () => {
     setShowAddFeeForm(true);
+    // Find the scrollable left column container and scroll to top
+    setTimeout(() => {
+      const scrollableContainer = document.querySelector('.fee-structure-setup .ant-space');
+      scrollableContainer?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
   };
 
   const handleEditFee = (index: number) => {
@@ -233,8 +313,103 @@ const LateFees: React.FC = () => {
     return feeBreakdown;
   };
 
+  // Remove auto-save from individual handlers
+  const handleAutomaticLateFeesToggle = (checked: boolean) => {
+    setAutomaticLateFees(checked);
+  };
+
+  const handleFeeStructureChange = (type: 'company' | 'property') => {
+    setFeeStructureType(type);
+  };
+
+  // Main save function that will be called from the modal footer
+  const handleSave = async () => {
+    try {
+      const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
+      
+      const configData = {
+        automaticLateFees,
+        type: feeStructureType === 'company' ? 'default' : 'custom',
+        ...(feeStructureType === 'property' && {
+          lateFees,
+          feeLimitations
+        })
+      };
+
+      await setDoc(lateFeesRef, configData, { merge: true });
+      
+      notification.success({
+        message: 'Settings Saved',
+        description: 'Late fee settings have been successfully updated.',
+        placement: 'topRight'
+      });
+      
+      return true;
+    } catch (error) {
+      notification.error({
+        message: 'Save Failed',
+        description: 'There was an error saving your late fee settings. Please try again.',
+        placement: 'topRight'
+      });
+      console.error('Error saving late fees configuration:', error);
+      return false;
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
+      const lateFeesDoc = await getDoc(lateFeesRef);
+      
+      if (lateFeesDoc.exists()) {
+        const data = lateFeesDoc.data();
+        setAutomaticLateFees(data.automaticLateFees ?? true);
+        // Reset to saved type
+        setFeeStructureType(data.type === 'default' ? 'company' : 'property');
+        
+        if (data.type === 'custom') {
+          setLateFees(data.lateFees || []);
+          setFeeLimitations(data.feeLimitations || {
+            maximumDailyFees: { enabled: false, amount: 0 },
+            maximumMonthlyFees: { enabled: false, amount: 0 },
+            minimumBalance: { enabled: false, amount: 0 },
+            onlyMostRecent: false,
+            specificCharges: { enabled: false, selectedCharges: [] }
+          });
+        }
+      } else {
+        // Set defaults if no data exists
+        setFeeStructureType('company');
+        setAutomaticLateFees(true);
+        setLateFees([]);
+        setFeeLimitations({
+          maximumDailyFees: { enabled: false, amount: 0 },
+          maximumMonthlyFees: { enabled: false, amount: 0 },
+          minimumBalance: { enabled: false, amount: 0 },
+          onlyMostRecent: false,
+          specificCharges: { enabled: false, selectedCharges: [] }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading late fees settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Expose both save and load functions
+  useImperativeHandle(ref, () => ({
+    handleSave,
+    loadSettings
+  }));
+
+  if (isLoading) {
+    return <div>Loading...</div>; // Or use your preferred loading component
+  }
+
   return (
-    <div className='late-fees-box' style={{ height: '750px' }}>
+    <div className='late-fees-box' style={{ height: '70vh' }}>
       <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }}>
         <Col>
           <Typography.Link 
@@ -258,28 +433,47 @@ const LateFees: React.FC = () => {
             <Text strong>Automatic Late Fees</Text>
             <Switch 
               checked={automaticLateFees}
-              onChange={setAutomaticLateFees}
+              onChange={handleAutomaticLateFeesToggle}
             />
           </Space>
         </Col>
       </Row>
 
-      {/* Only show Radio Group when Automatic Late Fees is enabled */}
       {automaticLateFees && (
         <Radio.Group 
           value={feeStructureType} 
-          onChange={(e) => setFeeStructureType(e.target.value)}
-          style={{ marginBottom: '24px' }}
+          onChange={(e) => handleFeeStructureChange(e.target.value)}
+          style={{ marginBottom: '24px', width: '100%' }}
         >
-          <Space direction="vertical">
-            <Radio value="company">Use company default management fee structure</Radio>
-            <Radio value="property">Enable management fee for this property</Radio>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Radio 
+              style={{ 
+                padding: '16px', 
+                width: '100%', 
+                background: '#f5f5f5', 
+                borderRadius: '8px' 
+              }} 
+              value="company"
+            >
+              Use Company Default Late Fee Structure
+            </Radio>
+            <Radio 
+              style={{ 
+                padding: '16px', 
+                width: '100%', 
+                background: '#f5f5f5', 
+                borderRadius: '8px' 
+              }} 
+              value="property"
+            >
+              Enable Custom Late Fee Structure
+            </Radio>
           </Space>
         </Radio.Group>
       )}
 
-      {/* Only show the fee structure setup if property-specific is selected */}
-      {automaticLateFees && feeStructureType === 'property' && (
+      {/* Only show custom settings if property is selected */}
+      {feeStructureType === 'property' && automaticLateFees && (
         <div className="fee-structure-setup">
           <Row justify="space-between" align="middle" style={{ marginBottom: '8px' }}>
             <Col>
@@ -310,7 +504,8 @@ const LateFees: React.FC = () => {
                   flex: '1', 
                   overflowY: 'auto',
                   maxHeight: '450px', // Adjust based on header height
-                  paddingRight: '16px'
+                  paddingRight: '16px',
+                  paddingBottom: '100px'
                 }}>
                   <Divider />
                   <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -673,6 +868,6 @@ const LateFees: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default LateFees;

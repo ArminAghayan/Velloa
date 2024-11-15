@@ -1,0 +1,29 @@
+.listings-box {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 6px;
+    border: 1.25px #E6E9EC solid;
+  }
+
+
+.listingsdrawerinput .ant-input,
+.listingsdrawerinput .ant-input-number {
+  width: 100%;
+}
+
+.listings-search-input {
+  width: 250px;
+  height: 40px; /* Ensuring consistent height */
+}
+
+.listings-dropdown-input {
+  width: 150px;
+  height: 40px; /* Ensuring consistent height */
+}
+
+
+
+.new-listing-button {
+  height: 40px; /* Same height as the search bar and dropdown */
+  width: 150px;
+}

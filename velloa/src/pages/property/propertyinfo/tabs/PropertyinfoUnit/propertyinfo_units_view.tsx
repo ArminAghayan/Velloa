@@ -221,24 +221,20 @@ const PropertyInfoUnitView: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // First get the propertySettings collection
-        const propertySettingsCollection = collection(db, 'properties', propertyId, 'propertySettings');
-        const propertySettingsSnapshot = await getDocs(propertySettingsCollection);
-        
-        // Get the first document from propertySettings
-        const propertySettingsDoc = propertySettingsSnapshot.docs[0];
-
+        // Update: Fetch from propertySettings/general instead
+        const generalSettingsDoc = await getDoc(doc(db, 'properties', propertyId, 'propertySettings', 'general'));
         const unitDoc = await getDoc(doc(db, 'properties', propertyId, 'units', unitId));
 
-        if (propertySettingsDoc && unitDoc.exists()) {
+        if (generalSettingsDoc.exists() && unitDoc.exists()) {
           const unitData = { unitId: unitDoc.id, ...unitDoc.data() } as Unit;
           setUnit(unitData);
           setProperty({ 
             id: propertyId, 
-            ...propertySettingsDoc.data() 
+            propertyName: generalSettingsDoc.data().propertyName,
+            ...generalSettingsDoc.data() 
           } as Property);
 
-          // If unit has a tenantId, fetch tenant details
+          // Rest of the tenant fetching logic remains the same
           if (unitData.tenantId) {
             const tenantDoc = await getDoc(doc(db, 'people', unitData.tenantId));
             if (tenantDoc.exists()) {
@@ -258,7 +254,7 @@ const PropertyInfoUnitView: React.FC = () => {
           message.error('Property or unit not found');
         }
 
-        // Fetch unit images
+        // Rest of the image fetching logic remains the same
         const imagesCollection = collection(db, 'properties', propertyId, 'units', unitId, 'images');
         const imagesSnapshot = await getDocs(imagesCollection);
         const imagesData = imagesSnapshot.docs.map(doc => ({
@@ -543,7 +539,7 @@ const PropertyInfoUnitView: React.FC = () => {
                   title="Tenant Information" 
                   style={{ height: '100%', cursor: 'pointer' }}
                   hoverable
-                  onClick={() => handleEdit('tenant')}
+                  onClick={handleTenantClick}
                 >
                   {tenant ? (
                     <Row gutter={[24, 16]}>
@@ -655,6 +651,10 @@ const PropertyInfoUnitView: React.FC = () => {
                         type="link" 
                         icon={<PlusOutlined />}
                         style={{ marginTop: '8px' }}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click event from firing
+                          // Add your assign tenant logic here
+                        }}
                       >
                         Assign Tenant
                       </Button>
@@ -728,6 +728,12 @@ const PropertyInfoUnitView: React.FC = () => {
   const handleBack = () => {
     // Navigate back to the Property Overview page with activeTab set to 'units'
     navigate(`/property/${propertyId}`, { state: { activeTab: 'units' } });
+  };
+
+  const handleTenantClick = () => {
+    if (tenant?.id) {
+      navigate(`/people/${tenant.id}`);
+    }
   };
 
   return (
