@@ -1,0 +1,15 @@
+.property-page-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+/* Override ant-design calendar styles */
+.ant-picker-calendar {
+  background: white;
+}
+
+.ant-picker-calendar-full .ant-picker-panel {
+  background: white;
+} 

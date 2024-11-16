@@ -10,7 +10,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase-config';
 import { setAuthenticated, fetchUserDetails } from './components/redux/authSlice';
-import { ConfigProvider } from 'antd';
+import {ConfigProvider } from 'antd';
+import Calendar from './pages/Calendar/Calendar';
 import LoginPage from './pages/Auth/loginpage';
 import HomePage from './pages/Home/home';
 import Toolspage from './pages/Tools/toolspage';
@@ -183,6 +184,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/" element={<SideBarPage />}>
           <Route index element={<AnimatedPage><HomePage /></AnimatedPage>} />
           <Route path="settings" element={<AnimatedPage><MainSettings /></AnimatedPage>} />
+          <Route path="calendar" element={<AnimatedPage><Calendar /></AnimatedPage>} />
           <Route path="home" element={<AnimatedPage><HomePage /></AnimatedPage>} />
           <Route path="tools" element={<AnimatedPage><Toolspage /></AnimatedPage>} />
           <Route path="property" element={<AnimatedPage><Propertypage /></AnimatedPage>} />

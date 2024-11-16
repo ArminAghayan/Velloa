@@ -15,7 +15,8 @@ import {
   UserIcon,
   QuestionMarkCircleIcon,
   InboxIcon,
-  EnvelopeIcon // Import the mailbox icon
+  EnvelopeIcon,
+  CalendarIcon // Import the mailbox icon
 } from '@heroicons/react/24/outline';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../components/redux/authSlice';
@@ -70,12 +71,13 @@ const Sidebar: React.FC = () => {
   // Function to determine the selected key based on the current path
   const getSelectedKey = (pathname: string) => {
     if (pathname.startsWith('/home')) return '1';
-    if (pathname.startsWith('/property')) return '2';
-    if (pathname.startsWith('/leasing')) return '3';
-    if (pathname.startsWith('/people')) return '4';
-    if (pathname.startsWith('/maintenance')) return '5';
-    if (pathname.startsWith('/tools')) return '6';
-    if (pathname.startsWith('/accounting')) return '7';
+    if (pathname.startsWith('/calendar')) return '2';
+    if (pathname.startsWith('/property')) return '3';
+    if (pathname.startsWith('/leasing')) return '4';
+    if (pathname.startsWith('/people')) return '5';
+    if (pathname.startsWith('/maintenance')) return '6';
+    if (pathname.startsWith('/tools')) return '7';
+    if (pathname.startsWith('/accounting')) return '8';
     if (pathname.startsWith('/analytics')) return '8';
     return '1'; // Default to home if no match
   };
@@ -118,25 +120,28 @@ const Sidebar: React.FC = () => {
           <Menu.Item key="1" icon={<HomeIcon className="custom-icon" />}>
             <Link to="/home">Home</Link>
           </Menu.Item>
-          <Menu.Item key="2" icon={<BuildingOffice2Icon className="custom-icon" />}>
+          <Menu.Item key="2" icon={<CalendarIcon className="custom-icon" />}>
+            <Link to="/calendar">Calendar</Link>
+          </Menu.Item>
+          <Menu.Item key="3" icon={<BuildingOffice2Icon className="custom-icon" />}>
             <Link to="/property">Property</Link>
           </Menu.Item>
-          <Menu.Item key="3" icon={<DocumentTextIcon className="custom-icon" />}>
+          <Menu.Item key="4" icon={<DocumentTextIcon className="custom-icon" />}>
             <Link to="/leasing">Leasing</Link>
           </Menu.Item>
-          <Menu.Item key="4" icon={<UsersIcon className="custom-icon" />}>
+          <Menu.Item key="5" icon={<UsersIcon className="custom-icon" />}>
             <Link to="/people">People</Link>
           </Menu.Item>
-          <Menu.Item key="5" icon={<CheckCircleIcon className="custom-icon" />}>
+          <Menu.Item key="6" icon={<CheckCircleIcon className="custom-icon" />}>
             <Link to="/maintenance">Tasks</Link>
           </Menu.Item>
-          <Menu.Item key="6" icon={<WrenchScrewdriverIcon className="custom-icon" />}>
+          <Menu.Item key="7" icon={<WrenchScrewdriverIcon className="custom-icon" />}>
             <Link to="/tools">Tools</Link>
           </Menu.Item>
-          <Menu.Item key="7" icon={<BanknotesIcon className="custom-icon" />}>
+          <Menu.Item key="8" icon={<BanknotesIcon className="custom-icon" />}>
             <Link to="/accounting">Accounting</Link>
           </Menu.Item>
-          <Menu.Item key="8" icon={<ChartBarIcon className="custom-icon" />}>
+          <Menu.Item key="9" icon={<ChartBarIcon className="custom-icon" />}>
             <Link to="/analytics">Analytics</Link>
           </Menu.Item>
         </Menu>
