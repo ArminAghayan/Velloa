@@ -21,6 +21,8 @@ import PropertyOwners from './propertySettingstabs/PropertyOwners';
 import PropertyAmenities from './propertySettingstabs/PropertyAmenities';
 import PropertyPetPolicy, { PropertyPetPolicyRef } from './propertySettingstabs/PropertyPetPolicy';
 import SettingsRentalApplication, { RentalApplicationRef } from './propertySettingstabs/PropertyApplications/MainRentelApplicationPage';
+import RentPaymentNotifications, { RentPaymentNotificationsRef } from './propertySettingstabs/RentPaymentNotifications';
+import TenantRequestSettings, { TenantRequestSettingsRef } from './propertySettingstabs/TenantRequestSettings';
 
 const { Text } = Typography;
 
@@ -48,6 +50,8 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
   const petPolicyRef = useRef<PropertyPetPolicyRef>(null);
   const rentalApplicationRef = useRef<RentalApplicationRef>(null);
   const lateFeesRef = useRef<LateFeesRef>(null);
+  const notificationsRef = useRef<RentPaymentNotificationsRef>(null);
+  const tenantRequestsRef = useRef<TenantRequestSettingsRef>(null);
 
   useEffect(() => {
     const handleShowPhotos = () => {
@@ -97,6 +101,16 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
       await rentalApplicationRef.current.handleSave();
     } else if (selectedMenu === 'lateFees' && lateFeesRef.current) {
       await lateFeesRef.current.handleSave();
+    } else if (selectedMenu === 'notifications' && notificationsRef.current) {
+      const success = await notificationsRef.current.handleSave();
+      if (success) {
+        handleModalClose();
+      }
+    } else if (selectedMenu === 'requests' && tenantRequestsRef.current) {
+      const success = await tenantRequestsRef.current.handleSave();
+      if (success) {
+        handleModalClose();
+      }
     }
   };
 
@@ -149,9 +163,9 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
       case 'amenities':
         return <PropertyAmenities ref={amenitiesRef} propertyId={property.key} />;
       case 'notifications':
-        return <Text>Rent & Payment Notifications content goes here.</Text>;
+        return <RentPaymentNotifications ref={notificationsRef} propertyId={property.key} />;
       case 'requests':
-        return <Text>Tenant Requests content goes here.</Text>;
+        return <TenantRequestSettings ref={tenantRequestsRef} propertyId={property.key} />;
       case 'applications':
         return <SettingsRentalApplication ref={rentalApplicationRef} propertyId={property.key} />;
       case 'paymentInstructions':
@@ -233,7 +247,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
         open={isModalOpen}
         onCancel={handleModalClose}
         width={1200}
-        footer={['general', 'type', 'owners', 'amenities', 'petPolicy', 'applications', 'lateFees'].includes(selectedMenu) ? (
+        footer={['general', 'type', 'owners', 'amenities', 'petPolicy', 'applications', 'lateFees', 'notifications', 'requests'].includes(selectedMenu) ? (
           <Button 
             type="primary" 
             style={{ width: '150px', height: '40px' }}

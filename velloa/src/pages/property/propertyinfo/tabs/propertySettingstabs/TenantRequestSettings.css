@@ -1,0 +1,31 @@
+.learn-more-link {
+  margin-bottom: 16px;
+  color: #666;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.setting-item .ant-switch {
+  margin-right: 24px;
+  min-width: 44px;
+  background-color: #d9d9d9;
+}
+
+.setting-item .ant-switch-checked {
+  background-color: #28A745;
+}
+
+.setting-item span {
+  color: #1f1f1f;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tenant-request-settings .ant-form-item-control-input-content > div {
+    width: 100%;
+    display: block;
+}
