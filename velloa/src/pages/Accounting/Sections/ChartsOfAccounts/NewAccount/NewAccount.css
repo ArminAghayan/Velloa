@@ -1,0 +1,212 @@
+.new-account-drawer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.switch-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.switch-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.switch-label {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.switch-description {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.lease-options-title {
+  font-weight: 500;
+  margin-bottom: 24px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+
+
+.opening-balance h3 {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  margin-bottom: 8px;
+}
+
+.opening-balance .description {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.balance-form {
+  max-width: 400px;
+}
+
+.balance-form .ant-form-item-label > label {
+  font-weight: 500;
+}
+
+
+.check-printing-form {
+    margin-top: 24px;
+  }
+  
+  .info-text {
+    margin-bottom: 24px;
+  }
+
+.check-preview-container {
+  margin-top: 24px;
+}
+
+.check-preview-card {
+  margin-top: 20px;
+}
+
+.check-preview-content {
+  padding: 20px;
+}
+
+.micr-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.micr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.micr-section .label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.micr-section .number {
+  font-family: "MICR", monospace;
+  font-size: 16px;
+}
+
+.symbol {
+  font-family: "MICR", monospace;
+}
+
+.signature-icon {
+  margin-left: auto;
+  margin-top: -20px;
+  position: relative;
+}
+
+.labels-container {
+  position: relative;
+  margin-bottom: 0;
+}
+
+.check-labels {
+  display: flex;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 2px;
+  position: relative;
+  height: 25px;
+}
+
+.check-number-label {
+  position: absolute;
+  left: 24px;
+}
+
+.transit-label {
+  position: absolute;
+  left: 85px;
+}
+
+.institution-label {
+  position: absolute;
+  left: 150px;
+}
+
+.account-label {
+  position: absolute;
+  left: 230px;
+}
+
+.label-underline {
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.06);
+  margin: 4px 24px 0;
+}
+
+.check-numbers {
+  padding: 0 24px;
+  margin-top: 2px;
+}
+
+.micr-font {
+  font-family: "Courier New", monospace;
+  letter-spacing: 2px;
+  font-size: 16px;
+  color: #333;
+}
+
+.routing-number, .account-number, .check-number {
+  font-weight: 500;
+}
+
+.account-number {
+  margin-right: 2px;
+}
+
+
+
+
+.balance-input .ant-input {
+    height: 40px !important;
+    padding: 0px 0px !important;
+  }
+
+.date-header {
+  padding: 24px 0;
+}
+
+.date-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+.date-header p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.section-title {
+  font-weight: 500;
+  color: #1f1f1f;
+  margin-bottom: 24px;
+}
+
+
+/* Ensure Select component's height is consistent */
+.account-form .ant-select-selector {
+  padding: 0 11px !important;
+}
+
+.account-form .type-field {
+  margin-top: 48px;
+  
+}
+

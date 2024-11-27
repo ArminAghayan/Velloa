@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Tabs, Card, Row, Col, Space, Dropdown, Menu, message, Tooltip, Modal, Spin } from 'antd';
+import { Typography, Button, Tabs, Card, Row, Col, Space, Dropdown, Menu, message, Tooltip, Modal, Spin, Empty } from 'antd';
 import { LeftOutlined, MoreOutlined, CheckCircleOutlined, SearchOutlined, UserOutlined, DollarOutlined, CalendarOutlined, FlagOutlined, CreditCardOutlined, MailTwoTone, PhoneTwoTone, EnvironmentTwoTone, HomeTwoTone, FileTextOutlined, ProfileOutlined, EditOutlined, DeleteOutlined, QuestionCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, ToolOutlined, TagsOutlined,SplitCellsOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../../firebase-config';
@@ -7,7 +7,6 @@ import { collection, getDocs, query, where, Timestamp, doc, getDoc, deleteDoc } 
 import NewTaskDrawer from '../../maintenance/Tasks/PeopleTaskDrawer';
 import TasksTab from './PeopleDashBoardDetailsTasks';
 import ProspectsDetailsNotes from './PeopleDashboardDetailsNotes';
-import ProspectsFilesPage from './PeopleDashBoardFilesPage';
 import ProspectsDetailsRentalApplication from './PeopleDashboardDetailsRentalApplication';
 import EditPersonDrawer from './EditPersonDrawer'; // You'll need to create this component
 import PeopleBillingHistory from './PeopleBillingHistory';
@@ -19,6 +18,9 @@ import dayjs from 'dayjs';
 import PeopleOwnerRequest from '../../maintenance/Tasks/PeopleOwnerRequest'; // Import the component
 import EditAgreementDrawer from './EditAgreementDrawer';
 import EditInsuranceDrawer from './EditInsuranceDrawer';
+import PeopleDashboardFilesPage from './PeopleDashBoardFilesPage';
+import PeopleCommunication from './PeopleDashboardDetailsCommunication';
+import PeopleLeasing from './PeopleDashboardDetailsLeasing';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
@@ -87,6 +89,13 @@ interface PersonDetails {
     endDate: string;
   };
   portalStatus?: 'active' | 'inactive';
+  balance?: string | number;
+  emergencyContacts?: {
+    name: string;
+    relationship: string;
+    phone: string;
+    email?: string;
+  }[];
 }
 
 interface AssigneeWithName {
@@ -529,12 +538,12 @@ const ProspectsDetailsPage: React.FC = () => {
     }
   };
 
-  const formatInsuranceDate = (dateString: string) => {
-    return dayjs(dateString).isValid() ? dayjs(dateString).format('MMM D, YYYY') : 'Invalid Date';
-  };
-
   const getPortalStatus = () => {
     return personDetails?.portalStatus?.toLowerCase() === 'active' ? 'Active' : 'Inactive';
+  };
+
+  const isTenant = () => {
+    return personDetails?.peopleType?.toLowerCase() === 'tenant';
   };
 
   const renderClassificationsOrLookingFor = () => {
@@ -566,6 +575,20 @@ const ProspectsDetailsPage: React.FC = () => {
             <div style={{ textAlign: 'center' }}>
               <strong>Owner Portal</strong>
               <div>{getPortalStatus()}</div>
+            </div>
+          </Space>
+        </Card>
+      );
+    } else if (isTenant()) {
+      return (
+        <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Space direction="vertical" align="center" size="small">
+            <div style={iconStyle}>
+              <DollarOutlined />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <strong>Balance</strong>
+              <div>{personDetails.balance || '$0.00'}</div>
             </div>
           </Space>
         </Card>
@@ -631,7 +654,9 @@ const ProspectsDetailsPage: React.FC = () => {
     if (isVendor()) {
       return getInsuranceStatus();
     } else if (isOwner()) {
-      return getAgreementStatus(); // Just return 'Active' or 'Inactive' without the 'Agreement' prefix
+      return getAgreementStatus();
+    } else if (isTenant()) {
+      return getPortalStatus();
     }
     return personDetails.applicationStatus || 'No Status';
   };
@@ -690,6 +715,7 @@ const ProspectsDetailsPage: React.FC = () => {
       <div className="prospects-details-menu" style={{ flexShrink: 0 }}>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Overview" key="overview" />
+          {isTenant() && <TabPane tab="Leasing" key="leasing" />}
           {isVendor() && <TabPane tab="Billing" key="billing" />}
           {!isVendor() && !isOwner() && <TabPane tab="Rental Application" key="rental-application" />}
           {isOwner() && (
@@ -699,6 +725,7 @@ const ProspectsDetailsPage: React.FC = () => {
             </>
           )}
           <TabPane tab="Tasks" key="tasks" />
+          {isTenant() && <TabPane tab="Communication" key="communication" />}
           <TabPane tab="Notes" key="notes" />
           <TabPane tab="Files" key="files" />
         </Tabs>
@@ -837,7 +864,15 @@ const ProspectsDetailsPage: React.FC = () => {
                       {getStatusIcon(personDetails.applicationStatus)}
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      <strong>{isVendor() ? 'Insurance Status' : (isOwner() ? 'Agreement Status' : 'Status')}</strong>
+                      <strong>
+                        {isVendor() 
+                          ? 'Insurance Status' 
+                          : (isOwner() 
+                            ? 'Agreement Status' 
+                            : (isTenant() 
+                              ? 'Portal Status' 
+                              : 'Status'))}
+                      </strong>
                       <div>{getStatusText()}</div>
                     </div>
                   </Space>
@@ -876,20 +911,22 @@ const ProspectsDetailsPage: React.FC = () => {
                   </Space>
                 </Card>
               </Col>
-              {!isVendor() && !isOwner() && (
-                <><Col span={6}>
-                  <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Space direction="vertical" align="center" size="small">
-                      <div style={iconStyle}>
-                        <DollarOutlined />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <strong>Monthly Income</strong>
-                        <div>{personDetails.monthlyIncome ? personDetails.monthlyIncome : 'No Income Set'}</div>
-                      </div>
-                    </Space>
-                  </Card>
-                </Col><Col span={6}>
+              {!isTenant() && (
+                <>
+                  <Col span={6}>
+                    <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Space direction="vertical" align="center" size="small">
+                        <div style={iconStyle}>
+                          <DollarOutlined />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <strong>Monthly Income</strong>
+                          <div>{personDetails.monthlyIncome ? personDetails.monthlyIncome : 'No Income Set'}</div>
+                        </div>
+                      </Space>
+                    </Card>
+                  </Col>
+                  <Col span={6}>
                     <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <Space direction="vertical" align="center" size="small">
                         <div style={iconStyle}>
@@ -901,7 +938,8 @@ const ProspectsDetailsPage: React.FC = () => {
                         </div>
                       </Space>
                     </Card>
-                  </Col><Col span={6}>
+                  </Col>
+                  <Col span={6}>
                     <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <Space direction="vertical" align="center" size="small">
                         <div style={iconStyle}>
@@ -917,7 +955,8 @@ const ProspectsDetailsPage: React.FC = () => {
                         </div>
                       </Space>
                     </Card>
-                  </Col><Col span={6}>
+                  </Col>
+                  <Col span={6}>
                     <Card bodyStyle={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <Space direction="vertical" align="center" size="small">
                         <div style={iconStyle}>
@@ -929,7 +968,8 @@ const ProspectsDetailsPage: React.FC = () => {
                         </div>
                       </Space>
                     </Card>
-                  </Col></>
+                  </Col>
+                </>
               )}
             </Row>
             <Row gutter={[16, 16]}>
@@ -1000,7 +1040,7 @@ const ProspectsDetailsPage: React.FC = () => {
               </Col>
               <Col span={12}>
                 <Card 
-                  title={isVendor() ? "Property Access" : (isOwner() ? "Agreement" : "Interests")} 
+                  title={isVendor() ? "Property Access" : (isOwner() ? "Agreement" : (isTenant() ? "Emergency Contacts" : "Interests"))} 
                   style={{ height: '100%' }}
                   extra={
                     isOwner() && (
@@ -1014,22 +1054,15 @@ const ProspectsDetailsPage: React.FC = () => {
                     )
                   }
                 >
-                  <Space direction="vertical">
+                  <Space direction="vertical" style={{ width: '100%' }}>
                     {isVendor() ? (
-                      // Vendor property access code...
-                      personDetails.propertyAccess ? (
-                        <Space>
-                          <HomeTwoTone twoToneColor="#28A744" />
-                          <Text>
-                            {personDetails.propertyAccess === 'all' ? 'All Properties' : personDetails.propertyAccess}
-                          </Text>
-                        </Space>
-                      ) : (
-                        <Space>
-                          <HomeTwoTone twoToneColor="#28A744" />
-                          <Text>No Property Access</Text>
-                        </Space>
-                      )
+                      // Vendor property access
+                      <Space>
+                        <HomeTwoTone twoToneColor="#28A744" />
+                        <Text>
+                          {personDetails.propertyAccess === 'all' ? 'All Properties' : personDetails.propertyAccess || 'No Property Access'}
+                        </Text>
+                      </Space>
                     ) : isOwner() ? (
                       // Owner agreement dates
                       <Space direction="vertical">
@@ -1044,8 +1077,45 @@ const ProspectsDetailsPage: React.FC = () => {
                           <Text>{personDetails.agreement?.endDate ? dayjs(personDetails.agreement.endDate).format('MMM D, YYYY') : 'Not set'}</Text>
                         </Space>
                       </Space>
+                    ) : isTenant() ? (
+                      // Emergency Contacts for tenants
+                      personDetails.emergencyContacts && personDetails.emergencyContacts.length > 0 ? (
+                        personDetails.emergencyContacts.map((contact, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              borderBottom: index < personDetails.emergencyContacts!.length - 1 ? '1px solid #f0f0f0' : 'none',
+                              paddingBottom: index < personDetails.emergencyContacts!.length - 1 ? '12px' : '0',
+                              marginBottom: index < personDetails.emergencyContacts!.length - 1 ? '12px' : '0'
+                            }}
+                          >
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Space>
+                                <UserOutlined style={{ color: '#1890ff' }} />
+                                <Text strong>{contact.name}</Text>
+                                <Text type="secondary">({contact.relationship})</Text>
+                              </Space>
+                              <Space>
+                                <PhoneTwoTone />
+                                <Text>{formatPhoneNumber(contact.phone)}</Text>
+                              </Space>
+                              {contact.email && (
+                                <Space>
+                                  <MailTwoTone />
+                                  <Text>{contact.email}</Text>
+                                </Space>
+                              )}
+                            </Space>
+                          </div>
+                        ))
+                      ) : (
+                        <Empty 
+                          description="No emergency contacts listed" 
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      )
                     ) : (
-                      // Existing interests code for other types
+                      // Interests for other types (prospects)
                       personDetails.properties && personDetails.properties.length > 0 ? (
                         personDetails.properties.map((property) => {
                           const details = propertyUnitDetails[`${property.property}-${property.unit}`];
@@ -1068,10 +1138,10 @@ const ProspectsDetailsPage: React.FC = () => {
                           );
                         })
                       ) : (
-                        <Space>
-                          <HomeTwoTone twoToneColor="#28A744" />
-                          <Text>No Properties or Units</Text>
-                        </Space>
+                        <Empty 
+                          description="No properties or units" 
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
                       )
                     )}
                   </Space>
@@ -1143,8 +1213,8 @@ const ProspectsDetailsPage: React.FC = () => {
         {activeTab === 'notes' && peopleId && companyId && (
           <ProspectsDetailsNotes personId={peopleId} />
         )}
-        {activeTab === 'files' && companyId && (
-          <ProspectsFilesPage personId={peopleId} />
+        {activeTab === 'files' && companyId &&   (
+          <PeopleDashboardFilesPage personId={peopleId} />
         )}
         {activeTab === 'billing' && isVendor() && peopleId && companyId && (
           <PeopleBillingHistory personId={peopleId} companyId={companyId} />
@@ -1157,6 +1227,18 @@ const ProspectsDetailsPage: React.FC = () => {
         )}
         {activeTab === 'transactions' && isOwner() && peopleId && companyId && (
           <PeopleTransactions 
+            personId={peopleId} 
+            companyId={companyId}
+          />
+        )}
+        {activeTab === 'communication' && isTenant() && peopleId && companyId && (
+          <PeopleCommunication 
+            personId={peopleId} 
+            companyId={companyId}
+          />
+        )}
+        {activeTab === 'leasing' && isTenant() && peopleId && companyId && (
+          <PeopleLeasing
             personId={peopleId} 
             companyId={companyId}
           />

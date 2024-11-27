@@ -1,0 +1,78 @@
+
+.chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  height: 100%;
+}
+
+.settings-card {
+  background: #fff;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  border: none;
+  height: 120px;
+  width: 100%;
+}
+
+.settings-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.settings-card-content {
+  margin: -24px;
+  height: 120px;
+}
+
+.settings-card-left {
+  background: #F2F9F4;
+  padding: 24px;
+  min-width: 80px;
+  width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+}
+
+.settings-card-icon {
+  color: #28A745;
+  font-size: 24px;
+  transition: all 0.3s ease;
+}
+
+.settings-card-right {
+  padding: 24px;
+  flex: 1;
+  min-width: 0;
+  height: 120px;
+}
+
+.settings-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a2b3c;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-card-description {
+  font-size: 14px;
+  color: #6c757d;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-card:hover .settings-card-left {
+  background: #28A745;
+}
+
+.settings-card:hover .settings-card-icon {
+  color: #FFFFFF;
+} 

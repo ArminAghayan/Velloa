@@ -32,6 +32,8 @@ interface PeopleData {
     // Add other insurance fields if needed
   }>;
   agreement?: Agreement;
+  balance?: number;
+  portalStatus?: string;
 }
 
 interface IntermediatePeopleData extends Omit<PeopleData, 'properties'> {
@@ -167,6 +169,8 @@ const PeoplePage: React.FC = () => {
           company: data.company || '',
           insurance: data.insurance || '',
           agreement: data.agreement || undefined,
+          balance: data.balance,
+          portalStatus: data.portalStatus,
         };
       });
 
@@ -724,35 +728,126 @@ const PeoplePage: React.FC = () => {
 
   const tenantsColumns = [
     {
-      title: 'Name',
+      title: 'Tenant',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a: any, b: any) => a.name.localeCompare(b.name),
+      sorter: (a: PeopleData, b: PeopleData) => a.name.localeCompare(b.name),
+      render: (text: string, record: PeopleData) => (
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#d8e6d9',
+            borderRadius: '4px',
+            marginRight: '12px'
+          }}>
+            <UserOutlined style={{ fontSize: '24px', color: '#168033' }} />
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <Text strong style={{ color: 'Black', fontSize: '14px' }}>{text}</Text>
+          </span>
+        </span>
+      ),
     },
     {
-      title: 'Unit',
-      dataIndex: 'unit',
-      key: 'unit',
+      title: 'Contact Info',
+      key: 'contactInfo',
+      render: (text: string, record: PeopleData) => (
+        <span>
+          {record.emails.length > 0 && (
+            <div>
+              <MailTwoTone style={{ marginRight: '8px', color: '#188034' }} />
+              <Text>{record.emails[0]}</Text>
+              {record.emails.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.emails.map((email, index) => (
+                      <div key={index}>{email}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.emails.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          )}
+          {record.phones.length > 0 ? (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#5890E2' }} />
+              <Text>{formatPhoneNumber(record.phones[0])}</Text>
+              {record.phones.length > 1 && (
+                <Tooltip title={
+                  <div>
+                    {record.phones.map((phone, index) => (
+                      <div key={index}>{formatPhoneNumber(phone)}</div>
+                    ))}
+                  </div>
+                }>
+                  <span style={{ marginLeft: '8px', color: '#1677FE' }}>
+                    +{record.phones.length - 1}
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          ) : (
+            <div>
+              <PhoneTwoTone style={{ marginRight: '8px', color: '#bfbfbf' }} />
+              <Text type="secondary">No phone number</Text>
+            </div>
+          )}
+        </span>
+      ),
     },
     {
-      title: 'Lease Start',
-      dataIndex: 'leaseStart',
-      key: 'leaseStart',
-      sorter: (a: any, b: any) => new Date(a.leaseStart).getTime() - new Date(b.leaseStart).getTime(),
+      title: 'Balance',
+      dataIndex: 'balance',
+      key: 'balance',
+      render: (balance: number) => `$${(balance || 0).toFixed(2)}`,
     },
     {
-      title: 'Lease End',
-      dataIndex: 'leaseEnd',
-      key: 'leaseEnd',
-      sorter: (a: any, b: any) => new Date(a.leaseEnd).getTime() - new Date(b.leaseEnd).getTime(),
+      title: 'Tenant Portal Status',
+      dataIndex: 'portalStatus',
+      key: 'portalStatus',
+      render: (status: string) => {
+        // Normalize the status to lowercase to ensure case-insensitive matching
+        const normalizedStatus = (status || 'start').toLowerCase();
+        let currentStep = 0;
+        
+        switch (normalizedStatus) {
+          case 'start':
+            currentStep = 0;
+            break;
+          case 'sent':
+            currentStep = 1;
+            break;
+          case 'active':
+            currentStep = 2;
+            break;
+          default:
+            currentStep = 0; // Default to 'start' if status is unrecognized
+        }
+
+        return (
+          <Steps 
+            current={currentStep}
+            size="small"
+            type="inline"
+            items={[
+              { title: 'Start' },
+              { title: 'Sent' },
+              { title: 'Active' },
+            ]}
+          />
+        );
+      },
     },
     {
-      title: 'Contact',
-      dataIndex: 'contact',
-      key: 'contact',
-    },
-    {
-      title: '',
+      title: 'Action',
       key: 'actions',
       render: (_: any, record: PeopleData) => (
         <Dropdown 
@@ -1382,7 +1477,7 @@ const PeoplePage: React.FC = () => {
     }
   }, [peopleData, peopleTypeFilter]);
 
-  const tableClassName = peopleTypeFilter === 'Prospects' ? 'prospects-table compact-rows' : '';
+  const tableClassName = peopleTypeFilter === 'Prospects' || peopleTypeFilter === 'Tenants' ? 'prospects-table compact-rows' : '';
   const handleSubmitSuccess = () => {
     fetchPeopleData(); // Refresh the people data
   };

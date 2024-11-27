@@ -23,6 +23,9 @@ import PropertyPetPolicy, { PropertyPetPolicyRef } from './propertySettingstabs/
 import SettingsRentalApplication, { RentalApplicationRef } from './propertySettingstabs/PropertyApplications/MainRentelApplicationPage';
 import RentPaymentNotifications, { RentPaymentNotificationsRef } from './propertySettingstabs/RentPaymentNotifications';
 import TenantRequestSettings, { TenantRequestSettingsRef } from './propertySettingstabs/TenantRequestSettings';
+import ManagementFees, { ManagementFeesRef } from './propertySettingstabs/propertyManagementFees';
+import PaymentAllocation, { PaymentAllocationRef } from './propertySettingstabs/propertyPaymentAllocation';
+import PropertyBankAccounts, { BankAccountsRef } from './propertySettingstabs/PropertyBankAccounts';
 
 const { Text } = Typography;
 
@@ -52,6 +55,9 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
   const lateFeesRef = useRef<LateFeesRef>(null);
   const notificationsRef = useRef<RentPaymentNotificationsRef>(null);
   const tenantRequestsRef = useRef<TenantRequestSettingsRef>(null);
+  const managementFeesRef = useRef<ManagementFeesRef>(null);
+  const paymentAllocationRef = useRef<PaymentAllocationRef>(null);
+  const bankAccountsRef = useRef<BankAccountsRef>(null);
 
   useEffect(() => {
     const handleShowPhotos = () => {
@@ -68,7 +74,10 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
     setIsModalOpen(true);
   };
 
-  const handleModalClose = () => {
+  const handleModalClose = async () => {
+    if (selectedMenu === 'managementFees' && managementFeesRef.current) {
+      await managementFeesRef.current.resetState();
+    }
     setIsModalOpen(false);
     setSelectedMenu('');
   };
@@ -76,41 +85,26 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
   const handleSaveClick = async () => {
     if (selectedMenu === 'general' && generalFormRef.current) {
       await generalFormRef.current.handleSave();
-      handleModalClose();
     } else if (selectedMenu === 'type' && propertyTypeRef.current) {
-      const success: boolean = await propertyTypeRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
     } else if (selectedMenu === 'owners' && ownersRef.current) {
-      const success: boolean = await ownersRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
+      await ownersRef.current.handleSave();
     } else if (selectedMenu === 'amenities' && amenitiesRef.current) {
-      const success = await amenitiesRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
     } else if (selectedMenu === 'petPolicy' && petPolicyRef.current) {
-      const success = await petPolicyRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
+      await petPolicyRef.current.handleSave();
     } else if (selectedMenu === 'applications' && rentalApplicationRef.current) {
       await rentalApplicationRef.current.handleSave();
     } else if (selectedMenu === 'lateFees' && lateFeesRef.current) {
       await lateFeesRef.current.handleSave();
     } else if (selectedMenu === 'notifications' && notificationsRef.current) {
-      const success = await notificationsRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
+      await notificationsRef.current.handleSave();
     } else if (selectedMenu === 'requests' && tenantRequestsRef.current) {
-      const success = await tenantRequestsRef.current.handleSave();
-      if (success) {
-        handleModalClose();
-      }
+      await tenantRequestsRef.current.handleSave();
+    } else if (selectedMenu === 'managementFees' && managementFeesRef.current) {
+      await managementFeesRef.current.handleSave();
+    } else if (selectedMenu === 'paymentAllocation' && paymentAllocationRef.current) {
+      await paymentAllocationRef.current.handleSave();
+    } else if (selectedMenu === 'bank' && bankAccountsRef.current) {
+      await bankAccountsRef.current.handleSave();
     }
   };
 
@@ -149,7 +143,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
       case 'type':
         return <PropertyTypeSelection ref={propertyTypeRef} propertyId={property.key} />;
       case 'bank':
-        return <Text>Bank Accounts content goes here.</Text>;
+        return <PropertyBankAccounts ref={bankAccountsRef} propertyId={property.key} />;
       case 'owners':
         return <PropertyOwners ref={ownersRef} propertyId={property.key} />;
       case 'reserve':
@@ -171,9 +165,9 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
       case 'paymentInstructions':
         return <Text>Payment Instructions content goes here.</Text>;
       case 'managementFees':
-        return <Text>Management Fees content goes here.</Text>;
+        return <ManagementFees ref={managementFeesRef} propertyId={property.key} />;
       case 'paymentAllocation':
-        return <Text>Payment Allocation content goes here.</Text>;
+        return <PaymentAllocation ref={paymentAllocationRef} propertyId={property.key} />;
       case 'customAllocations':
         return <Text>Custom Allocations content goes here.</Text>;
       default:
@@ -182,17 +176,10 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
   };
 
   useEffect(() => {
-    if (!isModalOpen) {
-      if (lateFeesRef.current) {
-        const loadLateFeeSettings = async () => {
-          if (lateFeesRef.current) {
-            await lateFeesRef.current.loadSettings?.();
-          }
-        };
-        loadLateFeeSettings();
-      }
+    if (isModalOpen && selectedMenu === 'managementFees' && managementFeesRef.current) {
+      managementFeesRef.current.loadSettings();
     }
-  }, [isModalOpen]);
+  }, [isModalOpen, selectedMenu]);
 
   return (
     <div className="settings-container">
@@ -247,7 +234,7 @@ const PropertyInfoSettings: React.FC<PropertySettingsProps> = ({ property, updat
         open={isModalOpen}
         onCancel={handleModalClose}
         width={1200}
-        footer={['general', 'type', 'owners', 'amenities', 'petPolicy', 'applications', 'lateFees', 'notifications', 'requests'].includes(selectedMenu) ? (
+        footer={['general', 'type', 'owners', 'amenities', 'petPolicy', 'applications', 'lateFees', 'notifications', 'requests', 'managementFees', 'paymentAllocation', 'bank'].includes(selectedMenu) ? (
           <Button 
             type="primary" 
             style={{ width: '150px', height: '40px' }}

@@ -1,0 +1,8 @@
+.property-management-fees .ant-form-item-control-input-content > div {
+    width: 100%;
+    display: block;
+}
+
+.property-management-fees .ant-dropdown-menu {
+    width: 100%;
+}

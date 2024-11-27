@@ -37,8 +37,10 @@ interface FeeLimitations {
   };
 }
 
+// Updated LateFeeConfig interface with 'type' property
 interface LateFeeConfig {
   automaticLateFees: boolean;
+  type: 'default' | 'custom'; // Added 'type' property
   feeStructureType: 'company' | 'property';
   lateFees: Array<{
     amount: number;
@@ -92,36 +94,34 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load saved settings whenever modal opens
+  // Add debug logging
   useEffect(() => {
-    const loadLateFeeSettings = async () => {
-      try {
-        setIsLoading(true);
-        const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
-        const lateFeesDoc = await getDoc(lateFeesRef);
+    console.log('Current feeStructureType:', feeStructureType);
+  }, [feeStructureType]);
+
+  // Modify the loadSettings function
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
+      const lateFeesDoc = await getDoc(lateFeesRef);
+      
+      if (lateFeesDoc.exists()) {
+        const data = lateFeesDoc.data();
+        console.log('Loaded data:', data); // Debug log
         
-        if (lateFeesDoc.exists()) {
-          const data = lateFeesDoc.data();
-          setAutomaticLateFees(data.automaticLateFees ?? true);
-          // Reset to saved type
-          setFeeStructureType(data.type === 'default' ? 'company' : 'property');
-          
-          if (data.type === 'custom') {
-            setLateFees(data.lateFees || []);
-            setFeeLimitations(data.feeLimitations || {
-              maximumDailyFees: { enabled: false, amount: 0 },
-              maximumMonthlyFees: { enabled: false, amount: 0 },
-              minimumBalance: { enabled: false, amount: 0 },
-              onlyMostRecent: false,
-              specificCharges: { enabled: false, selectedCharges: [] }
-            });
-          }
-        } else {
-          // Set defaults if no data exists
-          setFeeStructureType('company');
-          setAutomaticLateFees(true);
-          setLateFees([]);
-          setFeeLimitations({
+        // First set automatic late fees
+        setAutomaticLateFees(data.automaticLateFees ?? true);
+        
+        // Then set the fee structure type based on the saved type
+        const newFeeStructureType = data.type === 'default' ? 'company' : 'property';
+        console.log('Setting fee structure type to:', newFeeStructureType); // Debug log
+        setFeeStructureType(newFeeStructureType);
+        
+        // Load custom settings if they exist
+        if (data.type === 'custom') {
+          setLateFees(data.lateFees || []);
+          setFeeLimitations(data.feeLimitations || {
             maximumDailyFees: { enabled: false, amount: 0 },
             maximumMonthlyFees: { enabled: false, amount: 0 },
             minimumBalance: { enabled: false, amount: 0 },
@@ -129,15 +129,47 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
             specificCharges: { enabled: false, selectedCharges: [] }
           });
         }
-      } catch (error) {
-        console.error('Error loading late fees settings:', error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Set defaults if no data exists
+        console.log('No existing data, setting defaults'); // Debug log
+        setFeeStructureType('company');
+        setAutomaticLateFees(true);
+        setLateFees([]);
+        setFeeLimitations({
+          maximumDailyFees: { enabled: false, amount: 0 },
+          maximumMonthlyFees: { enabled: false, amount: 0 },
+          minimumBalance: { enabled: false, amount: 0 },
+          onlyMostRecent: false,
+          specificCharges: { enabled: false, selectedCharges: [] }
+        });
       }
-    };
+    } catch (error) {
+      console.error('Error loading late fees settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    loadLateFeeSettings();
+  // Update the initial useEffect to use loadSettings
+  useEffect(() => {
+    loadSettings();
   }, [propertyId]);
+
+  // Update handleFeeStructureChange
+  const handleFeeStructureChange = async (type: 'company' | 'property') => {
+    setFeeStructureType(type);
+    
+    // Immediately save the change
+    try {
+      const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
+      await setDoc(lateFeesRef, {
+        type: type === 'company' ? 'default' : 'custom',
+        automaticLateFees
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error saving fee structure type:', error);
+    }
+  };
 
   // Calculate late fees based on configuration
   const calculateLateFees = (amount: number, daysLate: number) => {
@@ -318,25 +350,60 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
     setAutomaticLateFees(checked);
   };
 
-  const handleFeeStructureChange = (type: 'company' | 'property') => {
-    setFeeStructureType(type);
-  };
-
   // Main save function that will be called from the modal footer
   const handleSave = async () => {
     try {
       const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
       
+      // Create base config with minimal required fields
       const configData = {
-        automaticLateFees,
+        automaticLateFees: automaticLateFees,
         type: feeStructureType === 'company' ? 'default' : 'custom',
-        ...(feeStructureType === 'property' && {
-          lateFees,
-          feeLimitations
+        feeStructureType: feeStructureType,
+        // Only include these fields if using property structure
+        ...(feeStructureType === 'property' && automaticLateFees ? {
+          lateFees: lateFees.map(fee => ({
+            amount: fee.fee || 0,
+            type: fee.feeType || 'Flat fee ($)',
+            frequency: fee.frequency || 'Once',
+            gracePeriod: fee.gracePeriod || 0,
+            maxOccurrences: fee.maxOccurrences || 0
+          })),
+          feeLimitations: {
+            maximumDailyFees: {
+              enabled: feeLimitations.maximumDailyFees?.enabled || false,
+              amount: feeLimitations.maximumDailyFees?.amount || 0
+            },
+            maximumMonthlyFees: {
+              enabled: feeLimitations.maximumMonthlyFees?.enabled || false,
+              amount: feeLimitations.maximumMonthlyFees?.amount || 0
+            },
+            minimumBalance: {
+              enabled: feeLimitations.minimumBalance?.enabled || false,
+              amount: feeLimitations.minimumBalance?.amount || 0
+            },
+            onlyMostRecent: feeLimitations.onlyMostRecent || false,
+            specificCharges: {
+              enabled: feeLimitations.specificCharges?.enabled || false,
+              selectedCharges: feeLimitations.specificCharges?.selectedCharges || []
+            }
+          }
+        } : {
+          lateFees: [],
+          feeLimitations: {
+            maximumDailyFees: { enabled: false, amount: 0 },
+            maximumMonthlyFees: { enabled: false, amount: 0 },
+            minimumBalance: { enabled: false, amount: 0 },
+            onlyMostRecent: false,
+            specificCharges: { enabled: false, selectedCharges: [] }
+          }
         })
       };
 
-      await setDoc(lateFeesRef, configData, { merge: true });
+      // Debug log
+      console.log('Saving config data:', JSON.stringify(configData, null, 2));
+
+      await setDoc(lateFeesRef, configData);
       
       notification.success({
         message: 'Settings Saved',
@@ -353,48 +420,6 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
       });
       console.error('Error saving late fees configuration:', error);
       return false;
-    }
-  };
-
-  const loadSettings = async () => {
-    try {
-      setIsLoading(true);
-      const lateFeesRef = doc(db, 'properties', propertyId, 'propertySettings', 'LateFees');
-      const lateFeesDoc = await getDoc(lateFeesRef);
-      
-      if (lateFeesDoc.exists()) {
-        const data = lateFeesDoc.data();
-        setAutomaticLateFees(data.automaticLateFees ?? true);
-        // Reset to saved type
-        setFeeStructureType(data.type === 'default' ? 'company' : 'property');
-        
-        if (data.type === 'custom') {
-          setLateFees(data.lateFees || []);
-          setFeeLimitations(data.feeLimitations || {
-            maximumDailyFees: { enabled: false, amount: 0 },
-            maximumMonthlyFees: { enabled: false, amount: 0 },
-            minimumBalance: { enabled: false, amount: 0 },
-            onlyMostRecent: false,
-            specificCharges: { enabled: false, selectedCharges: [] }
-          });
-        }
-      } else {
-        // Set defaults if no data exists
-        setFeeStructureType('company');
-        setAutomaticLateFees(true);
-        setLateFees([]);
-        setFeeLimitations({
-          maximumDailyFees: { enabled: false, amount: 0 },
-          maximumMonthlyFees: { enabled: false, amount: 0 },
-          minimumBalance: { enabled: false, amount: 0 },
-          onlyMostRecent: false,
-          specificCharges: { enabled: false, selectedCharges: [] }
-        });
-      }
-    } catch (error) {
-      console.error('Error loading late fees settings:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -448,7 +473,7 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio 
               style={{ 
-                padding: '16px', 
+                padding: '8px 12px', 
                 width: '100%', 
                 background: '#f5f5f5', 
                 borderRadius: '8px' 
@@ -459,7 +484,7 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
             </Radio>
             <Radio 
               style={{ 
-                padding: '16px', 
+                padding: '8px 12px',
                 width: '100%', 
                 background: '#f5f5f5', 
                 borderRadius: '8px' 
@@ -602,11 +627,6 @@ const LateFees = forwardRef<LateFeesRef, LateFeesProps>(({ propertyId }, ref) =>
                               items: [
                                 {
                                   key: '1',
-                                  label: 'Edit',
-                                  onClick: () => handleEditFee(index)
-                                },
-                                {
-                                  key: '2',
                                   label: 'Delete',
                                   danger: true,
                                   onClick: () => handleDeleteFee(index)

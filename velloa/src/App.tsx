@@ -43,6 +43,8 @@ import UserListingsPage from './components/UserApplication/UserListingPage/Listi
 import UserAboutPage from './components/UserApplication/UserAboutPage/UserAboutPage';
 import UserHomePage from './components/UserApplication/UserHomePage/UserHomePage';
 import PropertyOverview from './pages/property/propertyinfo/tabs/propertyinfo_overview';
+import ChartsOfAccounts from './pages/Accounting/Sections/ChartsOfAccounts/chartsOfAccounts';
+import TransactionsPage from './pages/Accounting/Sections/Transactions/TransactionsPage';
 
 // Define the theme object
 const theme = {
@@ -191,6 +193,8 @@ const AnimatedRoutes: React.FC = () => {
           <Route path="resources" element={<AnimatedPage><Resourcespage /></AnimatedPage>} />
           <Route path="leasing" element={<AnimatedPage><Leasingpage /></AnimatedPage>} />
           <Route path="people" element={<AnimatedPage><Peoplepage /></AnimatedPage>} />
+          <Route path="/accounting/chartofaccounts" element={<AnimatedPage><ChartsOfAccounts /></AnimatedPage>} />
+          <Route path="/accounting/transactions" element={<AnimatedPage><TransactionsPage /></AnimatedPage>} />
           <Route path="people/:peopleId" element={<AnimatedPage><ProspectsDetailsPage /></AnimatedPage>} />
           <Route path="accounting" element={<AnimatedPage><Accountingpage /></AnimatedPage>} />
           <Route path="analytics" element={<AnimatedPage><Analyticsspage /></AnimatedPage>} />
