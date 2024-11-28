@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Input, Button, Table, Tabs, Tag, Space, Drawer, Form, message } from 'antd';
-import { IconAdjustmentsHorizontal, IconPlus, IconArrowLeft, IconDots, IconBuildingBank } from '@tabler/icons-react';
+import { Typography, Input, Button, Table, Tabs, Tag, Space, Drawer, Form, message, Empty, Modal } from 'antd';
+import { IconAdjustmentsHorizontal, IconPlus, IconArrowLeft, IconDots, IconBuildingBank, IconLink } from '@tabler/icons-react';
 import './TransactionsPage.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
@@ -85,6 +85,8 @@ const TransactionsPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isBalanced, setIsBalanced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<Transaction | null>(null);
+  const [connectBankModal, setConnectBankModal] = useState(false);
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -105,11 +107,12 @@ const TransactionsPage: React.FC = () => {
     }
   }, [isNewAccountDrawerOpen, form]);
 
-  const handleTransactionClick = (accountId: string, isConnected: boolean) => {
-    if (isConnected) {
-      navigate(`/accounting/transactions/${accountId}`);
+  const handleTransactionClick = (account: Transaction) => {
+    if (account.status === 'connected') {
+      navigate(`/accounting/transactions/${account.id}`);
     } else {
-      navigate(`/accounting/transactions/${accountId}/import`);
+      setSelectedAccount(account);
+      setConnectBankModal(true);
     }
   };
 
@@ -223,6 +226,29 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
+  const renderConnectBankState = () => (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      padding: '40px 20px' 
+    }}>
+      <IconBuildingBank size={48} style={{ color: '#168033', marginBottom: 24 }} />
+      <Title level={4}>Connect your accounts</Title>
+      <Text type="secondary" style={{ textAlign: 'center', marginBottom: 24 }}>
+        Connecting your bank allows Velloa to securely pull transactions from
+        your bank or credit card accounts to help you with reconciliation.
+      </Text>
+      <Button 
+        type="primary" 
+        icon={<IconLink size={20} />}
+        onClick={() => {/* Add your bank connection logic here */}}
+      >
+        Connect account
+      </Button>
+    </div>
+  );
+
   const columns = [
     {
       title: 'Account Name',
@@ -297,7 +323,7 @@ const TransactionsPage: React.FC = () => {
         <Button 
           type="link" 
           style={{ padding: 0 }}
-          onClick={() => handleTransactionClick(record.accountName, record.status === 'connected')}
+          onClick={() => handleTransactionClick(record)}
         >
           {record.status === 'connected' ? 'View Transactions' : 'Import Transactions'}
         </Button>
@@ -423,6 +449,36 @@ const TransactionsPage: React.FC = () => {
           defaultType="asset_bank"
         />
       </Drawer>
+
+      <Modal
+        open={connectBankModal}
+        onCancel={() => setConnectBankModal(false)}
+        footer={null}
+        width={520}
+        centered
+      >
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          padding: '40px 20px' 
+        }}>
+          <IconBuildingBank size={48} style={{ color: '#168033', marginBottom: 24 }} />
+          <Title level={4}>Connect your accounts</Title>
+          <Text type="secondary" style={{ textAlign: 'center', marginBottom: 24 }}>
+            Connecting your bank allows Velloa to securely pull transactions from
+            your bank or credit card accounts to help you with reconciliation.
+          </Text>
+          <Button 
+            type="primary" 
+            icon={<IconLink size={20} />}
+            onClick={() => {/* Add your bank connection logic here */}}
+            style={{ height: 40 }}
+          >
+            Connect account
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };
