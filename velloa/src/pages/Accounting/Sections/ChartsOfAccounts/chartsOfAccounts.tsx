@@ -213,12 +213,18 @@ const ChartsOfAccounts: React.FC = () => {
   const [isBalanced, setIsBalanced] = useState(true);
 
   const handleSubmit = async () => {
-    if (isSubmitting) return; // Prevent multiple submissions
+    if (isSubmitting) return;
     
     try {
       setIsSubmitting(true);
       const formValues = form.getFieldsValue(true);
-      console.log('Raw form values:', formValues);
+      
+      // Add these debug logs
+      console.log('Raw useForLeaseCharges:', formValues.useForLeaseCharges);
+      console.log('Raw useForLeaseDeposits:', formValues.useForLeaseDeposits);
+      console.log('Raw defaultLeaseStatementMemo:', formValues.defaultLeaseStatementMemo);
+      console.log('Converted useForLeaseCharges:', Boolean(formValues.useForLeaseCharges));
+      console.log('Form values:', formValues);
 
       if (!formValues.accountName || formValues.accountName.trim() === '') {
         message.error('Account Name is required');
@@ -272,44 +278,49 @@ const ChartsOfAccounts: React.FC = () => {
         accountType = formValues.accountType || accountClass;
       }
 
-      const checkPrintingDetails = formValues.includeRoutingInfo ? {
-        checkPrinting: [{
-          includeRoutingInfo: formValues.includeRoutingInfo ?? false,
-          transitNumber: formValues.transitNumber || null,
-          institutionNumber: formValues.institutionNumber || null,
-          bankAccountNumber: formValues.bankAccountNumber || null,
-          nextCheckNumber: formValues.nextCheckNumber || null,
-          accountOwnerName: formValues.accountOwnerName || null,
-          bankAccountContactInfo: formValues.bankAccountContactInfo || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }]
-      } : {};
-
       const accountData = {
-        // Step 1 - Basic Info
+        // Basic Info
         accountName: formValues.accountName.trim(),
-        accountClass,                    // Mapped class value
-        accountType,                     // Mapped type value
+        accountClass,
+        accountType,
         description: formValues.description || '',
         isActive: formValues.activeAccount ?? true,
         isSubAccount: formValues.isSubAccount ?? false,
         parentAccount: formValues.parentAccount || null,
 
-        // Step 2 - Asset/Lease Options
-        ...(formValues.type?.startsWith('asset') ? {
-          // Asset specific fields
-          openingBalance: formValues.openingBalance ? Number(formValues.openingBalance) : 0,
-          startDate: formValues.startDate ? formValues.startDate.toDate() : null,
-        } : {
-          // Lease specific fields
-          useForLeaseCharges: formValues.useForLeaseCharges ?? false,
-          useForLeaseDeposits: formValues.useForLeaseDeposits ?? false,
-          defaultLeaseStatementMemo: formValues.defaultLeaseStatementMemo ?? false,
+        // Opening Balance Info (for asset, liability, and equity accounts)
+        ...(formValues.startDate && (formValues.type?.startsWith('asset') || 
+            formValues.type?.startsWith('liability') || 
+            formValues.type === 'equity') && {
+          openingBalanceDate: formValues.startDate.toDate(),
+          openingBalance: formValues.openingBalance 
+            ? parseFloat(formValues.openingBalance.replace(/[^0-9.-]+/g, ""))
+            : 0,
+          propertyBalances: (formValues.propertyBalances || []).map((pb: any) => ({
+            property: pb.property,
+            balance: parseFloat(pb.balance.replace(/[^0-9.-]+/g, ""))
+          }))
         }),
 
-        // Step 3 - Check Printing (as array)
-        ...checkPrintingDetails,
+        // Lease Options - Get the actual boolean values
+        useForLeaseCharges: Boolean(formValues.useForLeaseCharges),
+        useForLeaseDeposits: Boolean(formValues.useForLeaseDeposits),
+        defaultLeaseStatementMemo: Boolean(formValues.defaultLeaseStatementMemo),
+
+        // Check Printing Info
+        ...(formValues.includeRoutingInfo ? {
+          checkPrinting: [{
+            includeRoutingInfo: formValues.includeRoutingInfo,
+            transitNumber: formValues.transitNumber || null,
+            institutionNumber: formValues.institutionNumber || null,
+            bankAccountNumber: formValues.bankAccountNumber || null,
+            nextCheckNumber: formValues.nextCheckNumber || null,
+            accountOwnerName: formValues.accountOwnerName || null,
+            bankAccountContactInfo: formValues.bankAccountContactInfo || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }]
+        } : {}),
 
         // Metadata
         companyId,
@@ -317,7 +328,7 @@ const ChartsOfAccounts: React.FC = () => {
         updatedAt: new Date(),
       };
 
-      console.log('Account data to save:', accountData);
+      console.log('Final account data:', accountData);
 
       // Create or update accounting document
       const accountingRef = doc(db, 'accounting', companyId);

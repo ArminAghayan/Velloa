@@ -302,6 +302,8 @@ const NewAccount: React.FC<NewAccountProps> = ({
     }
   }, [defaultType]);
 
+
+
   return (
     <div className="new-account-drawer">
       <div className="content">
@@ -640,9 +642,17 @@ const NewAccount: React.FC<NewAccountProps> = ({
                 )
               ) && (
                 <>
-                  <Form.Item name="useForLeaseCharges" valuePropName="checked">
+                  <Form.Item 
+                    name="useForLeaseCharges" 
+                    valuePropName="checked"
+                    initialValue={false}
+                  >
                     <div className="switch-container">
-                      <Switch />
+                      <Switch 
+                        onChange={(checked) => {
+                          form.setFieldsValue({ useForLeaseCharges: checked });
+                        }}
+                      />
                       <div className="switch-text">
                         <span className="switch-label">Use this account for Lease Charges</span>
                         <span className="switch-description">This will allow you to select this account when creating a new lease charge, credit, or refund.</span>
@@ -650,9 +660,17 @@ const NewAccount: React.FC<NewAccountProps> = ({
                     </div>
                   </Form.Item>
 
-                  <Form.Item name="useForLeaseDeposits" valuePropName="checked">
+                  <Form.Item 
+                    name="useForLeaseDeposits" 
+                    valuePropName="checked"
+                    initialValue={false}
+                  >
                     <div className="switch-container">
-                      <Switch />
+                      <Switch 
+                        onChange={(checked) => {
+                          form.setFieldsValue({ useForLeaseDeposits: checked });
+                        }}
+                      />
                       <div className="switch-text">
                         <span className="switch-label">Use this account for Lease Deposits</span>
                         <span className="switch-description">This will allow you to select this account when creating a new lease deposit charge.</span>
@@ -660,9 +678,17 @@ const NewAccount: React.FC<NewAccountProps> = ({
                     </div>
                   </Form.Item>
 
-                  <Form.Item name="defaultLeaseStatementMemo" valuePropName="checked">
+                  <Form.Item 
+                    name="defaultLeaseStatementMemo" 
+                    valuePropName="checked"
+                    initialValue={false}
+                  >
                     <div className="switch-container">
-                      <Switch />
+                      <Switch 
+                        onChange={(checked) => {
+                          form.setFieldsValue({ defaultLeaseStatementMemo: checked });
+                        }}
+                      />
                       <div className="switch-text">
                         <span className="switch-label">Set a default lease statement memo</span>
                         <span className="switch-description">This will allow you to select this account when creating a new lease deposit charge.</span>

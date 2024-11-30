@@ -44,7 +44,7 @@ import UserAboutPage from './components/UserApplication/UserAboutPage/UserAboutP
 import UserHomePage from './components/UserApplication/UserHomePage/UserHomePage';
 import PropertyOverview from './pages/property/propertyinfo/tabs/propertyinfo_overview';
 import ChartsOfAccounts from './pages/Accounting/Sections/ChartsOfAccounts/chartsOfAccounts';
-import TransactionsPage from './pages/Accounting/Sections/Transactions/TransactionsPage';
+import TransactionsPage from './pages/Accounting/Sections/Transactions/OverviewPage';
 
 // Define the theme object
 const theme = {
@@ -265,5 +265,6 @@ const App: React.FC = () => {
     </ConfigProvider>
   );
 };
+
 
 export default App;
