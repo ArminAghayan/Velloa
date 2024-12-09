@@ -6,6 +6,7 @@ import './MainSettings.css';
 import RentalApplicationSettings from './settingsPages/PropertySettings/SettingsRentalApplication';
 import NoteTagSettings from './settingsPages/Notetag/NoteTagSettings';
 import FileTagSettings from './settingsPages/FileTag/FileTagSettings';
+import ExpenseCategories from './settingsPages/ExpenseCategories/ExpenseCategories';
 const { Title } = Typography;
 
 interface MenuItemType {
@@ -76,6 +77,14 @@ const items: MenuItemType[] = [
       { key: 'payment-allocation', label: 'Payment Allocation' },
     ],
   },
+  {
+    key: 'accounting-settings',
+    label: 'Accounting Settings',
+    icon: <HomeOutlined />,
+    children: [
+      { key: 'expense-categories', label: 'Expense Categories' },
+    ],
+  },
 ];
 
 const MainSettings: React.FC = () => {
@@ -103,6 +112,13 @@ const MainSettings: React.FC = () => {
         setModalContent({
           title: 'File Tags',
           content: <FileTagSettings />
+        });
+        setIsModalOpen(true);
+        break;
+      case 'expense-categories':
+        setModalContent({
+          title: 'Expense Categories',
+          content: <ExpenseCategories />
         });
         setIsModalOpen(true);
         break;

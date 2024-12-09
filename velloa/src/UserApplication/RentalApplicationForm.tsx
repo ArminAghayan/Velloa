@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Button, Input, Typography, Checkbox, message, Steps, Select, DatePicker, InputNumber, Row, Col, Divider, Layout, Menu } from 'antd';
 import {PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import './RentalApplicationForm.css';
-import Header from './Header/UserHeader';
+import { useParams } from 'react-router-dom';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -10,6 +10,7 @@ const { Option } = Select;
 const { Content } = Layout;
 
 const RentalApplicationForm: React.FC = () => {
+  const { companyId = '' } = useParams();
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -577,96 +578,93 @@ const RentalApplicationForm: React.FC = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header />
-      <Content style={{ 
-        padding: '40px 20px',
-        backgroundColor: '#f5f5f5'
-      }}>
-        <Row gutter={24} justify="center">
-          <Col xs={24} lg={8}>
-            <div style={{ 
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              padding: '32px',
-              height: '350px'
-            }}>
-              <Title level={3}>Company Name</Title>
+    <Content style={{ 
+      padding: '40px 0px',
+      backgroundColor: '#f5f5f5'
+    }}>
+      <Row gutter={24} justify="center">
+        <Col xs={24} lg={8}>
+          <div style={{ 
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            padding: '32px',
+            height: '350px'
+          }}>
+            <Title level={3}>Company Name</Title>
+          </div>
+        </Col>
+
+        <Col xs={24} lg={14}>
+          <div style={{ 
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            padding: '32px'
+          }}>
+            <Title level={2} style={{ textAlign: 'center', marginBottom: '32px' }}>
+              Rental Application
+            </Title>
+            
+            <Steps 
+              current={currentStep} 
+              items={steps
+                .map((step, index) => ({
+                  ...step,
+                  status: index === currentStep ? 'process' as const : 
+                          index < currentStep ? 'finish' as const : 
+                          index > currentStep ? 'wait' as const : undefined
+                }))
+                .slice(Math.max(0, currentStep - 1), Math.min(currentStep + 2, steps.length))} 
+              style={{ 
+                marginBottom: 32, 
+                padding: '0 24px',
+                width: '100%' 
+              }}
+              progressDot
+            />
+
+            <div style={{ padding: '0 24px' }}>
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+              >
+                {steps[currentStep].content}
+
+                <div style={{ 
+                  marginTop: 32,
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 12
+                }}>
+                  {currentStep > 0 && (
+                    <Button 
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                    >
+                      Previous
+                    </Button>
+                  )}
+                  {currentStep < steps.length - 1 && (
+                    <Button 
+                      type="primary" 
+                      onClick={() => setCurrentStep(currentStep + 1)}
+                    >
+                      Next
+                    </Button>
+                  )}
+                  {currentStep === steps.length - 1 && (
+                    <Button type="primary" htmlType="submit">
+                      Submit Application
+                    </Button>
+                  )}
+                </div>
+              </Form>
             </div>
-          </Col>
-
-          <Col xs={24} lg={14}>
-            <div style={{ 
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              padding: '32px'
-            }}>
-              <Title level={2} style={{ textAlign: 'center', marginBottom: '32px' }}>
-                Rental Application
-              </Title>
-              
-              <Steps 
-                current={currentStep} 
-                items={steps
-                  .map((step, index) => ({
-                    ...step,
-                    status: index === currentStep ? 'process' as const : 
-                            index < currentStep ? 'finish' as const : 
-                            index > currentStep ? 'wait' as const : undefined
-                  }))
-                  .slice(Math.max(0, currentStep - 1), Math.min(currentStep + 2, steps.length))} 
-                style={{ 
-                  marginBottom: 32, 
-                  padding: '0 24px',
-                  width: '100%' 
-                }}
-                progressDot
-              />
-
-              <div style={{ padding: '0 24px' }}>
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleSubmit}
-                >
-                  {steps[currentStep].content}
-
-                  <div style={{ 
-                    marginTop: 32,
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: 12
-                  }}>
-                    {currentStep > 0 && (
-                      <Button 
-                        onClick={() => setCurrentStep(currentStep - 1)}
-                      >
-                        Previous
-                      </Button>
-                    )}
-                    {currentStep < steps.length - 1 && (
-                      <Button 
-                        type="primary" 
-                        onClick={() => setCurrentStep(currentStep + 1)}
-                      >
-                        Next
-                      </Button>
-                    )}
-                    {currentStep === steps.length - 1 && (
-                      <Button type="primary" htmlType="submit">
-                        Submit Application
-                      </Button>
-                    )}
-                  </div>
-                </Form>
-              </div>
-            </div>
-          </Col>
-        </Row>
-      </Content>
-    </Layout>
+          </div>
+        </Col>
+      </Row>
+    </Content>
   );
 };
 

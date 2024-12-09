@@ -101,13 +101,13 @@ const Sidebar: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '16px',
-            textAlign: 'center',
-            justifyContent: 'center',
+            padding: '16px 24px',
+            textAlign: 'left',
+            justifyContent: 'flex-start',
           }}
         >
           <img
-            src="/assets/dark_mode_velloa_logo.png"
+            src="/assets/FF_VELLOA_white.png"
             alt="Logo"
             style={{ maxWidth: '100%', maxHeight: '36px' }}
           />

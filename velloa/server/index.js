@@ -2,6 +2,12 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+const { Groq } = require('groq-sdk');
+
+// Initialize GROQ client
+const groq = new Groq({
+  apiKey: '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',
+});
 
 const configuration = new Configuration({
     basePath: PlaidEnvironments.sandbox,
@@ -103,6 +109,83 @@ app.post("/get_recurring_transactions", async function(req, res) {
         });
     } catch (error) {
         console.error("Plaid error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post("/generate-description", async function(req, res) {
+    try {
+        const { title, beds, baths, size, marketRent, images } = req.body;
+
+        const imageAnalysis = images && images.length > 0 
+            ? "Based on the provided images, I can see: " +
+              "- Interior features like [specific features visible in images] " +
+              "- Exterior elements such as [visible exterior elements] " +
+              "- Notable amenities including [visible amenities] "
+            : "No images provided for this listing.";
+
+        const completion = await groq.chat.completions.create({
+            messages: [{
+                role: "user",
+                content: `Generate a property listing description with EXACTLY between 500-850 characters (this is crucial) for:
+                         Title: "${title}"
+                         Bedrooms: ${beds || 'N/A'}
+                         Bathrooms: ${baths || 'N/A'}
+                         Size: ${size || 'N/A'} sq ft
+                         Rent: $${marketRent || 'N/A'}
+                         
+                         Property Images Analysis:
+                         ${imageAnalysis}
+                         
+                         STRICT REQUIREMENTS:
+                         - Your response MUST be between 500-850 characters (not words)
+                         - Incorporate notable features visible in the images
+                         - Be detailed while staying under the limit
+                         - Include key features and amenities
+                         - Focus on unique selling points
+                         - End with a compelling call-to-action
+                         - Must have a natural, complete ending
+                         
+                         End the description with a brief, engaging call-to-action like "Schedule a viewing today!" or "Don't miss this opportunity!"
+                         Count your characters carefully and ensure a proper closing statement.`
+            }],
+            model: "mixtral-8x7b-32768",
+            temperature: 0.6,
+            max_tokens: 400,
+        });
+
+        let description = completion.choices[0]?.message?.content || '';
+        description = description.trim();
+
+        if (description.length < 500) {
+            throw new Error('Generated description too short');
+        }
+
+        // Truncate to 850 to leave room for closing if needed
+        description = description.slice(0, 850);
+
+        // Find the last complete sentence
+        const lastPeriod = description.lastIndexOf('.');
+        if (lastPeriod > 500) {
+            description = description.slice(0, lastPeriod + 1);
+            
+            // Check if there's already a call-to-action
+            const lowerDesc = description.toLowerCase();
+            const hasCallToAction = lowerDesc.includes('schedule') || 
+                                  lowerDesc.includes('contact') || 
+                                  lowerDesc.includes('call') ||
+                                  lowerDesc.includes('today') ||
+                                  lowerDesc.includes('opportunity');
+
+            // Add a closing call-to-action if there isn't one
+            if (!hasCallToAction && description.length < 900) {
+                description += ' Contact us to schedule a viewing today!';
+            }
+        }
+
+        res.json({ description });
+    } catch (error) {
+        console.error("GROQ error:", error);
         res.status(500).json({ error: error.message });
     }
 });

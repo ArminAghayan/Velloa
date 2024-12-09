@@ -1,0 +1,117 @@
+.header-nav-item.ant-menu-item {
+  color: #8c8c8c !important;
+}
+
+.header-nav-item.ant-menu-item:hover,
+.header-nav-item.ant-menu-item-selected {
+  color: #8c8c8c !important;
+  background: none !important;
+}
+
+.header-nav-item.ant-menu-item::after {
+  display: none !important;
+}
+
+.user-header {
+  background-color: white;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.left-section img {
+  height: 32px;
+  cursor: pointer;
+}
+
+.desktop-menu {
+  display: flex;
+  align-items: center;
+}
+
+.desktop-menu .ant-menu {
+  border: none;
+  background: transparent;
+}
+
+.right-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tenant-portal-btn {
+  margin-left: 16px;
+}
+
+.mobile-menu-button {
+  display: none;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .desktop-menu {
+    display: none;
+  }
+
+  .mobile-menu-button {
+    display: block;
+  }
+
+  .left-section img {
+    height: 28px;
+  }
+
+  .tenant-portal-btn {
+    display: none;
+  }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .header-content {
+    padding: 0 16px;
+  }
+}
+
+/* Mobile Menu Drawer Styles */
+.mobile-menu-drawer .ant-drawer-body {
+  padding: 24px 16px;
+}
+
+.mobile-menu-drawer .ant-menu {
+  border: none;
+}
+
+/* Menu Item Styles */
+.ant-menu-horizontal {
+  line-height: 64px;
+}
+
+.ant-menu-horizontal > .ant-menu-item:hover,
+.ant-menu-horizontal > .ant-menu-submenu:hover {
+  color: #188034;
+  border-bottom-color: #188034;
+}
+
+.ant-menu-horizontal > .ant-menu-item-selected {
+  color: #188034;
+  border-bottom-color: #188034;
+} 

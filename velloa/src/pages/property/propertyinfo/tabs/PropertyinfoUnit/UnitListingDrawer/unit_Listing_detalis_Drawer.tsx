@@ -16,6 +16,13 @@ interface UnitListingDetailsDrawerProps {
   unitId: string;
   propertyId: string;
   companyId: string;
+  unitDetails?: {
+    beds?: number;
+    baths?: number;
+    size?: number;
+    marketRent?: number;
+    images?: string[];
+  };
 }
 
 const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
@@ -25,11 +32,13 @@ const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
   initialValues,
   unitId,
   propertyId,
-  companyId
+  companyId,
+  unitDetails
 }) => {
   const [form] = Form.useForm();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const fetchUnitDetails = async () => {
@@ -61,6 +70,12 @@ const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      
+      if (values.description.length > 1000) {
+        message.error('Description must not exceed 1000 characters');
+        return;
+      }
+
       setIsSaving(true);
 
       // First verify the property exists and get its companyuid
@@ -92,6 +107,49 @@ const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const generateDescription = async () => {
+    setIsGenerating(true);
+    try {
+      const title = form.getFieldValue('Title');
+      
+      const response = await fetch('http://localhost:8000/generate-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          beds: unitDetails?.beds,
+          baths: unitDetails?.baths,
+          size: unitDetails?.size,
+          marketRent: unitDetails?.marketRent,
+          images: unitDetails?.images || [],
+          maxLength: 950,
+          instruction: "Generate a concise description. The total response MUST be under 1000 characters.",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate description');
+      }
+
+      const data = await response.json();
+      if (data.description) {
+        const truncatedDescription = data.description.trim().slice(0, 1000);
+        if (truncatedDescription.length === 1000) {
+          message.warning('Generated description was truncated to fit the 1000 character limit');
+        }
+        form.setFieldsValue({ description: truncatedDescription });
+        message.success('Description generated successfully');
+      }
+    } catch (error) {
+      console.error('Error generating description:', error);
+      message.error('Failed to generate description');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -140,13 +198,26 @@ const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
         <Form.Item
           name="description"
           label="Description"
-          rules={[{ required: true, message: 'Please enter description' }]}
+          rules={[
+            { required: true, message: 'Please enter description' },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                if (value.length > 1000) {
+                  return Promise.reject('Description must not exceed 1000 characters');
+                }
+                return Promise.resolve();
+              }
+            }
+          ]}
+          extra={`Characters: ${form.getFieldValue('description')?.length || 0}/1000`}
         >
           <Input.TextArea
-            placeholder="Enter listing description"
+            placeholder="Enter listing description (max 1000 characters)"
             rows={6}
             style={{ resize: 'none' }}
             disabled={isLoading}
+            maxLength={1000}
           />
         </Form.Item>
 
@@ -158,7 +229,9 @@ const UnitListingDetailsDrawer: React.FC<UnitListingDetailsDrawerProps> = ({
             fontWeight: '600'
           }}
           icon={<IconSparkles />}
-          disabled={isSaving}
+          disabled={isSaving || isGenerating}
+          onClick={generateDescription}
+          loading={isGenerating}
         >
           Generate description
         </Button>

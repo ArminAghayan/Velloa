@@ -36,15 +36,15 @@ import PropertyInfoUnitView from './pages/property/propertyinfo/tabs/Propertyinf
 import ProspectsDetailsPage from './pages/people/peopledashboard/PeopleDashboarddetails';
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
 import MainSettings from './components/Settings/MainSettings';
-import { AnimatePresence, motion } from 'framer-motion';
 import { AppDispatch, RootState } from './components/redux/store';
-import RentalApplicationForm from './components/UserApplication/RentalApplicationForm';
-import UserListingsPage from './components/UserApplication/UserListingPage/ListingPage';
-import UserAboutPage from './components/UserApplication/UserAboutPage/UserAboutPage';
-import UserHomePage from './components/UserApplication/UserHomePage/UserHomePage';
+import RentalApplicationForm from './UserApplication/RentalApplicationForm';
+import UserListingsPage from './UserApplication/UserListingPage/ListingPage';
+import UserAboutPage from './UserApplication/UserAboutPage/UserAboutPage';
+import UserHomePage from './UserApplication/UserHomePage/UserHomePage';
 import PropertyOverview from './pages/property/propertyinfo/tabs/propertyinfo_overview';
 import ChartsOfAccounts from './pages/Accounting/Sections/ChartsOfAccounts/chartsOfAccounts';
 import TransactionsPage from './pages/Accounting/Sections/Transactions/OverviewPage';
+import UserLayout from './UserApplication/UserLayout';
 
 // Define the theme object
 const theme = {
@@ -93,128 +93,82 @@ const theme = {
   },
 };
 
-// Define animation variants
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    x: "100vw", // Start off-screen to the right
-  },
-  in: {
-    opacity: 1,
-    x: 0, // Enter to the screen
-  },
-  out: {
-    opacity: 0,
-    x: "-100vw", // Exit off-screen to the left
-  },
-};
-
-const pageTransition = {
-  type: "tween",
-  ease: "anticipate",
-  duration: 0.5,
-};
-
-// Create a wrapper component for animated pages
-const AnimatedPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <motion.div
-    initial="initial"
-    animate="in"
-    exit="out"
-    variants={pageVariants}
-    transition={pageTransition}
-  >
-    {children}
-  </motion.div>
-);
-
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-  // Check if the current path is the public rental application
-  const isPublicPath = location.pathname === '/tenant-portal/rental-applications';
-  const isPublicPath2 = location.pathname === '/tenant-portal';
-  const isPublicPath3 = location.pathname === '/tenant-portal/listings';
-  const isPublicPath4 = location.pathname === '/tenant-portal/about';
+  // Add company-specific paths to public paths
+  const isPublicPath = [
+    '/login',
+    '/signup',
+    '/forgot-password'
+  ].includes(location.pathname) || 
+    location.pathname.startsWith('/homepage/') ||
+    location.pathname.startsWith('/company/');
   
-  
-  
-  // If not authenticated and not on a public path, redirect to login
-  if (!isAuthenticated && !isPublicPath && !isPublicPath2 && !isPublicPath3 && !isPublicPath4 && location.pathname !== '/login' && 
-      location.pathname !== '/signup' && location.pathname !== '/forgot-password') {
+  if (!isAuthenticated && !isPublicPath) {
     return <Navigate to="/login" replace />;
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Public Routes */}
-        <Route path="/tenant-portal" element={
-          <AnimatedPage>
-            <UserHomePage />
-          </AnimatedPage>
-        } />
-        <Route path="/tenant-portal/listings" element={
-          <AnimatedPage>
-            <UserListingsPage />
-          </AnimatedPage>
-        } />
-        <Route path="/tenant-portal/about" element={
-          <AnimatedPage>
-            <UserAboutPage />
-          </AnimatedPage>
-        } />
-        <Route path="/tenant-portal/rental-applications" element={
-          <AnimatedPage>
-            <RentalApplicationForm />
-          </AnimatedPage>
-        } />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={
-          <AnimatedPage>
-            <SignupPage />
-          </AnimatedPage>
-        } />
-        <Route path="/forgot-password" element={
-          <AnimatedPage>
-            <ForgotPassword />
-          </AnimatedPage>
-        } />
+    <Routes location={location} key={location.pathname}>
+      {/* Public Company-Specific Routes - No authentication required */}
+      <Route element={<UserLayout />}>
+        <Route path="/company/:companyId" element={<UserHomePage />} />
+        <Route path="/company/:companyId/listings" element={<UserListingsPage />} />
+        <Route path="/company/:companyId/about" element={<UserAboutPage />} />
+        <Route path="/company/:companyId/rental-applications" element={<RentalApplicationForm />} />
+      </Route>
 
-        {/* Protected routes */}
-        <Route path="/" element={<SideBarPage />}>
-          <Route index element={<AnimatedPage><HomePage /></AnimatedPage>} />
-          <Route path="settings" element={<AnimatedPage><MainSettings /></AnimatedPage>} />
-          <Route path="calendar" element={<AnimatedPage><Calendar /></AnimatedPage>} />
-          <Route path="home" element={<AnimatedPage><HomePage /></AnimatedPage>} />
-          <Route path="tools" element={<AnimatedPage><Toolspage /></AnimatedPage>} />
-          <Route path="property" element={<AnimatedPage><Propertypage /></AnimatedPage>} />
-          <Route path="resources" element={<AnimatedPage><Resourcespage /></AnimatedPage>} />
-          <Route path="leasing" element={<AnimatedPage><Leasingpage /></AnimatedPage>} />
-          <Route path="people" element={<AnimatedPage><Peoplepage /></AnimatedPage>} />
-          <Route path="/accounting/chartofaccounts" element={<AnimatedPage><ChartsOfAccounts /></AnimatedPage>} />
-          <Route path="/accounting/transactions" element={<AnimatedPage><TransactionsPage /></AnimatedPage>} />
-          <Route path="people/:peopleId" element={<AnimatedPage><ProspectsDetailsPage /></AnimatedPage>} />
-          <Route path="accounting" element={<AnimatedPage><Accountingpage /></AnimatedPage>} />
-          <Route path="analytics" element={<AnimatedPage><Analyticsspage /></AnimatedPage>} />
-          <Route path="messages" element={<AnimatedPage><MessagesPage /></AnimatedPage>} />
-          <Route path="maintenance" element={<AnimatedPage><MaintenancePage /></AnimatedPage>} />
-          <Route path="maintenance/:taskId" element={<AnimatedPage><TaskDetailsPage /></AnimatedPage>} />
-          <Route path="logbook" element={<AnimatedPage><Logbook /></AnimatedPage>} />
-          <Route path="applications" element={<AnimatedPage><NewApplications /></AnimatedPage>} />
-          <Route path="new-tenant" element={<AnimatedPage><NewTenant /></AnimatedPage>} />
-          <Route path="/unitinfo" element={<AnimatedPage><UnitInfoPage /></AnimatedPage>} />
-          <Route path="/applicationviewer" element={<AnimatedPage><Applicationviewer /></AnimatedPage>} />
-          <Route path="/addnewproperty" element={<AnimatedPage><AddNewProperty /></AnimatedPage>} />
-          <Route path="property/:uid" element={<AnimatedPage><PropertyOverview /></AnimatedPage>} />
-          <Route path="property/:propertyId/unit/:unitId" element={<AnimatedPage><PropertyInfoUnitView /></AnimatedPage>} />
-        </Route>
+      {/* Public Routes with UserLayout */}
+      <Route element={<UserLayout />}>
+        <Route path="/tenant-portal" element={<UserHomePage />} />
+        <Route path="/tenant-portal/listings" element={<UserListingsPage />} />
+        <Route path="/tenant-portal/about" element={<UserAboutPage />} />
+        <Route path="/tenant-portal/rental-applications" element={<RentalApplicationForm />} />
+      </Route>
 
-        {/* Redirect any unknown routes to home */}
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Routes>
-    </AnimatePresence>
+      {/* Auth Routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={
+        <SignupPage />
+      } />
+      <Route path="/forgot-password" element={
+        <ForgotPassword />
+      } />
+
+      {/* Protected routes */}
+      <Route path="/" element={<SideBarPage />}>
+        <Route index element={<HomePage />} />
+        <Route path="settings" element={<MainSettings />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="home" element={<HomePage />} />
+        <Route path="tools" element={<Toolspage />} />
+        <Route path="property" element={<Propertypage />} />
+        <Route path="resources" element={<Resourcespage />} />
+        <Route path="leasing" element={<Leasingpage />} />
+        <Route path="people" element={<Peoplepage />} />
+        <Route path="/accounting/chartofaccounts" element={<ChartsOfAccounts />} />
+        <Route path="/accounting/transactions" element={<TransactionsPage />} />
+        <Route path="people/:peopleId" element={<ProspectsDetailsPage />} />
+        <Route path="accounting" element={<Accountingpage />} />
+        <Route path="analytics" element={<Analyticsspage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="maintenance/:taskId" element={<TaskDetailsPage />} />
+        <Route path="logbook" element={<Logbook />} />
+        <Route path="applications" element={<NewApplications />} />
+        <Route path="new-tenant" element={<NewTenant />} />
+        <Route path="/unitinfo" element={<UnitInfoPage />} />
+        <Route path="/applicationviewer" element={<Applicationviewer />} />
+        <Route path="/addnewproperty" element={<AddNewProperty />} />
+        <Route path="property/:uid" element={<PropertyOverview />} />
+        <Route path="property/:propertyId/unit/:unitId" element={<PropertyInfoUnitView />} />
+      </Route>
+
+      {/* Redirect any unknown routes to home */}
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Input, Button, Table, Tabs, Tag, Space, Drawer, Form, message, Modal } from 'antd';
-import { IconAdjustmentsHorizontal, IconPlus, IconArrowLeft, IconDots, IconBuildingBank, IconLink } from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconPlus, IconArrowLeft, IconDots, IconBuildingBank, IconLink, IconCheck, IconX } from '@tabler/icons-react';
 import './OverviewPage.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getFirestore, collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -15,7 +15,21 @@ import { LoadingOutlined } from '@ant-design/icons';
 axios.defaults.baseURL = "http://localhost:8000";
 
 
-function PlaidAuth({ publicToken, onSuccess, companyId, selectedAccount }: { publicToken: string, onSuccess: () => void, companyId: string, selectedAccount: Transaction }) {
+function PlaidAuth({ 
+  publicToken, 
+  onSuccess, 
+  companyId, 
+  selectedAccount,
+  setConnectingState,
+  setConnectBankModal
+}: { 
+  publicToken: string, 
+  onSuccess: () => void, 
+  companyId: string, 
+  selectedAccount: Transaction,
+  setConnectingState: (state: 'initial' | 'connecting' | 'success' | 'error') => void,
+  setConnectBankModal: (show: boolean) => void
+}) {
   useEffect(() => {
     async function fetchData() {
       try {
@@ -51,14 +65,23 @@ function PlaidAuth({ publicToken, onSuccess, companyId, selectedAccount }: { pub
         );
 
         console.log('Successfully saved to Firebase');
-        onSuccess();
+        setConnectingState('success');
+        setTimeout(() => {
+          onSuccess();
+          setConnectingState('initial');
+        }, 2000);
       } catch (error) {
         console.error("Error connecting bank:", error);
-        message.error("Failed to connect bank account");
+        setConnectingState('error');
+        setTimeout(() => {
+          message.error("Failed to connect bank account");
+          setConnectBankModal(false);
+          setConnectingState('initial');
+        }, 2000);
       }
     }
     fetchData();
-  }, [publicToken, companyId, selectedAccount, onSuccess]);
+  }, [publicToken, companyId, selectedAccount, onSuccess, setConnectingState, setConnectBankModal]);
 
   return null;
 }
@@ -90,6 +113,8 @@ interface FirestoreAccount {
   institutionName?: string;
   mask?: string;
   plaidAccessToken?: string;
+  lastBalanceUpdate?: number;
+  lastBankBalance?: number;
 }
 
 interface LocationState {
@@ -111,26 +136,40 @@ const fetchBankAccounts = async (companyId: string): Promise<Transaction[]> => {
   for (const doc of querySnapshot.docs) {
     const data = doc.data() as FirestoreAccount;
     
-    let bankBalance = 0;
+    let bankBalance = data.lastBankBalance || 0;
+    const now = Date.now();
+    const threeDaysMs = 72 * 60 * 60 * 1000;
+
     if (data.status === 'connected' && data.plaidAccessToken) {
-      try {
-        console.log('Fetching balance for account:', doc.id);
-        
-        const balanceResponse = await axios.post("/get_balance", {
-          access_token: data.plaidAccessToken
-        });
-        
-        // Get the matching account from Plaid response
-        const plaidAccount = balanceResponse.data.accounts.find(
-          (acc: any) => acc.mask === data.mask
-        );
-        
-        if (plaidAccount) {
-          bankBalance = plaidAccount.balances.current;
-          console.log('Current bank balance:', bankBalance);
+      // Only fetch new balance if more than 72 hours have passed
+      if (!data.lastBalanceUpdate || (now - data.lastBalanceUpdate) > threeDaysMs) {
+        try {
+          console.log('Fetching fresh balance for account:', doc.id);
+          
+          const balanceResponse = await axios.post("/get_balance", {
+            access_token: data.plaidAccessToken
+          });
+          
+          const plaidAccount = balanceResponse.data.accounts.find(
+            (acc: any) => acc.mask === data.mask
+          );
+          
+          if (plaidAccount) {
+            bankBalance = plaidAccount.balances.current;
+            
+            // Update Firebase with new balance and timestamp
+            await updateDoc(doc.ref, {
+              lastBankBalance: bankBalance,
+              lastBalanceUpdate: now
+            });
+            
+            console.log('Updated bank balance:', bankBalance);
+          }
+        } catch (error) {
+          console.error("Error fetching balance for account:", doc.id, error);
         }
-      } catch (error) {
-        console.error("Error fetching balance for account:", doc.id, error);
+      } else {
+        console.log('Using cached balance for account:', doc.id);
       }
     }
 
@@ -179,6 +218,8 @@ const TransactionsPage: React.FC = () => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [publicToken, setPublicToken] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [connectingState, setConnectingState] = useState<'initial' | 'connecting' | 'success' | 'error'>('initial');
+  const [selectedTransactionAccount, setSelectedTransactionAccount] = useState<string | null>(null);
   
 
 
@@ -204,12 +245,20 @@ const TransactionsPage: React.FC = () => {
     token: linkToken!,
     onSuccess: (public_token, metadata) => {
       setPublicToken(public_token);
-      // The actual bank connection will be handled by PlaidAuth component
+      setConnectingState('connecting');
+      // The rest will be handled by PlaidAuth component
     },
     onExit: (err, metadata) => {
       console.log('Link exit:', err, metadata);
-      setConnectBankModal(false);
-      if (err) message.error('Error connecting bank account');
+      if (err) {
+        setConnectingState('error');
+      } else {
+        setConnectingState('initial');
+      }
+      setTimeout(() => {
+        setConnectBankModal(false);
+        setConnectingState('initial');
+      }, 2000);
     },
   });
 
@@ -251,6 +300,7 @@ const TransactionsPage: React.FC = () => {
   const handleTransactionClick = (account: Transaction) => {
     if (account.status === 'connected') {
       setActiveTab('transactions');
+      setSelectedTransactionAccount(account.id);
     } else {
       setSelectedAccount(account);
       setConnectBankModal(true);
@@ -550,7 +600,10 @@ const TransactionsPage: React.FC = () => {
         )}
 
         {activeTab === 'transactions' && (
-          <TransactionPage companyId={companyId} />
+          <TransactionPage 
+            companyId={companyId} 
+            selectedAccountId={selectedTransactionAccount}
+          />
         )}
         
         {activeTab === 'reconciliation' && (
@@ -609,41 +662,83 @@ const TransactionsPage: React.FC = () => {
           onSuccess={handleBankConnected}
           companyId={companyId}
           selectedAccount={selectedAccount}
+          setConnectingState={setConnectingState}
+          setConnectBankModal={setConnectBankModal}
         />
       )}
 
       <Modal
         open={connectBankModal}
-        onCancel={() => setConnectBankModal(false)}
+        onCancel={() => {
+          setConnectBankModal(false);
+          setConnectingState('initial');
+        }}
         footer={null}
         width={520}
         centered
       >
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          padding: '40px 20px' 
-        }}>
-          <IconBuildingBank size={100} style={{ color: '#168033', marginBottom: 24 }} />
-          <Title level={4}>Connect your accounts</Title>
-          <Text type="secondary" style={{ textAlign: 'center', marginBottom: 24 }}>
-            Connecting your bank allows Velloa to securely pull transactions from
-            your bank or credit card accounts to help you with reconciliation.
-          </Text>
-          <Button 
-            type="primary" 
-            icon={<IconLink size={20} />}
-            onClick={() => open()} 
-            disabled={!ready}
-            style={{ height: 40 }}
-          >
-            Connect account
-          </Button>
-        </div>
+        {connectingState === 'initial' ? (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            padding: '60px 40px'
+          }}>
+            <IconBuildingBank size={100} style={{ color: '#168033', marginBottom: 40 }} />
+            <Title level={4} style={{ marginBottom: 24 }}>Connect your accounts</Title>
+            <Text type="secondary" style={{ textAlign: 'center', marginBottom: 40 }}>
+              Connecting your bank allows Velloa to securely pull transactions from
+              your bank or credit card accounts to help you with reconciliation.
+            </Text>
+            <Button 
+              type="primary" 
+              icon={<IconLink size={20} />}
+              onClick={() => {
+                setConnectingState('connecting');
+                open();
+              }} 
+              disabled={!ready}
+              style={{ height: 40 }}
+            >
+              Connect account
+            </Button>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            padding: '60px 40px',
+            minHeight: '400px'
+          }}>
+            {connectingState === 'connecting' && (
+              <>
+                <LoadingOutlined style={{ fontSize: 64, color: '#168033', marginBottom: 24 }} />
+                <Title level={4}>Connecting your account...</Title>
+                <Text type="secondary">Please wait while we establish the connection</Text>
+              </>
+            )}
+            {connectingState === 'success' && (
+              <>
+                <IconCheck size={64} style={{ color: '#168033', marginBottom: 24 }} />
+                <Title level={4}>Successfully Connected!</Title>
+                <Text type="secondary">Your bank account has been linked</Text>
+              </>
+            )}
+            {connectingState === 'error' && (
+              <>
+                <IconX size={64} style={{ color: '#ff4d4f', marginBottom: 24 }} />
+                <Title level={4}>Connection Failed</Title>
+                <Text type="secondary">There was an error connecting your account</Text>
+              </>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );
 };
 
 export default TransactionsPage; 
+

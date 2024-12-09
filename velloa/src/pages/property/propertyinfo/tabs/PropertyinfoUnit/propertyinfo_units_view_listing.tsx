@@ -38,10 +38,9 @@ import {
   SaveOutlined,
   SendOutlined,
   LinkOutlined,
-  GlobalOutlined,
 } from '@ant-design/icons';
 import { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, collection, getDocs, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, getDocs, getDoc, addDoc, query, where } from 'firebase/firestore';
 import { db } from '../../../../../firebase-config';
 import './PropertyInfoUnitViewListing.css';
 import UnitListingAmenitiesDrawer from './UnitListingDrawer/Unit_Listing_Amenities_Drawer';
@@ -53,9 +52,23 @@ import UnitListingContactDrawer from './UnitListingDrawer/unit_Listing_contact_d
 const { Title, Text } = Typography;
 
 // Interfaces
+interface PropertyAddress {
+  street?: string;
+  unit?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+}
+
 interface Property {
   id: string;
   propertyName?: string;
+  address?: PropertyAddress;
+  propertySettings?: {
+    propertyType?: string;
+    propertyKind?: string;
+  };
 }
 
 interface Unit {
@@ -142,7 +155,39 @@ interface CategorizedAmenities {
   'Parking'?: string[];
 }
 
-
+// Add this interface near the top with other interfaces
+interface ListingData {
+  propertyId: string;
+  unitId: string;
+  companyId: string;
+  status: 'active' | 'draft';
+  propertyName: string;
+  unitName: string;
+  beds?: number;
+  baths?: number;
+  size?: number;
+  marketRent?: number;
+  ListingDescription?: string;
+  ListingTitle?: string;
+  amenities?: CategorizedAmenities;
+  contactInfo?: {
+    type: 'user' | 'custom';
+    userId?: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    email?: string;
+    phoneNumber?: string;
+  };
+  photos?: UnitImage[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  address?: PropertyAddress;
+  propertySettings?: {
+    propertyType?: string;
+    propertyKind?: string;
+  };
+}
 
 // Helper function to safely check array length
 const hasItems = (arr: string[] | undefined): boolean => {
@@ -190,6 +235,16 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
   const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [listingId, setListingId] = useState<string | null>(null);
+
+  // Update the listingUrls useMemo
+  const listingUrls = useMemo(() => {
+    const baseUrl = window.location.origin;
+    return {
+      listing: listingId ? `${baseUrl}/company/${companyId}/listings?listingId=${listingId}` : 'No Link Active',
+      screener: listingId ? `${baseUrl}/company/${companyId}/listings?listingId=${listingId}&screen=true` : 'No Link Active'
+    };
+  }, [companyId, listingId]);
 
   // Combined fetch effect
   useEffect(() => {
@@ -204,6 +259,21 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
           if (userDoc.exists()) {
             const userCompanyId = userDoc.data().companyuid;
             setCompanyId(userCompanyId);
+          }
+        }
+
+        // Fetch property settings
+        if (property?.id) {
+          const propertySettingsRef = doc(db, 'properties', property.id, 'propertySettings', 'propertyType');
+          const propertySettingsDoc = await getDoc(propertySettingsRef);
+          
+          if (propertySettingsDoc.exists()) {
+            const settingsData = propertySettingsDoc.data();
+            // Update the property object with the settings
+            property.propertySettings = {
+              propertyType: settingsData.propertyType || '',
+              propertyKind: settingsData.propertyKind || ''
+            };
           }
         }
 
@@ -249,6 +319,21 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
         // Set initial images
         setImages(unitImages);
 
+        // Fetch listing ID if property and unit exist
+        if (property?.id && initialUnit?.unitId) {
+          const listingsCollectionRef = collection(db, 'listings');
+          const q = query(
+            listingsCollectionRef,
+            where('propertyId', '==', property.id),
+            where('unitId', '==', initialUnit.unitId)
+          );
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            setListingId(querySnapshot.docs[0].id);
+          }
+        }
+
       } catch (error) {
         console.error('Error fetching initial data:', error);
         notification.error({
@@ -264,7 +349,18 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     fetchInitialData();
   }, [property?.id, initialUnit?.unitId, unitImages]); // Updated dependencies
 
+  // Also update the handleCopy and handleShare functions to prevent copying/sharing N/A
   const handleCopy = (text: string, label: string) => {
+    if (text === 'No Link Active') {
+      notification.info({
+        message: 'Not Available',
+        description: 'The listing URL will be available after publishing.',
+        placement: 'topRight',
+        duration: 3,
+      });
+      return;
+    }
+    
     navigator.clipboard.writeText(text).then(() => {
       notification.success({
         message: 'Copied!',
@@ -283,6 +379,16 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
   };
 
   const handleShare = async (text: string, title: string) => {
+    if (text === 'No Link Active') {
+      notification.info({
+        message: 'Not Available',
+        description: 'The listing URL will be available after publishing.',
+        placement: 'topRight',
+        duration: 3,
+      });
+      return;
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -305,9 +411,6 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
       handleCopy(text, 'URL');
     }
   };
-
-  const listingUrl = "https://app.velloaapp.com/tenant/listings/9a29a70aeb9c4c6/9a29a70aeb9c4c6";
-  const screenerUrl = "https://app.velloaapp.com/tenant/listings/9a29a70aeb9c4c6/9a29a70aeb9c4c6";
 
   const handleStarClick = async (index: number) => {
     try {
@@ -427,6 +530,186 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
     setActiveTab('images');
   };
 
+  const handlePublish = async () => {
+    if (!property?.id || !unit?.unitId || !companyId) {
+      notification.error({
+        message: 'Error',
+        description: 'Missing required information',
+        placement: 'topRight',
+      });
+      return;
+    }
+
+    try {
+      console.log('Property data:', property); // Debug log
+      console.log('Property settings:', property.propertySettings); // Debug log
+
+      console.log('Starting publish process...'); // Debug log
+
+      // Fetch latest property settings before publishing
+      const propertySettingsRef = doc(db, 'properties', property.id, 'propertySettings', 'propertyType');
+      const propertySettingsDoc = await getDoc(propertySettingsRef);
+      
+      let propertySettings = {
+        propertyType: '',
+        propertyKind: ''
+      };
+
+      if (propertySettingsDoc.exists()) {
+        const settingsData = propertySettingsDoc.data();
+        propertySettings = {
+          propertyType: settingsData.propertyType || '',
+          propertyKind: settingsData.propertyKind || ''
+        };
+      }
+
+      // Update unit status
+      const unitRef = doc(db, 'properties', property.id, 'units', unit.unitId);
+      await updateDoc(unitRef, {
+        status: 'active',
+        updatedAt: Timestamp.now()
+      });
+
+      // Fetch images from unit's images collection
+      const imagesCollectionRef = collection(db, 'properties', property.id, 'units', unit.unitId, 'images');
+      const imagesSnapshot = await getDocs(imagesCollectionRef);
+      
+      console.log('Images snapshot size:', imagesSnapshot.size); // Debug log
+      
+      const unitImages = imagesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Raw image data:', data); // Debug log
+        return {
+          id: doc.id,
+          ...data
+        };
+      }) as UnitImage[];
+
+      console.log('Mapped unit images:', unitImages); // Debug log
+
+      // Prepare photos data - filter out any undefined values and ensure all required fields
+      const listingPhotos = unitImages
+        .filter(img => {
+          const isValid = img && img.id && (img.url || img.fileUrl);
+          if (!isValid) {
+            console.log('Filtered out invalid image:', img); // Debug log
+          }
+          return isValid;
+        })
+        .map(img => {
+          const photo = {
+            id: img.id,
+            url: img.url || img.fileUrl || '', // Fallback to fileUrl if url is missing
+            fileUrl: img.fileUrl || img.url || '', // Fallback to url if fileUrl is missing
+            fileName: img.fileName || '',
+            createdAt: img.createdAt || Timestamp.now(),
+            isVideo: Boolean(img.isVideo),
+            favorite: Boolean(img.favorite)
+          } satisfies UnitImage;
+          
+          console.log('Processed photo:', photo); // Debug log
+          return photo;
+        });
+
+      console.log('Final listing photos:', listingPhotos); // Debug log
+
+      // Clean amenities data
+      const cleanAmenitiesData: CategorizedAmenities = {};
+      Object.entries(amenitiesData).forEach(([key, value]) => {
+        if (Array.isArray(value) && value.length > 0) {
+          cleanAmenitiesData[key as keyof CategorizedAmenities] = value;
+        }
+      });
+
+      // Clean contact info
+      const cleanContactInfo = unit.contactInfo ? {
+        type: unit.contactInfo.type || 'custom',
+        ...(unit.contactInfo.userId && { userId: unit.contactInfo.userId }),
+        ...(unit.contactInfo.firstName && { firstName: unit.contactInfo.firstName }),
+        ...(unit.contactInfo.middleName && { middleName: unit.contactInfo.middleName }),
+        ...(unit.contactInfo.lastName && { lastName: unit.contactInfo.lastName }),
+        ...(unit.contactInfo.email && { email: unit.contactInfo.email }),
+        ...(unit.contactInfo.phoneNumber && { phoneNumber: unit.contactInfo.phoneNumber }),
+      } : undefined;
+
+      // Prepare listing data
+      const listingData: Partial<ListingData> = {
+        propertyId: property.id,
+        unitId: unit.unitId,
+        companyId: companyId,
+        status: 'active',
+        propertyName: property.propertyName || '',
+        unitName: unit.unitName || '',
+        ...(property.address && { address: property.address }),
+        propertySettings: propertySettings,
+        ...(unit.beds !== undefined && { beds: unit.beds }),
+        ...(unit.baths !== undefined && { baths: unit.baths }),
+        ...(unit.size !== undefined && { size: unit.size }),
+        ...(unit.marketRent !== undefined && { marketRent: unit.marketRent }),
+        ...(unit.ListingDescription && { ListingDescription: unit.ListingDescription }),
+        ...(unit.ListingTitle && { ListingTitle: unit.ListingTitle }),
+        ...(Object.keys(cleanAmenitiesData).length > 0 && { amenities: cleanAmenitiesData }),
+        ...(cleanContactInfo && { contactInfo: cleanContactInfo }),
+        photos: listingPhotos,
+        updatedAt: Timestamp.now()
+      };
+
+      console.log('Final listing data:', listingData); // Debug log
+
+      // Check if listing already exists
+      const listingsCollectionRef = collection(db, 'listings');
+      const q = query(
+        listingsCollectionRef,
+        where('propertyId', '==', property.id),
+        where('unitId', '==', unit.unitId)
+      );
+      const querySnapshot = await getDocs(q);
+
+      let docRef;
+      if (!querySnapshot.empty) {
+        // Update existing listing
+        const existingDoc = querySnapshot.docs[0];
+        docRef = doc(db, 'listings', existingDoc.id);
+        await updateDoc(docRef, listingData);
+        setListingId(existingDoc.id); // Set the listing ID
+        console.log('Updated listing with data:', listingData); // Debug log
+        
+        // Verify the update
+        const updatedDoc = await getDoc(docRef);
+        console.log('Verified updated data:', updatedDoc.data());
+      } else {
+        // Create new listing
+        listingData.createdAt = Timestamp.now();
+        docRef = await addDoc(listingsCollectionRef, listingData);
+        setListingId(docRef.id); // Set the listing ID
+        console.log('Created new listing with data:', listingData); // Debug log
+        
+        // Verify the creation
+        const newDoc = await getDoc(docRef);
+        console.log('Verified new data:', newDoc.data());
+      }
+
+      // Update local state
+      setIsPublished(true);
+      setUnit(prev => prev ? { ...prev, status: 'active' } : null);
+
+      notification.success({
+        message: 'Success',
+        description: querySnapshot.empty 
+          ? 'Listing has been published successfully'
+          : 'Listing has been updated successfully',
+        placement: 'topRight',
+      });
+    } catch (error) {
+      console.error('Error in handlePublish:', error);
+      notification.error({
+        message: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to publish listing. Please try again.',
+        placement: 'topRight',
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Row gutter={16}>
@@ -513,8 +796,12 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
   return (
     <div>
       <Alert
-        message="Your listing is currently in draft mode and is not visible to renters. Click 'Publish' to set the listing live."
-        type="info"
+        message={
+          isPublished 
+            ? "Your listing is live and visible to renters. Click 'Update' to save any changes."
+            : "Your listing is currently in draft mode and is not visible to renters. Click 'Publish' to set the listing live."
+        }
+        type={isPublished ? "success" : "info"}
         showIcon
         style={{ marginBottom: '16px' }}
         className="custom-alert"
@@ -942,6 +1229,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                 <Button 
                   type="primary"
                   icon={<SendOutlined />}
+                  onClick={handlePublish}
                   style={{ 
                     width: '100%', 
                     height: '40px', 
@@ -951,7 +1239,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                     justifyContent: 'center'
                   }}
                 >
-                  Publish
+                  {isPublished ? 'Update' : 'Publish'}
                 </Button>
               </Col>
             </Row>
@@ -1072,20 +1360,20 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                   <Text type="secondary">Listing URL</Text>
                   <Input 
                     readOnly
-                    value={listingUrl}
+                    value={listingUrls.listing}
                     style={{ 
                       width: '100%', 
                       marginBottom: '8px',
                       cursor: 'pointer'
                     }}
-                    onClick={() => handleCopy(listingUrl, 'Listing URL')}
+                    onClick={() => handleCopy(listingUrls.listing, 'Listing URL')}
                   />
                   <Space>
                     <Button 
                       type="text" 
                       icon={<CopyOutlined />}
                       style={{ padding: '4px 8px' }}
-                      onClick={() => handleCopy(listingUrl, 'Listing URL')}
+                      onClick={() => handleCopy(listingUrls.listing, 'Listing URL')}
                     >
                       Copy
                     </Button>
@@ -1093,7 +1381,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                       type="text" 
                       icon={<ShareAltOutlined />}
                       style={{ padding: '4px 8px' }}
-                      onClick={() => handleShare(listingUrl, 'Check out this property listing')}
+                      onClick={() => handleShare(listingUrls.listing, 'Check out this property listing')}
                     >
                       Share
                     </Button>
@@ -1104,20 +1392,20 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                   <Text type="secondary">Pre-Screener URL</Text>
                   <Input 
                     readOnly
-                    value={screenerUrl}
+                    value={listingUrls.screener}
                     style={{ 
                       width: '100%', 
                       marginBottom: '8px',
                       cursor: 'pointer'
                     }}
-                    onClick={() => handleCopy(screenerUrl, 'Pre-screener URL')}
+                    onClick={() => handleCopy(listingUrls.screener, 'Pre-screener URL')}
                   />
                   <Space>
                     <Button 
                       type="text" 
                       icon={<CopyOutlined />}
                       style={{ padding: '4px 8px' }}
-                      onClick={() => handleCopy(screenerUrl, 'Pre-screener URL')}
+                      onClick={() => handleCopy(listingUrls.screener, 'Pre-screener URL')}
                     >
                       Copy
                     </Button>
@@ -1125,7 +1413,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
                       type="text" 
                       icon={<ShareAltOutlined />}
                       style={{ padding: '4px 8px' }}
-                      onClick={() => handleShare(screenerUrl, 'Complete your pre-screening')}
+                      onClick={() => handleShare(listingUrls.screener, 'Complete your pre-screening')}
                     >
                       Share
                     </Button>
@@ -1213,6 +1501,12 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
             onClose={() => setIsListingDetailsDrawerOpen(false)}
             onSubmit={handleListingDetailsSubmit}
             companyId={companyId || ''} 
+            unitDetails={{ 
+              beds: unit?.beds,
+              baths: unit?.baths,
+              size: unit?.size,
+              marketRent: unit?.marketRent
+            }}
           /> 
 
           <UnitListingPropertyDrawer
