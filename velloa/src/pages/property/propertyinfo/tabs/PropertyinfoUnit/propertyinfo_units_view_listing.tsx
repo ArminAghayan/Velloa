@@ -48,6 +48,7 @@ import UnitListingDetailsDrawer from './UnitListingDrawer/unit_Listing_detalis_D
 import { getAuth } from 'firebase/auth';
 import UnitListingPropertyDrawer from './UnitListingDrawer/unit_Listing_property_drawer';
 import UnitListingContactDrawer from './UnitListingDrawer/unit_Listing_contact_drawer';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -100,6 +101,7 @@ interface Unit {
     email?: string;
     phoneNumber?: string;
   };
+  availableDate?: Timestamp;
 }
 
 interface Tenant {
@@ -187,6 +189,7 @@ interface ListingData {
     propertyType?: string;
     propertyKind?: string;
   };
+  availableDate?: Timestamp;
 }
 
 // Helper function to safely check array length
@@ -204,6 +207,19 @@ const formatPhoneNumber = (value: string): string => {
     return `(${phoneNumber.slice(0, 3)})-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
   }
   return phoneNumber;
+};
+
+const formatAvailableDate = (timestamp: Timestamp | null | undefined): string => {
+  if (!timestamp) return 'Available Today';
+  
+  const availableDate = dayjs(timestamp.toDate());
+  const today = dayjs();
+  
+  if (availableDate.isSame(today, 'day') || availableDate.isBefore(today)) {
+    return 'Available Today';
+  }
+  
+  return `Available ${availableDate.format('MMM D, YYYY')}`;
 };
 
 const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = ({
@@ -650,6 +666,7 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
         ...(unit.ListingTitle && { ListingTitle: unit.ListingTitle }),
         ...(Object.keys(cleanAmenitiesData).length > 0 && { amenities: cleanAmenitiesData }),
         ...(cleanContactInfo && { contactInfo: cleanContactInfo }),
+        ...(unit.availableDate && { availableDate: unit.availableDate }),
         photos: listingPhotos,
         updatedAt: Timestamp.now()
       };
@@ -829,12 +846,12 @@ const PropertyInfoUnitViewListing: React.FC<PropertyInfoUnitViewListingProps> = 
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                 {/* Property Info */}
                 <Title level={4}>
-                  {property?.propertyName || '1451 Ondulado Road, Pebble Beach, Del Monte Forest, California, 93953'}
+                  {property?.propertyName || 'not named'}
                 </Title>
 
                 {/* Date and Payment Info */}
                 <Text style={{ color: '#28A744' }}>
-                Monthly payments | ${tenant?.rentAmount || '0'}
+                      Monthly payments | ${unit?.marketRent || '0'} | {formatAvailableDate(unit?.availableDate)}
                 </Text>
 
                 {/* Property Stats */}

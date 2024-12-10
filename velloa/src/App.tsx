@@ -37,14 +37,9 @@ import ProspectsDetailsPage from './pages/people/peopledashboard/PeopleDashboard
 import TaskDetailsPage from './pages/maintenance/TaskDetailsPage';
 import MainSettings from './components/Settings/MainSettings';
 import { AppDispatch, RootState } from './components/redux/store';
-import RentalApplicationForm from './UserApplication/RentalApplicationForm';
-import UserListingsPage from './UserApplication/UserListingPage/ListingPage';
-import UserAboutPage from './UserApplication/UserAboutPage/UserAboutPage';
-import UserHomePage from './UserApplication/UserHomePage/UserHomePage';
 import PropertyOverview from './pages/property/propertyinfo/tabs/propertyinfo_overview';
 import ChartsOfAccounts from './pages/Accounting/Sections/ChartsOfAccounts/chartsOfAccounts';
 import TransactionsPage from './pages/Accounting/Sections/Transactions/OverviewPage';
-import UserLayout from './UserApplication/UserLayout';
 
 // Define the theme object
 const theme = {
@@ -113,20 +108,7 @@ const AnimatedRoutes: React.FC = () => {
   return (
     <Routes location={location} key={location.pathname}>
       {/* Public Company-Specific Routes - No authentication required */}
-      <Route element={<UserLayout />}>
-        <Route path="/company/:companyId" element={<UserHomePage />} />
-        <Route path="/company/:companyId/listings" element={<UserListingsPage />} />
-        <Route path="/company/:companyId/about" element={<UserAboutPage />} />
-        <Route path="/company/:companyId/rental-applications" element={<RentalApplicationForm />} />
-      </Route>
 
-      {/* Public Routes with UserLayout */}
-      <Route element={<UserLayout />}>
-        <Route path="/tenant-portal" element={<UserHomePage />} />
-        <Route path="/tenant-portal/listings" element={<UserListingsPage />} />
-        <Route path="/tenant-portal/about" element={<UserAboutPage />} />
-        <Route path="/tenant-portal/rental-applications" element={<RentalApplicationForm />} />
-      </Route>
 
       {/* Auth Routes */}
       <Route path="/login" element={<LoginPage />} />

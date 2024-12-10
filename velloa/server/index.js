@@ -3,6 +3,9 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { Groq } = require('groq-sdk');
+const axios = require('axios');
+const rateLimit = require('express-rate-limit');
+const NodeCache = require('node-cache');
 
 // Initialize GROQ client
 const groq = new Groq({
@@ -23,6 +26,15 @@ const plaidClient = new PlaidApi(configuration);
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+
+// Setup cache with 24 hour TTL
+const geocodeCache = new NodeCache({ stdTTL: 86400 });
+
+// Rate limiting for Nominatim API (1 request per second as per their usage policy)
+const geocodeLimiter = rateLimit({
+  windowMs: 1000, // 1 second
+  max: 1 // limit each IP to 1 request per windowMs
+});
 
 app.post("/hello", (req, res) => {
     res.json({message: "hello " + req.body.name});
@@ -188,6 +200,57 @@ app.post("/generate-description", async function(req, res) {
         console.error("GROQ error:", error);
         res.status(500).json({ error: error.message });
     }
+});
+
+app.get('/api/geocode', geocodeLimiter, async (req, res) => {
+  try {
+    const { address } = req.query;
+    
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
+
+    // Check cache first
+    const cachedResult = geocodeCache.get(address);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
+
+    // If not in cache, fetch from Nominatim
+    const response = await axios.get(
+      `https://nominatim.openstreetmap.org/search`,
+      {
+        params: {
+          format: 'json',
+          q: address,
+          limit: 1
+        },
+        headers: {
+          'User-Agent': 'Velloa/1.0'
+        }
+      }
+    );
+
+    if (response.data && response.data[0]) {
+      const result = {
+        coordinates: {
+          lat: response.data[0].lat,
+          lon: response.data[0].lon
+        }
+      };
+
+      // Store in cache
+      geocodeCache.set(address, result);
+
+      res.json(result);
+    } else {
+      res.status(404).json({ error: 'Location not found' });
+    }
+
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    res.status(500).json({ error: 'Failed to geocode address' });
+  }
 });
 
 app.listen(8000, () => {

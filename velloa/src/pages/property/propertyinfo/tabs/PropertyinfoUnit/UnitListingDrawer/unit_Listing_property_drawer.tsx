@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { CloseOutlined, SaveOutlined } from '@ant-design/icons';
-import { Drawer, Form, InputNumber, Button, notification, Row, Col } from 'antd';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { Drawer, Form, InputNumber, Button, notification, Row, Col, DatePicker } from 'antd';
+import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../../../../../firebase-config';
+import dayjs from 'dayjs';
 
 interface UnitListingPropertyDrawerProps {
   open: boolean;
@@ -35,6 +36,7 @@ const UnitListingPropertyDrawer: React.FC<UnitListingPropertyDrawerProps> = ({
               baths: data.baths,
               size: data.size,
               marketRent: data.marketRent,
+              availableDate: data.availableDate ? dayjs(data.availableDate.toDate()) : null,
             });
           }
         } catch (error) {
@@ -59,6 +61,7 @@ const UnitListingPropertyDrawer: React.FC<UnitListingPropertyDrawerProps> = ({
         baths: values.baths,
         size: values.size,
         marketRent: values.marketRent,
+        availableDate: values.availableDate ? Timestamp.fromDate(values.availableDate.toDate()) : null,
       });
 
       notification.success({
@@ -162,6 +165,13 @@ const UnitListingPropertyDrawer: React.FC<UnitListingPropertyDrawerProps> = ({
             }}
             style={{ width: '100%' }}
           />
+        </Form.Item>
+
+        <Form.Item
+          name="availableDate"
+          label="Available Date"
+        >
+          <DatePicker />
         </Form.Item>
       </Form>
     </Drawer>
