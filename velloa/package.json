@@ -70,7 +70,6 @@
     "react-redux": "^9.1.2",
     "react-router": "^6.24.0",
     "react-router-dom": "^6.27.0",
-    "react-scripts": "5.0.1",
     "recharts": "^2.13.3",
     "redux": "^5.0.1",
     "slate": "^0.103.0",
@@ -119,6 +118,7 @@
     "less-loader": "^12.2.0",
     "postcss": "^8.4.49",
     "react-app-rewired": "^2.2.1",
+    "react-scripts": "^5.0.1",
     "tailwindcss": "^3.4.4"
   }
 }
